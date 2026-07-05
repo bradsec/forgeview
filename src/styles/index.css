@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/*
+ * Type system. UI runs in a humanist grotesque; all numeric instrument
+ * readouts (triangle counts, file sizes, format badges, dimensions) run in a
+ * tabular monospace, which is the app's signature: it reads like a CAD gauge,
+ * not a web page. Faces are system stacks so the app stays self-contained and
+ * works offline; bundling a distinctive face (see docs) would strengthen it.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+/*
+ * Theme CSS custom properties — set dynamically by applyThemeCssVars() in App.tsx.
+ * Fallback values below match the dark theme so the UI renders correctly
+ * before JS hydration.
+ */
+:root {
+  --bg-app: #2D2D2D;
+  --bg-toolbar: #383838;
+  --bg-panel: #323232;
+  --bg-dialog: #3B3B3B;
+  --bg-button: #424447;
+  --bg-button-hover: #4A4D51;
+  --bg-button-active: #354F85;
+  --bg-input: #424447;
+  --border: #2C2C2C;
+  --border-input: #505050;
+  --text-primary: #C0C0C6;
+  --text-bright: #EEEEEE;
+  --text-muted: #9A9AA0;
+  --text-label: #A5A5AA;
+  --accent: #0696D7;
+  --accent-hover: #42B6DF;
+  --accent-button: #354F85;
+  --accent-button-hover: #3D5A96;
+  --error: #EB5555;
+  --warning: #FBB549;
+  --success: #669653;
+  /* Scrim and shadow tinted toward the neutral chrome, never pure black */
+  --scrim: rgb(18 18 20 / 0.62);
+  --shadow-color: rgb(12 12 14 / 0.55);
+  color-scheme: dark;
+}
+
+/*
+ * Honor reduced-motion: drop the spinner animation and collapse transitions.
+ * Camera tweens are additionally guarded in JS (cameraActions).
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
