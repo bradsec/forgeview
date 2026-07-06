@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 - 2026-07-06
+
+- Handle WebGL context creation failure gracefully: clear error banner
+  instead of an uncaught crash when WebGL is unavailable
+- Pin three.js to 0.162.0, the last release that falls back to WebGL1
+  automatically, so the web build renders in browsers without WebGL2
+
 ## 1.0.0 - 2026-07-05
 
 Initial release.

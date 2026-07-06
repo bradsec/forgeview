@@ -55,7 +55,7 @@ forge-view/
 |---|---|---|---|
 | Desktop shell | Tauri | **2.10.3** | Native window, file dialogs, OS integration |
 | Frontend framework | React + TypeScript | **19.2.4** | UI components |
-| 3D rendering | Three.js | **0.183.2** (r183) | WebGL-based 3D engine |
+| 3D rendering | Three.js | **0.162.0** (r162) | WebGL engine; last release with automatic WebGL1 fallback (r163+ requires WebGL2) |
 | State management | Zustand | **5.0.11** | Lightweight global state |
 | Build tool | Vite | **7.3.1** | Fast dev server + bundler |
 | Styling | Tailwind CSS | **4.2.1** | Utility-first CSS |
@@ -93,9 +93,9 @@ pnpm create tauri-app@latest forge-view \
 cd forge-view
 
 # 3. Install frontend dependencies (pinned to verified latest versions)
-pnpm add three@0.183.2
+pnpm add three@0.162.0
 pnpm add zustand@5.0.11
-pnpm add -D @types/three@0.183.1
+pnpm add -D @types/three@0.162.0
 
 # 4. Install Tailwind CSS v4 (new CSS-first approach — no tailwind.config.js needed)
 pnpm add -D tailwindcss@4.2.1 @tailwindcss/vite@4.2.1
@@ -527,12 +527,12 @@ plus the user's home directory in `src-tauri/src/commands/file_ops.rs`.
 Paste this into Claude Code to begin:
 
 ```
-Build a cross-platform 3D file previewer app called "forge-view" using Tauri 2.10 + React 19 + TypeScript + Three.js 0.183.
+Build a cross-platform 3D file previewer app called "forge-view" using Tauri 2.10 + React 19 + TypeScript + Three.js 0.162.
 
 Follow the architecture in CLAUDE.md exactly. Use these exact versions:
 - tauri: 2.10.3, tauri-plugin-dialog: 2, tauri-plugin-fs: 2
 - react + react-dom: 19.2.4
-- three: 0.183.2, @types/three: 0.183.1
+- three: 0.162.0, @types/three: 0.162.0 (pinned: last WebGL1-fallback release)
 - zustand: 5.0.11
 - vite: 7.3.1
 - tailwindcss: 4.2.1 + @tailwindcss/vite: 4.2.1
