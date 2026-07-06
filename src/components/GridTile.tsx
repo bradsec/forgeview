@@ -26,7 +26,15 @@ export function GridTile({ file, queue }: GridTileProps) {
     const el = ref.current
     if (!el) return
     requested.current = false
-    const q = queue ?? getThumbnailQueue()
+    // Queue construction creates a WebGL renderer, which throws when WebGL
+    // is unavailable — show the error tile instead of crashing the grid
+    let q: NonNullable<typeof queue>
+    try {
+      q = queue ?? getThumbnailQueue()
+    } catch {
+      setStatus('error')
+      return
+    }
     const observer = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting) || requested.current) return
       requested.current = true

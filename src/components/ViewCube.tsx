@@ -94,7 +94,14 @@ export function ViewCube({ onSnapToView, onOrbitBy, getCamera }: ViewCubeProps) 
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
     camera.position.set(0, 0, 3.5)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    // Without WebGL the main viewer already surfaces an error banner;
+    // the view cube just stays absent
+    let renderer: THREE.WebGLRenderer
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    } catch {
+      return
+    }
     renderer.setPixelRatio(window.devicePixelRatio)
     renderer.setSize(size, size)
     renderer.setClearColor(0x000000, 0)

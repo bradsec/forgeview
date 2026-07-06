@@ -124,8 +124,19 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     )
     camera.position.set(0, 0, 100)
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    // Renderer — context creation fails when WebGL is unavailable
+    // (GPU blocklisted, hardware acceleration disabled, remote desktop)
+    let renderer: THREE.WebGLRenderer
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true })
+    } catch {
+      useViewerStore
+        .getState()
+        .setError(
+          '3D view unavailable: WebGL could not be initialized. Enable hardware acceleration in your browser settings (chrome://gpu shows the status) and reload.'
+        )
+      return
+    }
     renderer.setPixelRatio(window.devicePixelRatio)
     renderer.setSize(container.clientWidth, container.clientHeight)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -552,7 +563,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const container = mountRef.current
       const oldRenderer = rendererRef.current
 
-      const newRenderer = new THREE.WebGLRenderer({ antialias: settings.antialias })
+      // Keep the working renderer if a replacement context cannot be created
+      let newRenderer: THREE.WebGLRenderer
+      try {
+        newRenderer = new THREE.WebGLRenderer({ antialias: settings.antialias })
+      } catch {
+        return
+      }
       newRenderer.setPixelRatio(settings.pixelRatio)
       newRenderer.setSize(container.clientWidth, container.clientHeight)
       newRenderer.toneMapping = settings.toneMapping
