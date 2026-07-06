@@ -133,7 +133,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       useViewerStore
         .getState()
         .setError(
-          '3D view unavailable: WebGL could not be initialized. Enable hardware acceleration in your browser settings (chrome://gpu shows the status) and reload.'
+          '3D view unavailable: WebGL2 could not be initialized. Enable hardware acceleration in your browser (chrome://gpu shows the status; on Chrome you may need chrome://flags to allow WebGL2 for your GPU) and reload.'
         )
       return
     }

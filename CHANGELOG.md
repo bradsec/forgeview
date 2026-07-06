@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-07-06
+
+- Upgrade the full stack to latest: three.js 0.185, React 19.2.7,
+  TypeScript 6, Vite 8, Tailwind 4.3, Zustand 5.0.14, vitest 4.1,
+  Tauri CLI/plugins 2.11
+- three.js is now WebGL2-only again (r163+ dropped WebGL1); browsers
+  without WebGL2 see the WebGL2 error banner. Enable hardware
+  acceleration / allow WebGL2 for your GPU to render.
+
 ## 1.0.1 - 2026-07-06
 
 - Handle WebGL context creation failure gracefully: clear error banner
