@@ -43,10 +43,15 @@ builds installers for all three platforms on push to `main`.
 ## Web demo (GitHub Pages)
 
 The frontend also runs as a static site without the Tauri backend. In browser
-mode you can drag and drop a model file (or use Open, which falls back to a
-browser file picker) and view it with all camera, view mode, and theme
-controls. Folder browsing, the preview grid, and settings persistence need
-native file system access and are disabled in the browser.
+mode you can drag and drop a model file (or use Open / Open Folder, which fall
+back to browser pickers) and view it with all camera, view mode, and theme
+controls. Open Folder loads a snapshot of the selected folder into the
+explorer and preview grid; re-pick the folder to refresh it. Settings
+persistence needs native file system access and is disabled in the browser.
+
+Note: WebGL2 is required. Chrome and Edge disable WebGL entirely when
+hardware acceleration is off (chrome://settings/system) and no longer fall
+back to software rendering; Firefox falls back automatically.
 
 `.github/workflows/pages.yml` builds and deploys the web bundle to GitHub
 Pages on push to `main`. One-time setup: repository Settings > Pages >

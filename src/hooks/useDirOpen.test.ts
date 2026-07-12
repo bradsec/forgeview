@@ -22,6 +22,8 @@ import { useDirOpen } from './useDirOpen'
 describe('useDirOpen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // openDir branches on isTauri(); these tests cover the native dialog path
+    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {}
     useViewerStore.setState({
       filePath: null,
       fileName: null,

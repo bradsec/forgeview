@@ -5,12 +5,50 @@ import { SUPPORTED_EXTENSIONS } from '../loaders'
 import { useViewerStore } from '../store/viewerStore'
 import type { DirTreeEntry } from '../store/viewerStore'
 import { dirname, extname } from '../utils/pathUtils'
+import { isTauri } from '../utils/isTauri'
+import { isBrowserPath, listBrowserDir, pickBrowserFolder, registerBrowserFolder } from '../services/browserFs'
+
+/** Tree entries (one level) served from the in-memory browser folder registry. */
+function readBrowserDirTree(dirPath: string): DirTreeEntry[] {
+  const results: DirTreeEntry[] = []
+  for (const e of listBrowserDir(dirPath)) {
+    if (e.isDirectory) {
+      results.push({
+        name: e.name,
+        fullPath: e.path,
+        isDirectory: true,
+        isExpanded: false,
+        isLoaded: false,
+        children: [],
+      })
+    } else {
+      const ext = extname(e.name)
+      if (ext && SUPPORTED_EXTENSIONS.includes(ext)) {
+        results.push({
+          name: e.name,
+          fullPath: e.path,
+          isDirectory: false,
+          extension: ext,
+          sizeBytes: e.size!,
+        })
+      }
+    }
+  }
+  results.sort((a, b) => {
+    if (a.isDirectory && !b.isDirectory) return -1
+    if (!a.isDirectory && b.isDirectory) return 1
+    return a.name.localeCompare(b.name)
+  })
+  return results
+}
 
 /**
  * Read a directory and build tree entries (one level).
  * Directories are included, files are filtered to supported extensions.
  */
 export async function readDirTree(dirPath: string): Promise<DirTreeEntry[]> {
+  if (isBrowserPath(dirPath)) return readBrowserDirTree(dirPath)
+
   const entries = await readDir(dirPath)
   const results: DirTreeEntry[] = []
 
@@ -58,8 +96,35 @@ export async function readDirTree(dirPath: string): Promise<DirTreeEntry[]> {
  * Hook providing openDir (folder picker) and expandDir (lazy load sub-directory).
  */
 export function useDirOpen() {
+  const applyDir = async (dirPath: string): Promise<void> => {
+    const tree = await readDirTree(dirPath)
+    useViewerStore.getState().setDirTree(dirPath, tree)
+
+    // Also populate flat dirFiles for compatibility
+    const files = tree
+      .filter((e) => !e.isDirectory)
+      .map((e) => ({
+        name: e.name,
+        fullPath: e.fullPath,
+        extension: e.extension!,
+        sizeBytes: e.sizeBytes!,
+      }))
+    useViewerStore.getState().setDir(dirPath, files)
+    useViewerStore.getState().setGridFolder(dirPath)
+    useViewerStore.getState().setMainView('grid')
+  }
+
   const openDir = async (): Promise<void> => {
     try {
+      if (!isTauri()) {
+        const picked = await pickBrowserFolder()
+        if (picked === null || picked.length === 0) return
+        const root = registerBrowserFolder(picked)
+        if (root === null) return
+        await applyDir(root)
+        return
+      }
+
       const { dirPath: lastDir, filePath } = useViewerStore.getState()
       const defaultPath = lastDir ?? (filePath ? dirname(filePath) : undefined)
       // recursive: true adds the whole subtree to the fs scope so files in
@@ -67,21 +132,7 @@ export function useDirOpen() {
       const dirPath = await open({ directory: true, recursive: true, defaultPath: defaultPath || undefined })
       if (dirPath === null) return
 
-      const tree = await readDirTree(dirPath)
-      useViewerStore.getState().setDirTree(dirPath, tree)
-
-      // Also populate flat dirFiles for compatibility
-      const files = tree
-        .filter((e) => !e.isDirectory)
-        .map((e) => ({
-          name: e.name,
-          fullPath: e.fullPath,
-          extension: e.extension!,
-          sizeBytes: e.sizeBytes!,
-        }))
-      useViewerStore.getState().setDir(dirPath, files)
-      useViewerStore.getState().setGridFolder(dirPath)
-      useViewerStore.getState().setMainView('grid')
+      await applyDir(dirPath)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       useViewerStore.getState().setError(message)

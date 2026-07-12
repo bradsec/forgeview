@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { useFileOpen } from '../hooks/useFileOpen'
 import { useDirOpen } from '../hooks/useDirOpen'
-import { isTauri } from '../utils/isTauri'
 
 type ViewMode = 'solid' | 'wireframe' | 'points'
 
@@ -29,8 +28,6 @@ export function Toolbar() {
   const mobileDrawer = useViewerStore((s) => s.mobileDrawer)
 
   const [menuOpen, setMenuOpen] = useState(false)
-  // Folder browsing needs native fs access — hidden when hosted in a browser
-  const canOpenFolder = isTauri()
 
   useEffect(() => {
     if (!menuOpen) return
@@ -85,9 +82,7 @@ export function Toolbar() {
                   className="absolute right-0 top-full mt-1 z-50 min-w-44 rounded border border-[var(--border)] bg-[var(--bg-dialog)] py-1 shadow-[0_10px_40px_var(--shadow-color)]"
                 >
                   <button type="button" onClick={() => { setMenuOpen(false); openFile() }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">Open</button>
-                  {canOpenFolder && (
-                    <button type="button" onClick={() => { setMenuOpen(false); handleOpenDir() }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">Open Folder</button>
-                  )}
+                  <button type="button" onClick={() => { setMenuOpen(false); handleOpenDir() }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">Open Folder</button>
                   <div className="my-1 border-t border-[var(--border)]" />
                   {VIEW_MODES.map(({ mode, label }) => (
                     <button
@@ -139,15 +134,13 @@ export function Toolbar() {
         Open
       </button>
 
-      {canOpenFolder && (
-        <button
-          type="button"
-          onClick={handleOpenDir}
-          className="px-3 py-1.5 bg-[var(--bg-button)] hover:bg-[var(--bg-button-hover)] text-white text-sm rounded transition-colors"
-        >
-          Open Folder
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleOpenDir}
+        className="px-3 py-1.5 bg-[var(--bg-button)] hover:bg-[var(--bg-button-hover)] text-white text-sm rounded transition-colors"
+      >
+        Open Folder
+      </button>
 
       {/* Toggle explorer visibility when a folder is loaded but panel is hidden */}
       {dirPath && !explorerVisible && (

@@ -2,6 +2,7 @@ import { readDir, stat } from '@tauri-apps/plugin-fs'
 import { join } from '@tauri-apps/api/path'
 import { SUPPORTED_EXTENSIONS } from '../loaders'
 import { extname } from '../utils/pathUtils'
+import { isBrowserPath, listBrowserDir, listBrowserDirRecursive } from './browserFs'
 
 export interface GridFile {
   name: string
@@ -37,6 +38,8 @@ async function toGridFile(name: string, path: string, extension: string): Promis
  * subfolder tiles; recursive mode walks all descendants and returns files only.
  */
 export async function listGridFiles(dir: string, recursive: boolean): Promise<GridListing> {
+  if (isBrowserPath(dir)) return listBrowserGridFiles(dir, recursive)
+
   const folders: GridFolder[] = []
   const files: GridFile[] = []
 
@@ -68,6 +71,28 @@ export async function listGridFiles(dir: string, recursive: boolean): Promise<Gr
 
   await walk(dir, true)
   // Folders and files are each sorted alphabetically; the grid renders them as separate groups.
+  folders.sort((a, b) => a.name.localeCompare(b.name))
+  files.sort((a, b) => a.name.localeCompare(b.name))
+  return { folders, files }
+}
+
+/** Grid listing served from the in-memory browser folder registry. */
+function listBrowserGridFiles(dir: string, recursive: boolean): GridListing {
+  const folders: GridFolder[] = []
+  const files: GridFile[] = []
+
+  const entries = recursive ? listBrowserDirRecursive(dir) : listBrowserDir(dir)
+  for (const e of entries) {
+    if (e.isDirectory) {
+      folders.push({ name: e.name, path: e.path })
+      continue
+    }
+    const ext = extname(e.name)
+    if (ext && SUPPORTED_EXTENSIONS.includes(ext)) {
+      files.push({ name: e.name, path: e.path, extension: ext, size: e.size!, mtime: e.mtime! })
+    }
+  }
+
   folders.sort((a, b) => a.name.localeCompare(b.name))
   files.sort((a, b) => a.name.localeCompare(b.name))
   return { folders, files }

@@ -8,6 +8,7 @@ import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js'
 import * as THREE from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { invoke } from '@tauri-apps/api/core'
+import { getBrowserFile } from '../services/browserFs'
 
 export const SUPPORTED_EXTENSIONS = ['.stl', '.3mf', '.obj', '.gltf', '.glb', '.ply', '.dae']
 
@@ -140,8 +141,9 @@ export async function loadModelFromBuffer(
 }
 
 /**
- * Load a 3D model from a file path by reading bytes via Tauri IPC,
- * then parse, auto-center, and add it to the scene.
+ * Load a 3D model from a file path, then parse, auto-center, and add it to
+ * the scene. Virtual paths from a browser-picked folder resolve in memory;
+ * anything else reads bytes via Tauri IPC.
  */
 export async function loadModel(
   path: string,
@@ -150,6 +152,10 @@ export async function loadModel(
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera,
   options?: { center?: boolean }
 ): Promise<THREE.Object3D> {
+  const browserFile = getBrowserFile(path)
+  if (browserFile) {
+    return loadModelFromBuffer(await browserFile.arrayBuffer(), ext, scene, camera, options)
+  }
   // read_file_bytes returns a raw binary payload (tauri::ipc::Response),
   // which arrives as an ArrayBuffer on the JS side.
   const buffer: ArrayBuffer = await invoke('read_file_bytes', { path })
