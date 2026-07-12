@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1 - 2026-07-12
+
+- Add source-visible fallback content for crawlers and no-JavaScript visitors.
+- Add social and structured data image metadata.
+
 ## 1.2.0 - 2026-07-12
 
 - Folder browsing and the preview grid now work in plain browsers without
