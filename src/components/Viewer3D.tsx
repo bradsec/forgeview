@@ -57,6 +57,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const antialiasRef = useRef(true) // matches initial renderer creation
   const animIdRef = useRef<number>(0)
   const animRef = useRef<CameraAnimationState>(createAnimationState())
+  // Demand rendering: frames left to draw. The loop skips renderer.render when
+  // 0 and no camera motion — keeps the GPU idle (software/weak GPUs stay
+  // responsive). Bumped by controls changes, resizes, and any store change
+  // (model loads, view mode, theme, settings all land in the store). A small
+  // budget instead of a boolean absorbs mutations that land mid-frame.
+  const framesToRenderRef = useRef(3)
+  const invalidate = () => { framesToRenderRef.current = 3 }
 
   useImperativeHandle(ref, () => ({
     snapToView: (direction: ViewDirection) => {
@@ -133,11 +140,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       useViewerStore
         .getState()
         .setError(
-          '3D view unavailable: WebGL2 could not be initialized. Enable hardware acceleration in your browser (chrome://gpu shows the status; on Chrome you may need chrome://flags to allow WebGL2 for your GPU) and reload.'
+          '3D view unavailable: WebGL2 could not be initialized. Chrome/Edge: turn on "Use hardware acceleration" in chrome://settings/system and reload (chrome://gpu shows GPU status). Firefox usually works without changes.'
         )
       return
     }
-    renderer.setPixelRatio(window.devicePixelRatio)
+    // Cap initial DPR — HiDPI 3x-4x quadruples fill cost; settings can raise it
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(container.clientWidth, container.clientHeight)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.2
@@ -208,18 +216,30 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     cameraRef.current = camera
     controlsRef.current = controls
 
+    // Redraw whenever controls apply movement (drag, wheel, damping decay,
+    // programmatic target moves like double-click recenter)
+    controls.addEventListener('change', invalidate)
+    // Any store mutation may change what's on screen (model load completion,
+    // view mode, theme, lights, settings) — cheap over-invalidation
+    const unsubscribeStore = useViewerStore.subscribe(invalidate)
+
     // Animation loop — uses refs so renderer/controls recreation in Effect 7 is picked up
     const animate = () => {
       animIdRef.current = requestAnimationFrame(animate)
-      tickCameraAnimation(animRef.current, cameraRef.current!, controlsRef.current!)
-      controlsRef.current?.update()
-      if (rendererRef.current && sceneRef.current && cameraRef.current) {
-        rendererRef.current.render(sceneRef.current, cameraRef.current)
+      const animActive = tickCameraAnimation(animRef.current, cameraRef.current!, controlsRef.current!)
+      // update() returns true while it moves the camera (including damping)
+      const controlsMoved = controlsRef.current?.update() ?? false
+      if (animActive || controlsMoved || framesToRenderRef.current > 0) {
+        if (framesToRenderRef.current > 0) framesToRenderRef.current--
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+          rendererRef.current.render(sceneRef.current, cameraRef.current)
+        }
       }
     }
     animate()
 
     return () => {
+      unsubscribeStore()
       renderer.domElement.removeEventListener('dblclick', onDblClick)
       cancelAnimationFrame(animIdRef.current)
       // Effect 7 may have replaced the renderer/controls (antialias toggle);
@@ -384,6 +404,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           cam.right = halfWidth
           cam.updateProjectionMatrix()
         }
+        invalidate()
       })
     }
 
@@ -593,6 +614,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         }
         controls.target.copy(prevTarget)
         controls.update()
+        controls.addEventListener('change', invalidate)
         controlsRef.current = controls
       }
 

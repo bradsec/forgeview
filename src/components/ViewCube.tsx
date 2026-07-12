@@ -140,15 +140,21 @@ export function ViewCube({ onSnapToView, onOrbitBy, getCamera }: ViewCubeProps) 
     cubeRef.current = group
     faceMeshesRef.current = faceMap
 
-    // Animation — sync cube rotation with main camera
+    // Animation — sync cube rotation with main camera. Only re-render when
+    // the orientation actually changed; identical quaternions mean the frame
+    // is already correct and the GPU can stay idle.
+    const lastQ = new THREE.Quaternion(NaN, NaN, NaN, NaN)
     const animate = () => {
       animIdRef.current = requestAnimationFrame(animate)
       const mainCamera = getCameraRef.current()
       if (mainCamera && group) {
         const q = mainCamera.quaternion.clone().invert()
-        group.quaternion.copy(q)
+        if (!q.equals(lastQ)) {
+          lastQ.copy(q)
+          group.quaternion.copy(q)
+          renderer.render(scene, camera)
+        }
       }
-      renderer.render(scene, camera)
     }
     animate()
 
