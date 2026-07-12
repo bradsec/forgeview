@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 - 2026-07-12
+
+- Add static SEO metadata, canonical URL, social preview image, favicons,
+  robots.txt, sitemap.xml, web manifest, and SoftwareApplication structured data
+  for the GitHub Pages web build.
+
 ## 1.1.0 - 2026-07-06
 
 - Upgrade the full stack to latest: three.js 0.185, React 19.2.7,

@@ -133,7 +133,7 @@ export function DropZone() {
           />
         </svg>
 
-        <h2 className="text-xl font-semibold text-[var(--text-primary)]">Drop a 3D file here to preview</h2>
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Drop a 3D file here to preview</h1>
 
         <p className="text-sm text-[var(--text-muted)]">Supports STL, 3MF, OBJ, GLTF, GLB, PLY, DAE</p>
 
