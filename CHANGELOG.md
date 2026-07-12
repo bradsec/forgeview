@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 - 2026-07-12
+
+- Folder browsing and the preview grid now work in plain browsers without
+  the Tauri backend: Open Folder falls back to a browser directory picker
+  and serves the explorer tree, grid, and thumbnails from memory
+- Render on demand: the 3D viewer and view cube skip GPU work while the
+  scene is idle, keeping the browser responsive on weak or
+  software-rendered GPUs; initial pixel ratio is capped at 2 on HiDPI
+- Clearer error message when WebGL2 is unavailable, with Chrome/Edge
+  hardware acceleration guidance
+
 ## 1.1.1 - 2026-07-12
 
 - Add static SEO metadata, canonical URL, social preview image, favicons,

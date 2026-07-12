@@ -20,3 +20,6 @@ Thumbs.db
 
 # Playwright MCP tool artifacts
 .playwright-mcp/
+
+# Agent session skills/notes
+.claude/
