@@ -12,45 +12,55 @@ beforeEach(() => {
     viewMode: 'solid', dirPath: '/m', mainView: 'grid',
     explorerVisible: true, sidebarVisible: true, theme: 'dark', mobileDrawer: 'none',
   })
+  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
 })
 
-const mobile = () => within(screen.getByTestId('toolbar-mobile'))
-
-describe('Toolbar mobile row', () => {
-  it('hamburger opens the explorer drawer', async () => {
+describe('Toolbar application menus', () => {
+  it('opens and closes the File menu after choosing Open file', async () => {
     render(<Toolbar />)
-    await userEvent.click(mobile().getByRole('button', { name: /explorer/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'File' }))
+    const menu = screen.getByTestId('toolbar-file-menu')
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Open file' }))
+    expect(screen.queryByTestId('toolbar-file-menu')).toBeNull()
+  })
+
+  it('opens the explorer drawer from View on a narrow viewport', async () => {
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Explorer' }))
     expect(useViewerStore.getState().mobileDrawer).toBe('explorer')
   })
 
-  it('details button opens the details drawer', async () => {
+  it('opens the details drawer from View on a narrow viewport', async () => {
     render(<Toolbar />)
-    await userEvent.click(mobile().getByRole('button', { name: /details/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Details' }))
     expect(useViewerStore.getState().mobileDrawer).toBe('details')
   })
 
-  it('file menu opens and closes after choosing Open', async () => {
+  it('changes display mode from the View menu', async () => {
     render(<Toolbar />)
-    await userEvent.click(mobile().getByRole('button', { name: /^more/i }))
-    const menu = screen.getByTestId('toolbar-menu')
-    await userEvent.click(within(menu).getByRole('menuitem', { name: /^open$/i }))
-    expect(screen.queryByTestId('toolbar-menu')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Wireframe' }))
+    expect(useViewerStore.getState().viewMode).toBe('wireframe')
   })
 
-  it('hamburger closes the explorer drawer when already open', async () => {
-    useViewerStore.setState({ mobileDrawer: 'explorer' })
+  it('Escape closes a menu and restores focus', async () => {
     render(<Toolbar />)
-    await userEvent.click(mobile().getByRole('button', { name: /explorer/i }))
-    expect(useViewerStore.getState().mobileDrawer).toBe('none')
-  })
-
-  it('Escape closes the overflow menu', async () => {
-    render(<Toolbar />)
-    const trigger = mobile().getByRole('button', { name: /^more/i })
+    const trigger = screen.getByRole('button', { name: 'File' })
     await userEvent.click(trigger)
-    expect(screen.getByTestId('toolbar-menu')).toBeTruthy()
     await userEvent.keyboard('{Escape}')
-    expect(screen.queryByTestId('toolbar-menu')).toBeNull()
+    expect(screen.queryByTestId('toolbar-file-menu')).toBeNull()
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it('opens About from Help', async () => {
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'Help' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-help-menu')).getByRole('menuitem', { name: 'About Forgeview' }))
+    expect(screen.getByRole('dialog', { name: 'Forgeview' })).toBeTruthy()
+    expect(screen.getByText('github.com/bradsec/forgeview')).toBeTruthy()
+    expect(screen.getByText('Found Forgeview useful? Support the creator.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Buy me a coffee' }).getAttribute('href')).toBe('https://buymeacoffee.com/markbradley')
   })
 })

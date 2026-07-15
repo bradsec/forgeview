@@ -11,7 +11,8 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 
 - Native file open dialog and drag-and-drop loading
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
-- Fusion-inspired command bar, left Explorer, right Details panel, and bottom camera navigation
+- Compact app menu, left Explorer, right Details panel, and bottom camera navigation
+- In-app format help, About information, and repository/version status footer
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
 - Solid, wireframe, and points view modes
 - Perspective and orthographic projection
@@ -64,6 +65,7 @@ Build and deployment > Source: "GitHub Actions".
 
 ```bash
 pnpm test                      # frontend unit tests (vitest)
+pnpm test:e2e                  # desktop and mobile app-shell tests (Playwright)
 cd src-tauri && cargo test     # backend unit tests
 ```
 

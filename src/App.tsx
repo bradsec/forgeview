@@ -9,6 +9,7 @@ import { SceneControls } from './components/SceneControls'
 import { PreviewGrid } from './components/PreviewGrid'
 import { SettingsModal } from './components/SettingsModal'
 import { MobileDrawer } from './components/MobileDrawer'
+import { StatusBar } from './components/StatusBar'
 import { useSettingsPersistence } from './hooks/useSettings'
 import { useViewerStore } from './store/viewerStore'
 import { getTheme, applyThemeCssVars } from './themes'
@@ -43,7 +44,7 @@ export default function App() {
         <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
         <DirectoryPanel />
-        <main className="flex-1 relative min-w-0 overflow-hidden" aria-busy={isLoading}>
+        <main className="flex-1 relative min-w-0 overflow-hidden bg-[var(--bg-app)]" aria-busy={isLoading}>
           {dirPath && mainView === 'grid' ? (
             <PreviewGrid />
           ) : filePath || loadedModels.length > 0 ? (
@@ -58,9 +59,10 @@ export default function App() {
 
           {isLoading && (
             <div role="status" aria-live="polite" className="absolute inset-0 bg-[var(--scrim)] flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-3">
-                <div aria-hidden="true" className="w-10 h-10 border-4 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin" />
-                <span className="text-sm text-[var(--text-primary)]">Loading...</span>
+              <div className="loading-card">
+                <div aria-hidden="true" className="loading-line loading-line-wide" />
+                <div aria-hidden="true" className="loading-line" />
+                <span>Preparing model</span>
               </div>
             </div>
           )}
@@ -88,6 +90,7 @@ export default function App() {
         <Sidebar mobile />
       </MobileDrawer>
       <SettingsModal />
+      <StatusBar />
     </div>
   )
 }

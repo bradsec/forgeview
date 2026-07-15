@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 - 2026-07-15
+
+- Redesign the web interface around a compact application menu, responsive
+  workspace, refined panels, and clearer loading and empty states.
+- Give Forgeview a distinct ember-orange identity across both themes, active
+  controls, links, focus states, favicons, app icons, and social previews.
+- Add Help and About information, creator support details, and a repository and
+  version status footer.
+- Add Playwright coverage for desktop and mobile layouts, application menus,
+  browser console errors, theme colors, support links, and SEO assets.
+
 ## 1.3.0 - 2026-07-15
 
 - Constrain native reads and writes to paths granted by the runtime file scope,

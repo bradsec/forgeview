@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Forgeview 3D file viewer</title>
+  <desc id="desc">Forgeview brand card with supported 3D file formats</desc>
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#303741" stroke-width="1" opacity=".36"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#151a22"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect x="72" y="72" width="1056" height="486" rx="28" fill="#1b2027" stroke="#303741" stroke-width="2"/>
+  <rect x="126" y="132" width="88" height="88" rx="20" fill="#151a22" stroke="#e68a4e" stroke-width="4"/>
+  <text x="170" y="191" fill="#e68a4e" font-family="DejaVu Sans, Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="-3" text-anchor="middle">fv</text>
+  <text x="126" y="332" fill="#f0f3f7" font-family="DejaVu Sans, Arial, sans-serif" font-size="78" font-weight="700" letter-spacing="-4">forgeview</text>
+  <text x="130" y="394" fill="#aab2be" font-family="DejaVu Sans, Arial, sans-serif" font-size="29">Inspect 3D files locally.</text>
+  <text x="130" y="474" fill="#e68a4e" font-family="DejaVu Sans Mono, monospace" font-size="19" letter-spacing="2">STL  3MF  OBJ  GLTF  GLB  PLY  DAE</text>
+  <circle cx="940" cy="290" r="116" fill="#151a22" stroke="#303741" stroke-width="2"/>
+  <path d="M940 197 1020 244 1020 337 940 384 860 337 860 244Z M940 197V290M1020 244 940 290 860 244M940 290V384" fill="none" stroke="#e68a4e" stroke-width="6" stroke-linejoin="round"/>
+</svg>

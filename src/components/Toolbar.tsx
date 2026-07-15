@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { useFileOpen } from '../hooks/useFileOpen'
 import { useDirOpen } from '../hooks/useDirOpen'
+import packageJson from '../../package.json'
 
 type ViewMode = 'solid' | 'wireframe' | 'points'
 
@@ -11,18 +12,20 @@ const VIEW_MODES: { mode: ViewMode; label: string }[] = [
   { mode: 'points', label: 'Points' },
 ]
 
-function FileMenu({ compact = false }: { compact?: boolean }) {
+function Menu({
+  label,
+  children,
+}: {
+  label: string
+  children: (close: (restoreFocus?: boolean) => void) => React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const menuId = useId()
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const firstItemRef = useRef<HTMLButtonElement>(null)
-  const { openFile } = useFileOpen()
-  const { openDir } = useDirOpen()
-  const dirPath = useViewerStore((state) => state.dirPath)
-  const theme = useViewerStore((state) => state.theme)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (open) firstItemRef.current?.focus()
+    if (open) menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
   }, [open])
 
   const close = (restoreFocus = false) => {
@@ -30,14 +33,8 @@ function FileMenu({ compact = false }: { compact?: boolean }) {
     if (restoreFocus) triggerRef.current?.focus()
   }
 
-  const openFolder = async () => {
-    close()
-    await openDir()
-    useViewerStore.getState().setExplorerVisible(true)
-  }
-
-  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])'))
     const index = items.indexOf(document.activeElement as HTMLButtonElement)
     if (event.key === 'Escape') {
       event.preventDefault()
@@ -48,6 +45,12 @@ function FileMenu({ compact = false }: { compact?: boolean }) {
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       items[(index - 1 + items.length) % items.length]?.focus()
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      items[0]?.focus()
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      items[items.length - 1]?.focus()
     }
   }
 
@@ -60,67 +63,51 @@ function FileMenu({ compact = false }: { compact?: boolean }) {
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((value) => !value)}
-        className="h-8 px-3 rounded text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
+        className="app-menu-trigger"
       >
-        {compact ? 'More' : 'File'} <span aria-hidden="true">▾</span>
+        {label}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => close()} aria-hidden="true" />
           <div
+            ref={menuRef}
             id={menuId}
             role="menu"
-            data-testid="toolbar-menu"
-            onKeyDown={handleMenuKeyDown}
-            className="absolute left-0 top-full mt-1 z-50 min-w-48 rounded border border-[var(--border)] bg-[var(--bg-dialog)] py-1 shadow-[0_10px_40px_var(--shadow-color)]"
+            data-testid={`toolbar-${label.toLowerCase()}-menu`}
+            onKeyDown={handleKeyDown}
+            className="app-menu-popover"
           >
-            <button
-              ref={firstItemRef}
-              type="button"
-              role="menuitem"
-              onClick={() => { close(); void openFile() }}
-              className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
-            >
-              Open
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => void openFolder()}
-              className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
-            >
-              Open Folder
-            </button>
-            {compact && (
-              <>
-                <div role="separator" className="my-1 border-t border-[var(--border)]" />
-                {VIEW_MODES.map(({ mode, label }) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => { close(); useViewerStore.getState().setViewMode(mode) }}
-                    className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
-                  >
-                    {label}
-                  </button>
-                ))}
-                {dirPath && (
-                  <>
-                    <div role="separator" className="my-1 border-t border-[var(--border)]" />
-                    <button type="button" role="menuitem" onClick={() => { close(); useViewerStore.getState().setMainView('grid') }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">Grid</button>
-                    <button type="button" role="menuitem" onClick={() => { close(); useViewerStore.getState().setMainView('3d') }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">3D</button>
-                  </>
-                )}
-                <div role="separator" className="my-1 border-t border-[var(--border)]" />
-                <button type="button" role="menuitem" onClick={() => { close(); useViewerStore.getState().toggleTheme() }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">{theme === 'dark' ? 'Light theme' : 'Dark theme'}</button>
-                <button type="button" role="menuitem" onClick={() => { close(); useViewerStore.getState().setSettingsOpen(true) }} className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]">Settings</button>
-              </>
-            )}
+            {children(close)}
           </div>
         </>
       )}
     </div>
+  )
+}
+
+function MenuItem({
+  children,
+  onClick,
+  selected,
+  disabled,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  selected?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      className="app-menu-item"
+    >
+      <span>{children}</span>
+      {selected && <span aria-hidden="true" className="menu-check">✓</span>}
+    </button>
   )
 }
 
@@ -136,31 +123,26 @@ function SegmentedControl<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-label)]">{label}</span>
-      <div className="flex rounded overflow-hidden border border-[var(--border-input)]">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={value === option.value}
-            onClick={() => onChange(option.value)}
-            className={[
-              'h-8 px-3 text-xs transition-colors',
-              value === option.value
-                ? 'bg-[var(--bg-button-active)] text-[var(--text-bright)]'
-                : 'bg-[var(--bg-button)] text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-            ].join(' ')}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+    <div className="toolbar-segment" role="group" aria-label={label}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={value === option.value ? 'is-active' : ''}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   )
 }
 
 export function Toolbar() {
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const { openFile } = useFileOpen()
+  const { openDir } = useDirOpen()
   const viewMode = useViewerStore((state) => state.viewMode)
   const dirPath = useViewerStore((state) => state.dirPath)
   const fileName = useViewerStore((state) => state.fileName)
@@ -168,103 +150,130 @@ export function Toolbar() {
   const explorerVisible = useViewerStore((state) => state.explorerVisible)
   const sidebarVisible = useViewerStore((state) => state.sidebarVisible)
   const theme = useViewerStore((state) => state.theme)
-  const mobileDrawer = useViewerStore((state) => state.mobileDrawer)
+
+  const openFolder = async () => {
+    await openDir()
+    useViewerStore.getState().setExplorerVisible(true)
+  }
+
+  const togglePanel = (panel: 'explorer' | 'details') => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      useViewerStore.getState().setMobileDrawer(panel)
+      return
+    }
+    if (panel === 'explorer') useViewerStore.getState().setExplorerVisible(!explorerVisible)
+    else useViewerStore.getState().setSidebarVisible(!sidebarVisible)
+  }
 
   return (
-    <header className="shrink-0 bg-[var(--bg-toolbar)] border-b border-[var(--border)]">
-      <div data-testid="toolbar-mobile" className="h-12 flex md:hidden items-center gap-2 px-2">
-        <button
-          type="button"
-          onClick={() => useViewerStore.getState().setMobileDrawer(mobileDrawer === 'explorer' ? 'none' : 'explorer')}
-          aria-label="Toggle Explorer"
-          aria-expanded={mobileDrawer === 'explorer'}
-          aria-controls="mobile-explorer-drawer"
-          className="min-w-10 min-h-10 px-2 text-[var(--text-primary)] hover:text-[var(--text-bright)]"
-        >
-          Explorer
-        </button>
-        <span className="font-semibold text-[var(--text-bright)]">Forge View</span>
-        <div className="ml-auto flex items-center gap-1">
-          <FileMenu compact />
-          <button
-            type="button"
-            onClick={() => useViewerStore.getState().setMobileDrawer(mobileDrawer === 'details' ? 'none' : 'details')}
-            aria-expanded={mobileDrawer === 'details'}
-            aria-controls="mobile-details-drawer"
-            className="min-h-10 px-3 text-sm rounded bg-[var(--bg-button)] text-[var(--text-primary)]"
-          >
-            Details
-          </button>
-        </div>
+    <header className="app-bar" data-testid="toolbar">
+      <div className="brand-lockup" aria-label="Forgeview">
+        <span className="brand-mark" aria-hidden="true">fv</span>
+        <span className="brand-name">forgeview</span>
       </div>
 
-      <div data-testid="toolbar-desktop" className="hidden md:flex h-10 items-center gap-2 px-3 border-b border-[var(--border)]">
-        <span className="font-semibold text-[var(--text-bright)] pr-2">Forge View</span>
-        <FileMenu />
-        {dirPath && (
-          <button
-            type="button"
-            aria-pressed={explorerVisible}
-            onClick={() => useViewerStore.getState().setExplorerVisible(!explorerVisible)}
-            className="h-8 px-3 rounded text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
-          >
-            Explorer
-          </button>
-        )}
-        <span className="ml-2 min-w-0 truncate text-xs text-[var(--text-muted)]" title={fileName ?? undefined}>
-          {fileName ?? 'No file loaded'}
-        </span>
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => useViewerStore.getState().toggleTheme()}
-            aria-label={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-            className="h-8 px-3 rounded text-xs text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
-          >
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
-          <button
-            type="button"
-            onClick={() => useViewerStore.getState().setSettingsOpen(true)}
-            className="h-8 px-3 rounded text-xs text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
-          >
-            Settings
-          </button>
-          <button
-            type="button"
-            aria-pressed={sidebarVisible}
-            onClick={() => useViewerStore.getState().setSidebarVisible(!sidebarVisible)}
-            className={[
-              'h-8 px-3 rounded text-xs',
-              sidebarVisible
-                ? 'bg-[var(--bg-button-active)] text-[var(--text-bright)]'
-                : 'text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]',
-            ].join(' ')}
-          >
-            Details
-          </button>
-        </div>
+      <nav className="app-menus" aria-label="Application menu">
+        <Menu label="File">
+          {(close) => (
+            <>
+              <MenuItem onClick={() => { close(); void openFile() }}>Open file</MenuItem>
+              <MenuItem onClick={() => { close(); void openFolder() }}>Open folder</MenuItem>
+            </>
+          )}
+        </Menu>
+        <Menu label="View">
+          {(close) => (
+            <>
+              {dirPath && (
+                <>
+                  <div className="menu-heading">Workspace</div>
+                  <MenuItem onClick={() => { close(); useViewerStore.getState().setMainView('grid') }} selected={mainView === 'grid'}>Grid</MenuItem>
+                  <MenuItem onClick={() => { close(); useViewerStore.getState().setMainView('3d') }} selected={mainView === '3d'}>3D view</MenuItem>
+                  <div className="menu-separator" role="separator" />
+                </>
+              )}
+              <div className="menu-heading">Display</div>
+              {VIEW_MODES.map(({ mode, label }) => (
+                <MenuItem key={mode} onClick={() => { close(); useViewerStore.getState().setViewMode(mode) }} selected={viewMode === mode}>{label}</MenuItem>
+              ))}
+              <div className="menu-separator" role="separator" />
+              <MenuItem disabled={!dirPath} onClick={() => { close(); togglePanel('explorer') }} selected={Boolean(dirPath && explorerVisible)}>Explorer</MenuItem>
+              <MenuItem onClick={() => { close(); togglePanel('details') }} selected={sidebarVisible}>Details</MenuItem>
+              <div className="menu-separator" role="separator" />
+              <MenuItem onClick={() => { close(); useViewerStore.getState().toggleTheme() }}>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</MenuItem>
+              <MenuItem onClick={() => { close(); useViewerStore.getState().setSettingsOpen(true) }}>Settings</MenuItem>
+            </>
+          )}
+        </Menu>
+        <Menu label="Help">
+          {(close) => (
+            <>
+              <div className="menu-heading">File support</div>
+              <div className="menu-note">STL, 3MF, OBJ, GLTF, GLB, PLY and DAE</div>
+              <div className="menu-separator" role="separator" />
+              <MenuItem onClick={() => { close(); setAboutOpen(true) }}>About Forgeview</MenuItem>
+            </>
+          )}
+        </Menu>
+      </nav>
+
+      <div className="file-context" title={fileName ?? undefined}>
+        {fileName ?? 'No model open'}
       </div>
 
-      <div className="hidden md:flex h-12 items-center gap-5 px-3">
-        <span className="h-8 px-3 flex items-center border-b-2 border-[var(--accent)] text-sm font-semibold text-[var(--text-bright)]">
-          View
-        </span>
+      <div className="desktop-actions">
         {dirPath && (
           <SegmentedControl
-            label="Layout"
+            label="Workspace layout"
             value={mainView}
             options={[{ value: 'grid', label: 'Grid' }, { value: '3d', label: '3D' }]}
             onChange={(value) => useViewerStore.getState().setMainView(value)}
           />
         )}
         <SegmentedControl
-          label="Display"
+          label="Model display"
           value={viewMode}
           options={VIEW_MODES.map(({ mode, label }) => ({ value: mode, label }))}
           onChange={(value) => useViewerStore.getState().setViewMode(value)}
         />
+        <button
+          type="button"
+          aria-pressed={sidebarVisible}
+          onClick={() => useViewerStore.getState().setSidebarVisible(!sidebarVisible)}
+          className={`toolbar-action ${sidebarVisible ? 'is-active' : ''}`}
+        >
+          Details
+        </button>
       </div>
+
+      {aboutOpen && (
+        <div
+          className="about-layer"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setAboutOpen(false)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setAboutOpen(false)
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="about-title" className="about-dialog">
+            <div className="about-mark" aria-hidden="true">fv</div>
+            <h2 id="about-title">Forgeview</h2>
+            <p>Fast, local 3D model inspection for the browser and desktop.</p>
+            <dl>
+              <div><dt>Version</dt><dd>{packageJson.version}</dd></div>
+              <div><dt>Formats</dt><dd>STL, 3MF, OBJ, GLTF, GLB, PLY, DAE</dd></div>
+            </dl>
+            <div className="about-links">
+              <a href="https://github.com/bradsec/forgeview" target="_blank" rel="noreferrer">github.com/bradsec/forgeview</a>
+              <p>Found Forgeview useful? Support the creator.</p>
+              <a className="about-support-link" href="https://buymeacoffee.com/markbradley" target="_blank" rel="noreferrer">Buy me a coffee</a>
+            </div>
+            <button type="button" onClick={() => setAboutOpen(false)} autoFocus>Done</button>
+          </section>
+        </div>
+      )}
     </header>
   )
 }

@@ -115,41 +115,24 @@ export function DropZone() {
       data-testid="dropzone"
       {...browserDropProps}
       className={[
-        'w-full h-full flex flex-col items-center justify-center',
-        'bg-[var(--bg-app)] select-none',
+        'model-canvas w-full h-full flex flex-col items-center justify-center select-none',
         isDragging ? 'ring-2 ring-[var(--accent)] ring-inset' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="flex flex-col items-center gap-4 text-center px-8">
-        {/* Icon placeholder */}
-        <svg
-          className="w-16 h-16 text-[var(--text-muted)]"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1}
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
-        </svg>
-
-        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Drop a 3D file here to preview</h1>
-
-        <p className="text-sm text-[var(--text-muted)]">Supports STL, 3MF, OBJ, GLTF, GLB, PLY, DAE</p>
-
+      <div className="empty-workspace">
+        <div className="empty-mark" aria-hidden="true">3D</div>
+        <h1>Open a model to start</h1>
+        <p>Choose a file, drop it here, or open a folder to browse compatible models.</p>
         <button
           type="button"
           onClick={openFile}
-          className="mt-2 px-4 py-2 bg-[var(--accent-button)] hover:bg-[var(--accent-button-hover)] text-[var(--text-on-accent)] text-sm font-medium rounded transition-colors"
+          className="empty-primary-action"
         >
-          Open File
+          Open file
         </button>
+        <span>STL, 3MF, OBJ, GLTF, GLB, PLY, DAE</span>
       </div>
     </div>
   )

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Forgeview</title>
+  <rect width="512" height="512" rx="112" fill="#1b2027"/>
+  <rect x="54" y="54" width="404" height="404" rx="88" fill="#151a22" stroke="#e68a4e" stroke-width="18"/>
+  <text x="256" y="304" fill="#e68a4e" font-family="DejaVu Sans, Arial, sans-serif" font-size="174" font-weight="700" letter-spacing="-12" text-anchor="middle">fv</text>
+</svg>
