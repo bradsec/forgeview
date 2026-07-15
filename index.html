@@ -3,6 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      body {
+        background: #151a22;
+        color: #c8ced7;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+
+      noscript main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 3rem 1.5rem;
+      }
+    </style>
     <title>Forge View - Browser 3D CAD File Viewer</title>
     <meta
       name="description"
@@ -63,7 +85,8 @@
   </head>
 
   <body>
-    <div id="root">
+    <div id="root"></div>
+    <noscript>
       <main>
         <h1>Forge View</h1>
         <p>
@@ -71,7 +94,7 @@
         </p>
         <p>Open a model file to preview it with orbit, pan, zoom, view snap, solid, wireframe, and points controls.</p>
       </main>
-    </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

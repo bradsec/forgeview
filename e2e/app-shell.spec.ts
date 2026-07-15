@@ -35,7 +35,7 @@ test('renders the redesigned application shell within the viewport', async ({ pa
   else {
     await expect(footer).toBeVisible()
     await expect(footer.getByRole('link', { name: 'github.com/bradsec/forgeview' })).toHaveAttribute('href', 'https://github.com/bradsec/forgeview')
-    await expect(footer).toContainText('v1.4.1')
+    await expect(footer).toContainText('v1.4.2')
   }
 })
 
@@ -57,15 +57,16 @@ test('opens Help and displays complete About information', async ({ page }) => {
   await expect(page.getByText('STL, 3MF, OBJ, GLTF, GLB, PLY and DAE')).toBeVisible()
   await page.getByRole('menuitem', { name: 'About Forgeview' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'Forgeview' })
+  const dialog = page.getByRole('dialog', { name: 'About forgeview' })
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('.about-mark')).toHaveAttribute('src', /icon\.svg$/)
-  await expect(dialog).toContainText('Version')
-  await expect(dialog).toContainText('1.4.1')
-  await expect(dialog.getByRole('link', { name: 'github.com/bradsec/forgeview' })).toHaveAttribute('href', 'https://github.com/bradsec/forgeview')
-  await expect(dialog).toContainText('Found Forgeview useful? Support the creator.')
+  await expect(dialog).toContainText('Version 1.4.2')
+  await expect(dialog).toContainText('1.4.2')
+  await expect(dialog).toContainText('Created by Mark Bradley')
+  await expect(dialog.getByRole('link', { name: 'View forgeview on GitHub' })).toHaveAttribute('href', 'https://github.com/bradsec/forgeview')
+  await expect(dialog).toContainText('Found forgeview useful? Support the creator.')
   await expect(dialog.getByRole('link', { name: 'Buy me a coffee' })).toHaveAttribute('href', 'https://buymeacoffee.com/markbradley')
-  await dialog.getByRole('button', { name: 'Done' }).click()
+  await dialog.getByRole('button', { name: 'Close' }).click()
   await expect(dialog).toBeHidden()
 })
 
@@ -85,6 +86,15 @@ test('publishes the branded favicon, manifest and social preview metadata', asyn
   const manifest = await manifestResponse.json()
   expect(manifest.theme_color).toBe('#1b2027')
   expect(manifest.icons).toHaveLength(2)
+})
+
+test('keeps the pre-app frame branded without exposing fallback copy', async ({ page }) => {
+  await page.route(/\/assets\/.*\.js$/, (route) => route.fulfill({ contentType: 'text/javascript', body: '' }))
+  await page.route(/\/assets\/.*\.css$/, (route) => route.fulfill({ contentType: 'text/css', body: '' }))
+  await page.reload()
+
+  await expect(page.getByRole('heading', { name: 'Forge View' })).toHaveCount(0)
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(21, 26, 34)')
 })
 
 test('uses the Forgeview ember palette in both themes', async ({ page }) => {

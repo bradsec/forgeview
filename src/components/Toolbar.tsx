@@ -261,18 +261,19 @@ export function Toolbar() {
         >
           <section role="dialog" aria-modal="true" aria-labelledby="about-title" className="about-dialog">
             <img className="about-mark" src={APP_ICON_URL} alt="" aria-hidden="true" />
-            <h2 id="about-title">Forgeview</h2>
-            <p>Fast, local 3D model inspection for the browser and desktop.</p>
-            <dl>
-              <div><dt>Version</dt><dd>{packageJson.version}</dd></div>
-              <div><dt>Formats</dt><dd>STL, 3MF, OBJ, GLTF, GLB, PLY, DAE</dd></div>
-            </dl>
+            <div className="dialog-heading">
+              <h2 id="about-title">About forgeview</h2>
+              <p>Version {packageJson.version}</p>
+            </div>
+            <p>Inspect 3D models locally in your browser or desktop app. Your models remain on your device.</p>
+            <p>Created by Mark Bradley (<a href="https://github.com/bradsec" target="_blank" rel="noreferrer">BRADSEC</a>).</p>
+            <p>Supports STL, 3MF, OBJ, GLTF, GLB, PLY and DAE model files.</p>
             <div className="about-links">
-              <a href="https://github.com/bradsec/forgeview" target="_blank" rel="noreferrer">github.com/bradsec/forgeview</a>
-              <p>Found Forgeview useful? Support the creator.</p>
+              <a className="about-repo-link" href="https://github.com/bradsec/forgeview" target="_blank" rel="noreferrer">View forgeview on GitHub</a>
+              <p className="about-support-copy">Found forgeview useful? Support the creator.</p>
               <a className="about-support-link" href="https://buymeacoffee.com/markbradley" target="_blank" rel="noreferrer">Buy me a coffee</a>
             </div>
-            <button type="button" onClick={() => setAboutOpen(false)} autoFocus>Done</button>
+            <button type="button" onClick={() => setAboutOpen(false)} autoFocus>Close</button>
           </section>
         </div>
       )}
