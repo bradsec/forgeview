@@ -28,6 +28,33 @@ export interface Viewer3DHandle {
   getScene: () => THREE.Scene | undefined
 }
 
+export function disposeViewerResources(
+  scene: THREE.Scene,
+  preview: THREE.Object3D | undefined,
+  models: Iterable<THREE.Object3D>,
+  grid: THREE.GridHelper | undefined
+): void {
+  if (preview) disposeModel(preview, scene)
+  for (const model of models) disposeModel(model, scene)
+  if (grid) {
+    scene.remove(grid)
+    grid.dispose()
+  }
+  if (scene.background instanceof THREE.Texture) scene.background.dispose()
+  scene.clear()
+}
+
+export function perspectiveCameraFrom(
+  camera: THREE.OrthographicCamera,
+  width: number,
+  height: number
+): THREE.PerspectiveCamera {
+  const next = new THREE.PerspectiveCamera(75, width / height, camera.near, camera.far)
+  next.position.copy(camera.position)
+  next.up.copy(camera.up)
+  return next
+}
+
 interface Viewer3DProps {
   filePath: string | null
   fileExtension: string | null
@@ -239,6 +266,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     animate()
 
     return () => {
+      previewVersionRef.current++
+      effectVersionRef.current++
       unsubscribeStore()
       renderer.domElement.removeEventListener('dblclick', onDblClick)
       cancelAnimationFrame(animIdRef.current)
@@ -253,6 +282,19 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           container.removeChild(liveRenderer.domElement)
         }
       }
+      disposeViewerResources(
+        scene,
+        modelGroupRef.current,
+        modelMapRef.current.values(),
+        gridRef.current
+      )
+      modelGroupRef.current = undefined
+      modelMapRef.current.clear()
+      loadingIdsRef.current.clear()
+      gridRef.current = undefined
+      lightsRef.current = []
+      sceneRef.current = undefined
+      cameraRef.current = undefined
       rendererRef.current = undefined
       controlsRef.current = undefined
     }
@@ -455,7 +497,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
             const stillLoaded = useViewerStore
               .getState()
               .loadedModels.some((m) => m.id === model.id)
-            if (!stillLoaded) {
+            if (effectVersionRef.current !== version || !stillLoaded) {
               disposeModel(obj, scene)
               return
             }
@@ -562,11 +604,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       controlsRef.current.object = orthoCamera
       controlsRef.current.update()
     } else if (projectionMode === 'perspective' && oldCamera instanceof THREE.OrthographicCamera) {
-      const perspCamera = new THREE.PerspectiveCamera(
-        75, width / height, 0.1, 10000
-      )
-      perspCamera.position.copy(currentPos)
-      perspCamera.up.copy(currentUp)
+      const perspCamera = perspectiveCameraFrom(oldCamera, width, height)
       perspCamera.lookAt(currentTarget)
 
       cameraRef.current = perspCamera
@@ -640,8 +678,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       rendererRef.current = newRenderer
       antialiasRef.current = settings.antialias
 
-      // Skip remaining in-place updates since we just configured the new renderer
-      return
     }
 
     // Pixel ratio

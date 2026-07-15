@@ -14,6 +14,7 @@ import {
   loadModel,
   loadModelFromBuffer,
   parseModelBuffer,
+  fitModelToView,
   fitAllModels,
   SUPPORTED_EXTENSIONS,
 } from './index'
@@ -355,6 +356,25 @@ describe('fitAllModels', () => {
 
     // Camera far should be 100x the maxDim (10), so far = 1000
     expect(camera.far).toBeCloseTo(1000, 0)
+  })
+
+  it('rejects a scene with no renderable geometry', () => {
+    const camera = new THREE.PerspectiveCamera()
+    const controls = makeMockControls()
+
+    expect(() => fitAllModels([new THREE.Group()], camera, controls as any)).toThrow(
+      'Scene has no renderable geometry'
+    )
+  })
+})
+
+describe('fitModelToView', () => {
+  it('rejects a model with no renderable geometry', () => {
+    const camera = new THREE.PerspectiveCamera()
+
+    expect(() => fitModelToView(new THREE.Group(), camera)).toThrow(
+      'Model has no renderable geometry'
+    )
   })
 })
 

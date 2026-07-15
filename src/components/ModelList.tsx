@@ -37,6 +37,7 @@ export function ModelList() {
       fileName: null,
       fileExtension: null,
       fileSize: null,
+      fileBuffer: null,
       triangleCount: null,
     })
   }

@@ -33,6 +33,9 @@ export function fitModelToView(object: THREE.Object3D, camera: THREE.Perspective
   const center = box.getCenter(new THREE.Vector3())
   const size = box.getSize(new THREE.Vector3())
   const maxDim = Math.max(size.x, size.y, size.z)
+  if (!Number.isFinite(maxDim) || maxDim <= 0) {
+    throw new Error('Model has no renderable geometry')
+  }
   // Center horizontally, but place bottom on grid plane (Y=0)
   object.position.set(-center.x, -box.min.y, -center.z)
   camera.position.set(0, maxDim * 0.75, maxDim * 2)
@@ -60,6 +63,9 @@ export function fitAllModels(
   const center = unionBox.getCenter(new THREE.Vector3())
   const size = unionBox.getSize(new THREE.Vector3())
   const maxDim = Math.max(size.x, size.y, size.z)
+  if (!Number.isFinite(maxDim) || maxDim <= 0) {
+    throw new Error('Scene has no renderable geometry')
+  }
   camera.position.set(center.x, center.y + maxDim * 0.75, center.z + maxDim * 2)
   camera.near = Math.max(0.01, maxDim * 0.01)
   camera.far = Math.min(maxDim * 100, 1e7)
@@ -131,8 +137,13 @@ export async function loadModelFromBuffer(
   options?: { center?: boolean }
 ): Promise<THREE.Object3D> {
   const object = await parseModelBuffer(buffer, ext)
-  if (options?.center !== false) {
-    fitModelToView(object, camera)
+  try {
+    if (options?.center !== false) {
+      fitModelToView(object, camera)
+    }
+  } catch (error) {
+    disposeModel(object, scene)
+    throw error
   }
   // Multi-model path (center=false): preserve original coordinates
   // so assembly parts keep their relative positions
