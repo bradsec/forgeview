@@ -6,6 +6,8 @@ import packageJson from '../../package.json'
 
 type ViewMode = 'solid' | 'wireframe' | 'points'
 
+const APP_ICON_URL = `${import.meta.env.BASE_URL}icon.svg`
+
 const VIEW_MODES: { mode: ViewMode; label: string }[] = [
   { mode: 'solid', label: 'Solid' },
   { mode: 'wireframe', label: 'Wireframe' },
@@ -168,7 +170,7 @@ export function Toolbar() {
   return (
     <header className="app-bar" data-testid="toolbar">
       <div className="brand-lockup" aria-label="Forgeview">
-        <span className="brand-mark" aria-hidden="true">fv</span>
+        <img className="brand-mark" src={APP_ICON_URL} alt="" aria-hidden="true" />
         <span className="brand-name">forgeview</span>
       </div>
 
@@ -258,7 +260,7 @@ export function Toolbar() {
           }}
         >
           <section role="dialog" aria-modal="true" aria-labelledby="about-title" className="about-dialog">
-            <div className="about-mark" aria-hidden="true">fv</div>
+            <img className="about-mark" src={APP_ICON_URL} alt="" aria-hidden="true" />
             <h2 id="about-title">Forgeview</h2>
             <p>Fast, local 3D model inspection for the browser and desktop.</p>
             <dl>

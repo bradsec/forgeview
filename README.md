@@ -42,6 +42,26 @@ installer format valid for the host platform, e.g. deb/AppImage/rpm on Linux,
 msi/nsis on Windows, dmg/app on macOS). CI (`.github/workflows/publish.yml`)
 builds installers for all three platforms on push to `main`.
 
+## Brand icons
+
+`public/icon.svg` is the source for the in-app mark, browser icons, and desktop
+bundle icons. After changing it, regenerate the Tauri assets with:
+
+```bash
+pnpm tauri icon public/icon.svg
+```
+
+The browser PNGs can be regenerated with ImageMagick:
+
+```bash
+magick -background none public/icon.svg -resize 16x16 public/favicon-16x16.png
+magick -background none public/icon.svg -resize 32x32 public/favicon-32x32.png
+magick -background none public/icon.svg -resize 180x180 public/apple-touch-icon.png
+magick -background none public/icon.svg -resize 192x192 public/icon-192.png
+magick -background none public/icon.svg -resize 512x512 public/icon-512.png
+magick -background none public/icon.svg -define icon:auto-resize=64,48,32,16 public/favicon.ico
+```
+
 ## Web demo (GitHub Pages)
 
 The frontend also runs as a static site without the Tauri backend. In browser

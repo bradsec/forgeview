@@ -96,17 +96,11 @@ button:not(:disabled) {
 }
 
 .brand-mark {
-  display: grid;
+  display: block;
   width: 24px;
   height: 24px;
-  place-items: center;
-  border: 1px solid var(--accent);
+  flex: 0 0 24px;
   border-radius: 6px;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  line-height: 1;
 }
 
 .app-menus {
@@ -304,16 +298,11 @@ button:not(:disabled) {
 }
 
 .about-mark {
-  display: grid;
+  display: block;
   width: 42px;
   height: 42px;
-  place-items: center;
   margin-bottom: 17px;
-  border: 1px solid var(--accent);
   border-radius: 10px;
-  color: var(--accent);
-  font-size: 15px;
-  font-weight: 750;
 }
 
 .about-dialog h2 {
