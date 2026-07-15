@@ -26,8 +26,10 @@ export interface ThumbnailQueue {
 export function createThumbnailQueue(opts: {
   render: (f: GridFile) => Promise<string>
   concurrency?: number
+  maxEntries?: number
 }): ThumbnailQueue {
   const concurrency = opts.concurrency ?? 1
+  const maxEntries = opts.maxEntries ?? 200
   const cache = new Map<string, ThumbEntry>()
   const inflight = new Map<string, Promise<ThumbEntry>>()
   const pending: Array<{ file: GridFile; key: string; resolve: (e: ThumbEntry) => void }> = []
@@ -42,7 +44,13 @@ export function createThumbnailQueue(opts: {
         .then((dataUrl): ThumbEntry => ({ status: 'ready', dataUrl }))
         .catch((): ThumbEntry => ({ status: 'error' }))
         .then((entry) => {
+          cache.delete(job.key)
           cache.set(job.key, entry)
+          while (cache.size > maxEntries) {
+            const oldest = cache.keys().next().value
+            if (oldest === undefined) break
+            cache.delete(oldest)
+          }
           inflight.delete(job.key)
           active--
           job.resolve(entry)
@@ -54,7 +62,11 @@ export function createThumbnailQueue(opts: {
   const request = (f: GridFile): Promise<ThumbEntry> => {
     const key = cacheKey(f)
     const cached = cache.get(key)
-    if (cached) return Promise.resolve(cached)
+    if (cached) {
+      cache.delete(key)
+      cache.set(key, cached)
+      return Promise.resolve(cached)
+    }
     const existing = inflight.get(key)
     if (existing) return existing
     const p = new Promise<ThumbEntry>((resolve) => {

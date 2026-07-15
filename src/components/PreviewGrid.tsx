@@ -4,17 +4,21 @@ import { listGridFiles } from '../services/gridFiles'
 import type { GridListing } from '../services/gridFiles'
 import { GridTile } from './GridTile'
 
+const PAGE_SIZE = 60
+
 export function PreviewGrid() {
   const gridFolder = useViewerStore((s) => s.gridFolder)
   const gridScope = useViewerStore((s) => s.gridScope)
   const [listing, setListing] = useState<GridListing>({ folders: [], files: [] })
   const [loading, setLoading] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   useEffect(() => {
     if (!gridFolder) return
     let cancelled = false
     setLoading(true)
     setListing({ folders: [], files: [] })
+    setVisibleCount(PAGE_SIZE)
     listGridFiles(gridFolder, gridScope === 'recursive')
       .then((res) => { if (!cancelled) setListing(res) })
       .catch((err) => {
@@ -28,6 +32,11 @@ export function PreviewGrid() {
   }, [gridFolder, gridScope])
 
   const total = listing.files.length
+  const entries = [
+    ...listing.folders.map((folder) => ({ kind: 'folder' as const, folder })),
+    ...listing.files.map((file) => ({ kind: 'file' as const, file })),
+  ]
+  const visibleEntries = entries.slice(0, visibleCount)
 
   return (
     <div className="w-full h-full flex flex-col bg-[var(--bg-app)] overflow-hidden">
@@ -62,24 +71,34 @@ export function PreviewGrid() {
           <p className="text-sm text-[var(--text-muted)]">No supported 3D files in this folder.</p>
         ) : (
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-            {listing.folders.map((folder) => (
+            {visibleEntries.map((entry) => entry.kind === 'folder' ? (
               <button
-                key={folder.path}
+                key={entry.folder.path}
                 type="button"
-                onClick={() => useViewerStore.getState().setGridFolder(folder.path)}
-                aria-label={`Open folder ${folder.name}`}
-                title={folder.name}
+                onClick={() => useViewerStore.getState().setGridFolder(entry.folder.path)}
+                aria-label={`Open folder ${entry.folder.name}`}
+                title={entry.folder.name}
                 className="flex flex-col items-center justify-center gap-2 aspect-square rounded border border-[var(--border)] bg-[var(--bg-panel)] hover:border-[var(--accent)] transition-colors text-[var(--text-label)]"
               >
                 <svg className="w-8 h-8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
                   <path strokeLinejoin="round" d="M1.75 4.25a1 1 0 011-1h3l1.5 1.5h5.5a1 1 0 011 1v6a1 1 0 01-1 1H2.75a1 1 0 01-1-1v-7.5z" />
                 </svg>
-                <span className="truncate max-w-full px-2 text-xs text-[var(--text-primary)]">{folder.name}</span>
+                <span className="truncate max-w-full px-2 text-xs text-[var(--text-primary)]">{entry.folder.name}</span>
               </button>
+            ) : (
+              <GridTile key={entry.file.path} file={entry.file} />
             ))}
-            {listing.files.map((file) => (
-              <GridTile key={file.path} file={file} />
-            ))}
+          </div>
+        )}
+        {!loading && visibleEntries.length < entries.length && (
+          <div className="flex justify-center pt-4">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+              className="px-4 py-2 rounded bg-[var(--bg-button)] text-sm text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]"
+            >
+              Load more ({entries.length - visibleEntries.length} remaining)
+            </button>
           </div>
         )}
       </div>

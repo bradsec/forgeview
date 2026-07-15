@@ -101,4 +101,20 @@ describe('useDirOpen', () => {
     expect(useViewerStore.getState().error).toBe('Permission denied')
     expect(useViewerStore.getState().dirPath).toBeNull()
   })
+
+  it('keeps readable files when one metadata lookup fails', async () => {
+    vi.mocked(open).mockResolvedValueOnce('/my/models')
+    vi.mocked(readDir).mockResolvedValueOnce([
+      { name: 'bad.stl', isFile: true, isDirectory: false },
+      { name: 'cube.stl', isFile: true, isDirectory: false },
+    ] as any)
+    vi.mocked(stat)
+      .mockRejectedValueOnce(new Error('gone'))
+      .mockResolvedValueOnce({ size: 1024 } as any)
+
+    const { openDir } = useDirOpen()
+    await openDir()
+
+    expect(useViewerStore.getState().dirTree.map((entry) => entry.name)).toEqual(['cube.stl'])
+  })
 })

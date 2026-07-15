@@ -7,11 +7,56 @@ import { basename } from '../utils/pathUtils'
 const MIN_WIDTH = 140
 const MAX_WIDTH = 500
 const DEFAULT_WIDTH = 224
+const PAGE_SIZE = 100
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function TreeNodes({
+  entries,
+  depth,
+  expandDir,
+  collapseDir,
+  resetKey,
+}: {
+  entries: DirTreeEntry[]
+  depth: number
+  expandDir: (path: string) => Promise<void>
+  collapseDir: (path: string) => void
+  resetKey: string
+}) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+
+  useEffect(() => setVisibleCount(PAGE_SIZE), [resetKey])
+
+  const visibleEntries = entries.slice(0, visibleCount)
+  return (
+    <>
+      {visibleEntries.map((entry) => (
+        <TreeNode
+          key={entry.fullPath}
+          entry={entry}
+          depth={depth}
+          expandDir={expandDir}
+          collapseDir={collapseDir}
+        />
+      ))}
+      {visibleEntries.length < entries.length && (
+        <li style={{ paddingLeft: 12 + depth * 16 }} className="pr-4 py-1">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+            className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)]"
+          >
+            Load more ({entries.length - visibleEntries.length} remaining)
+          </button>
+        </li>
+      )}
+    </>
+  )
 }
 
 function TreeNode({
@@ -143,15 +188,13 @@ function TreeNode({
 
       {/* Children */}
       {entry.isDirectory && entry.isExpanded && entry.children && (
-        entry.children.map((child) => (
-          <TreeNode
-            key={child.fullPath}
-            entry={child}
-            depth={depth + 1}
-            expandDir={expandDir}
-            collapseDir={collapseDir}
-          />
-        ))
+        <TreeNodes
+          entries={entry.children}
+          depth={depth + 1}
+          expandDir={expandDir}
+          collapseDir={collapseDir}
+          resetKey={entry.fullPath}
+        />
       )}
     </>
   )
@@ -247,15 +290,13 @@ export function DirectoryPanel({ mobile = false }: { mobile?: boolean } = {}) {
         <p className="text-xs text-[var(--text-muted)] px-4 pb-3">No supported files found</p>
       ) : (
         <ul className="overflow-y-auto flex-1 pb-1">
-          {dirTree.map((entry) => (
-            <TreeNode
-              key={entry.fullPath}
-              entry={entry}
-              depth={0}
-              expandDir={expandDir}
-              collapseDir={collapseDir}
-            />
-          ))}
+          <TreeNodes
+            entries={dirTree}
+            depth={0}
+            expandDir={expandDir}
+            collapseDir={collapseDir}
+            resetKey={dirPath}
+          />
         </ul>
       )}
 

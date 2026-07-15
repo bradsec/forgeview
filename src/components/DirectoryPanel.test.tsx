@@ -115,6 +115,24 @@ describe('DirectoryPanel', () => {
     expect(cubeLi.className).toContain('bg-[var(--bg-button-active)]')
     expect(sphereLi.className).not.toContain('bg-[var(--bg-button-active)]')
   })
+
+  it('renders large directories in pages', async () => {
+    useViewerStore.setState({
+      dirPath: '/many',
+      dirTree: Array.from({ length: 101 }, (_, index) => ({
+        name: `part-${index}.stl`,
+        fullPath: `/many/part-${index}.stl`,
+        isDirectory: false,
+        extension: '.stl',
+        sizeBytes: 1,
+      })),
+    })
+    render(<DirectoryPanel />)
+
+    expect(screen.queryByText('part-100.stl')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Load more (1 remaining)' }))
+    expect(screen.getByText('part-100.stl')).toBeTruthy()
+  })
 })
 
 describe('DirectoryPanel mobile variant', () => {

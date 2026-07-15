@@ -8,6 +8,8 @@ import { dirname, extname } from '../utils/pathUtils'
 import { isTauri } from '../utils/isTauri'
 import { isBrowserPath, listBrowserDir, pickBrowserFolder, registerBrowserFolder } from '../services/browserFs'
 
+const METADATA_CONCURRENCY = 16
+
 /** Tree entries (one level) served from the in-memory browser folder registry. */
 function readBrowserDirTree(dirPath: string): DirTreeEntry[] {
   const results: DirTreeEntry[] = []
@@ -51,36 +53,48 @@ export async function readDirTree(dirPath: string): Promise<DirTreeEntry[]> {
 
   const entries = await readDir(dirPath)
   const results: DirTreeEntry[] = []
+  const files: Array<{ name: string; fullPath: string; extension: string }> = []
 
-  await Promise.all(
-    entries.map(async (e) => {
-      if (!e.name) return
-      const fullPath = await join(dirPath, e.name)
-
-      if (e.isDirectory) {
-        results.push({
-          name: e.name,
-          fullPath,
-          isDirectory: true,
-          isExpanded: false,
-          isLoaded: false,
-          children: [],
-        })
-      } else if (e.isFile) {
-        const ext = extname(e.name)
-        if (ext && SUPPORTED_EXTENSIONS.includes(ext)) {
-          const info = await stat(fullPath)
-          results.push({
-            name: e.name,
-            fullPath,
-            isDirectory: false,
-            extension: ext,
-            sizeBytes: info.size,
-          })
-        }
+  for (const entry of entries) {
+    if (!entry.name) continue
+    const fullPath = await join(dirPath, entry.name)
+    if (entry.isDirectory) {
+      results.push({
+        name: entry.name,
+        fullPath,
+        isDirectory: true,
+        isExpanded: false,
+        isLoaded: false,
+        children: [],
+      })
+    } else if (entry.isFile) {
+      const extension = extname(entry.name)
+      if (extension && SUPPORTED_EXTENSIONS.includes(extension)) {
+        files.push({ name: entry.name, fullPath, extension })
       }
-    })
-  )
+    }
+  }
+
+  for (let index = 0; index < files.length; index += METADATA_CONCURRENCY) {
+    const batch = files.slice(index, index + METADATA_CONCURRENCY)
+    const metadata = await Promise.all(
+      batch.map(async (file): Promise<DirTreeEntry | null> => {
+        try {
+          const info = await stat(file.fullPath)
+          return {
+            name: file.name,
+            fullPath: file.fullPath,
+            isDirectory: false,
+            extension: file.extension,
+            sizeBytes: info.size,
+          } satisfies DirTreeEntry
+        } catch {
+          return null
+        }
+      })
+    )
+    results.push(...metadata.filter((entry): entry is DirTreeEntry => entry !== null))
+  }
 
   // Sort: directories first, then alphabetical
   results.sort((a, b) => {

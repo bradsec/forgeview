@@ -4,6 +4,8 @@ import { SUPPORTED_EXTENSIONS } from '../loaders'
 import { extname } from '../utils/pathUtils'
 import { isBrowserPath, listBrowserDir, listBrowserDirRecursive } from './browserFs'
 
+const METADATA_CONCURRENCY = 16
+
 export interface GridFile {
   name: string
   path: string
@@ -62,11 +64,19 @@ export async function listGridFiles(dir: string, recursive: boolean): Promise<Gr
         }
       }
     }
-    await Promise.all(
-      fileEntries.map(async ({ name, full, ext }) => {
-        files.push(await toGridFile(name, full, ext))
-      })
-    )
+    for (let index = 0; index < fileEntries.length; index += METADATA_CONCURRENCY) {
+      const batch = fileEntries.slice(index, index + METADATA_CONCURRENCY)
+      const metadata = await Promise.all(
+        batch.map(async ({ name, full, ext }) => {
+          try {
+            return await toGridFile(name, full, ext)
+          } catch {
+            return null
+          }
+        })
+      )
+      files.push(...metadata.filter((file): file is GridFile => file !== null))
+    }
   }
 
   await walk(dir, true)

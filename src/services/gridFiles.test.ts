@@ -36,6 +36,20 @@ describe('listGridFiles (current)', () => {
     expect(out.files[0].mtime).toBe(1000)
     expect(out.files[0].size).toBe(1024)
   })
+
+  it('keeps readable files when one metadata lookup fails', async () => {
+    vi.mocked(readDir).mockResolvedValueOnce([
+      dirEntry('bad.stl', false),
+      dirEntry('cube.stl', false),
+    ] as any)
+    vi.mocked(stat)
+      .mockRejectedValueOnce(new Error('gone'))
+      .mockResolvedValueOnce({ size: 1024, mtime: new Date(1000) } as any)
+
+    const out = await listGridFiles('/models', false)
+
+    expect(out.files.map((file) => file.name)).toEqual(['cube.stl'])
+  })
 })
 
 describe('listGridFiles (recursive)', () => {

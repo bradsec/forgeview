@@ -72,4 +72,23 @@ describe('createThumbnailQueue', () => {
     ])
     expect(maxInFlight).toBe(1)
   })
+
+  it('evicts the least recently used thumbnail when the cache is full', async () => {
+    const q = createThumbnailQueue({
+      maxEntries: 2,
+      render: async (f) => `data:${f.path}`,
+    })
+    const a = file('/a.stl')
+    const b = file('/b.stl')
+    const c = file('/c.stl')
+
+    await q.request(a)
+    await q.request(b)
+    await q.request(a)
+    await q.request(c)
+
+    expect(q.get(a)?.status).toBe('ready')
+    expect(q.get(b)).toBeUndefined()
+    expect(q.get(c)?.status).toBe('ready')
+  })
 })
