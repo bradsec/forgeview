@@ -213,4 +213,22 @@ mod tests {
         );
         std::fs::remove_dir_all(&base).unwrap();
     }
+
+    #[test]
+    fn read_file_bounded_accepts_file_at_limit() {
+        let base = temp_base("at-limit");
+        let file = base.join("model.stl");
+        std::fs::write(&file, b"1234").unwrap();
+        assert_eq!(read_file_bounded(&file, 4).unwrap(), b"1234");
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn read_file_bounded_accepts_empty_file() {
+        let base = temp_base("empty");
+        let file = base.join("model.stl");
+        std::fs::write(&file, b"").unwrap();
+        assert!(read_file_bounded(&file, 4).unwrap().is_empty());
+        std::fs::remove_dir_all(&base).unwrap();
+    }
 }
