@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 - 2026-07-15
 
 - Constrain native reads and writes to paths granted by the runtime file scope,
   and reject oversized or non-regular files before parsing.
