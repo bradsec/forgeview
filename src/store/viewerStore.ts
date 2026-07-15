@@ -86,7 +86,10 @@ interface ViewerState {
   toggleTheme: () => void
 
   setPerformancePreset: (preset: QualityPreset) => void
-  setPerformanceOverride: (key: keyof PerformanceOverrides, value: any) => void
+  setPerformanceOverride: <K extends keyof PerformanceOverrides>(
+    key: K,
+    value: Exclude<PerformanceOverrides[K], undefined>
+  ) => void
   resetPerformanceOverrides: () => void
   setSettingsOpen: (open: boolean) => void
   setExplorerVisible: (visible: boolean) => void

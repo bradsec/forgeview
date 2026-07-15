@@ -29,12 +29,11 @@ describe('Toolbar mobile row', () => {
     expect(useViewerStore.getState().mobileDrawer).toBe('details')
   })
 
-  it('overflow menu opens and a view-mode item updates the store and closes', async () => {
+  it('file menu opens and closes after choosing Open', async () => {
     render(<Toolbar />)
-    await userEvent.click(mobile().getByRole('button', { name: /more actions/i }))
+    await userEvent.click(mobile().getByRole('button', { name: /^more/i }))
     const menu = screen.getByTestId('toolbar-menu')
-    await userEvent.click(within(menu).getByRole('button', { name: /^wireframe$/i }))
-    expect(useViewerStore.getState().viewMode).toBe('wireframe')
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /^open$/i }))
     expect(screen.queryByTestId('toolbar-menu')).toBeNull()
   })
 
@@ -47,9 +46,11 @@ describe('Toolbar mobile row', () => {
 
   it('Escape closes the overflow menu', async () => {
     render(<Toolbar />)
-    await userEvent.click(mobile().getByRole('button', { name: /more actions/i }))
+    const trigger = mobile().getByRole('button', { name: /^more/i })
+    await userEvent.click(trigger)
     expect(screen.getByTestId('toolbar-menu')).toBeTruthy()
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByTestId('toolbar-menu')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
   })
 })

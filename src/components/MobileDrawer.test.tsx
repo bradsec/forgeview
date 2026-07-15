@@ -39,4 +39,13 @@ describe('MobileDrawer', () => {
     render(<MobileDrawer side="left" open={false} onClose={() => {}}><p>x</p></MobileDrawer>)
     expect(screen.getByTestId('drawer-panel').className).toContain('-translate-x-full')
   })
+
+  it('closes on Escape', async () => {
+    const onClose = vi.fn()
+    render(<MobileDrawer side="left" open onClose={onClose}><button>Inside</button></MobileDrawer>)
+
+    await userEvent.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledOnce()
+  })
 })

@@ -32,6 +32,8 @@ export function DropZone() {
     if (!isTauri()) return
 
     let unlisten: (() => void) | undefined
+    let disposed = false
+    let processingTimer: ReturnType<typeof setTimeout> | undefined
 
     getCurrentWebview()
       .onDragDropEvent(async (event) => {
@@ -48,7 +50,8 @@ export function DropZone() {
           // Debounce guard for Tauri duplicate drop events
           if (processingRef.current) return
           processingRef.current = true
-          setTimeout(() => {
+          if (processingTimer) clearTimeout(processingTimer)
+          processingTimer = setTimeout(() => {
             processingRef.current = false
           }, 200)
 
@@ -78,10 +81,13 @@ export function DropZone() {
         }
       })
       .then((fn) => {
-        unlisten = fn
+        if (disposed) fn()
+        else unlisten = fn
       })
 
     return () => {
+      disposed = true
+      if (processingTimer) clearTimeout(processingTimer)
       unlisten?.()
     }
   }, [])
@@ -140,7 +146,7 @@ export function DropZone() {
         <button
           type="button"
           onClick={openFile}
-          className="mt-2 px-4 py-2 bg-[var(--accent-button)] hover:bg-[var(--accent-button-hover)] text-white text-sm font-medium rounded transition-colors"
+          className="mt-2 px-4 py-2 bg-[var(--accent-button)] hover:bg-[var(--accent-button-hover)] text-[var(--text-on-accent)] text-sm font-medium rounded transition-colors"
         >
           Open File
         </button>

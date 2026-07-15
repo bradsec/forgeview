@@ -94,57 +94,53 @@ function TreeNode({
   return (
     <>
       <li
-        onClick={handleClick}
+        role="treeitem"
+        aria-level={depth + 1}
+        aria-expanded={entry.isDirectory ? Boolean(entry.isExpanded) : undefined}
         className={[
-          'flex items-center gap-1.5 pr-4 py-0.5 cursor-pointer text-sm select-none',
+          'flex items-center pr-2 text-sm select-none',
           isActive
             ? 'bg-[var(--bg-button-active)] text-[var(--text-bright)]'
             : 'text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]/50',
         ].join(' ')}
-        style={{ paddingLeft }}
       >
-        {/* Chevron / spacer */}
-        {entry.isDirectory ? (
-          <span className="w-4 text-center text-xs text-[var(--text-muted)] shrink-0">
-            {entry.isExpanded ? '\u25BE' : '\u25B8'}
-          </span>
-        ) : (
-          <span className="w-4 shrink-0" />
-        )}
-
-        {/* Icon \u2014 folder state is already conveyed by the chevron, so the
-            folder glyph stays constant. One SVG icon family, token-colored. */}
-        {entry.isDirectory ? (
-          <svg
-            className="w-3.5 h-3.5 shrink-0 text-[var(--text-label)]"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.25"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinejoin="round"
-              d="M1.75 4.25a1 1 0 011-1h3l1.5 1.5h5.5a1 1 0 011 1v6a1 1 0 01-1 1H2.75a1 1 0 01-1-1v-7.5z"
-            />
-          </svg>
-        ) : (
-          <span className="bg-[var(--bg-button)] text-[10px] rounded font-mono px-1 py-0 shrink-0 leading-tight">
-            {entry.extension?.toUpperCase().replace('.', '')}
-          </span>
-        )}
-
-        {/* Name */}
-        <span className="truncate flex-1" title={entry.name}>
-          {entry.name}
-        </span>
-
-        {/* File size */}
-        {!entry.isDirectory && entry.sizeBytes !== undefined && (
-          <span className="text-[10px] text-[var(--text-muted)] shrink-0 font-mono tabular-nums">
-            {formatBytes(entry.sizeBytes)}
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={handleClick}
+          aria-label={`${entry.isDirectory ? 'Toggle folder' : 'Open file'} ${entry.name}`}
+          className="min-w-0 flex-1 flex items-center gap-1.5 py-1 text-left"
+          style={{ paddingLeft }}
+        >
+          {entry.isDirectory ? (
+            <span className="w-4 text-center text-xs text-[var(--text-muted)] shrink-0" aria-hidden="true">
+              {entry.isExpanded ? '\u25BE' : '\u25B8'}
+            </span>
+          ) : (
+            <span className="w-4 shrink-0" />
+          )}
+          {entry.isDirectory ? (
+            <svg
+              className="w-3.5 h-3.5 shrink-0 text-[var(--text-label)]"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              aria-hidden="true"
+            >
+              <path strokeLinejoin="round" d="M1.75 4.25a1 1 0 011-1h3l1.5 1.5h5.5a1 1 0 011 1v6a1 1 0 01-1 1H2.75a1 1 0 01-1-1v-7.5z" />
+            </svg>
+          ) : (
+            <span className="bg-[var(--bg-button)] text-[10px] rounded font-mono px-1 py-0 shrink-0 leading-tight">
+              {entry.extension?.toUpperCase().replace('.', '')}
+            </span>
+          )}
+          <span className="truncate flex-1" title={entry.name}>{entry.name}</span>
+          {!entry.isDirectory && entry.sizeBytes !== undefined && (
+            <span className="text-[10px] text-[var(--text-muted)] shrink-0 font-mono tabular-nums">
+              {formatBytes(entry.sizeBytes)}
+            </span>
+          )}
+        </button>
 
         {/* Add/remove from scene button (files only) */}
         {!entry.isDirectory && (
@@ -156,7 +152,7 @@ function TreeNode({
                 const model = state.loadedModels.find((m) => m.path === entry.fullPath)
                 if (model) state.removeModel(model.id)
               }}
-              className="text-[var(--error)] hover:bg-[var(--bg-button)] text-sm font-bold shrink-0 leading-none ml-1 w-5 h-5 flex items-center justify-center rounded"
+              className="text-[var(--error)] hover:bg-[var(--bg-button)] text-sm font-bold shrink-0 leading-none ml-1 w-8 h-8 flex items-center justify-center rounded"
               aria-label={`Remove ${entry.name}`}
               title="Remove from scene"
             >
@@ -176,7 +172,7 @@ function TreeNode({
                   triangleCount: 0,
                 })
               }}
-              className="text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-button)] text-sm font-bold shrink-0 leading-none ml-1 w-5 h-5 flex items-center justify-center rounded"
+              className="text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-button)] text-sm font-bold shrink-0 leading-none ml-1 w-8 h-8 flex items-center justify-center rounded"
               aria-label={`Add ${entry.name} to scene`}
               title="Add to scene"
             >
@@ -289,7 +285,7 @@ export function DirectoryPanel({ mobile = false }: { mobile?: boolean } = {}) {
       {dirTree.length === 0 ? (
         <p className="text-xs text-[var(--text-muted)] px-4 pb-3">No supported files found</p>
       ) : (
-        <ul className="overflow-y-auto flex-1 pb-1">
+        <ul role="tree" aria-label="Files" className="overflow-y-auto flex-1 pb-1">
           <TreeNodes
             entries={dirTree}
             depth={0}
@@ -304,6 +300,23 @@ export function DirectoryPanel({ mobile = false }: { mobile?: boolean } = {}) {
       {!mobile && (
         <div
           onMouseDown={handleMouseDown}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault()
+              setWidth((value) => Math.max(MIN_WIDTH, value - 10))
+            }
+            if (event.key === 'ArrowRight') {
+              event.preventDefault()
+              setWidth((value) => Math.min(MAX_WIDTH, value + 10))
+            }
+          }}
+          role="separator"
+          aria-label="Resize Explorer"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_WIDTH}
+          aria-valuemax={MAX_WIDTH}
+          aria-valuenow={width}
+          tabIndex={0}
           className="absolute top-0 -right-1 w-3 h-full cursor-col-resize z-10 group"
         >
           <div className="absolute top-0 right-1 w-1 h-full group-hover:bg-[var(--accent)]/50 group-active:bg-[var(--accent)]/70 transition-colors" />

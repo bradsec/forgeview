@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { getPresetDefaults } from '../utils/performancePresets'
 import type { QualityPreset, PerformanceOverrides } from '../utils/performancePresets'
@@ -95,11 +95,45 @@ export function SettingsModal() {
   const overrides = useViewerStore((s) => s.performanceOverrides)
   const theme = useViewerStore((s) => s.theme)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+  const close = () => useViewerStore.getState().setSettingsOpen(false)
+
+  useEffect(() => {
+    if (!settingsOpen) return
+    previousFocusRef.current = document.activeElement as HTMLElement | null
+    closeButtonRef.current?.focus()
+    return () => previousFocusRef.current?.focus()
+  }, [settingsOpen])
 
   if (!settingsOpen) return null
 
   const defaults = getPresetDefaults(preset)
-  const close = () => useViewerStore.getState().setSettingsOpen(false)
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      close()
+      return
+    }
+    if (event.key !== 'Tab' || !dialogRef.current) return
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    )
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   // Resolve displayed values: override ?? preset default
   const antialias = overrides.antialias ?? defaults.antialias
@@ -110,7 +144,10 @@ export function SettingsModal() {
   const damping = overrides.damping ?? defaults.damping
   const gridDivisions = overrides.gridDivisions ?? defaults.gridDivisions
 
-  const setOverride = (key: keyof PerformanceOverrides, value: any) =>
+  const setOverride = <K extends keyof PerformanceOverrides>(
+    key: K,
+    value: Exclude<PerformanceOverrides[K], undefined>
+  ) =>
     useViewerStore.getState().setPerformanceOverride(key, value)
 
   return (
@@ -120,11 +157,19 @@ export function SettingsModal() {
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-[var(--bg-dialog)] border border-[var(--border)] rounded-lg shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-sm">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+          onKeyDown={handleKeyDown}
+          className="bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-sm"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-            <h2 className="text-base font-semibold text-[var(--text-bright)]">Settings</h2>
+            <h2 id="settings-title" className="text-base font-semibold text-[var(--text-bright)]">Settings</h2>
             <button
+              ref={closeButtonRef}
               onClick={close}
               className="text-[var(--text-label)] hover:text-[var(--text-primary)] text-lg leading-none"
               aria-label="Close settings"
@@ -149,7 +194,7 @@ export function SettingsModal() {
                     className={[
                       'flex-1 py-2 rounded text-sm font-medium transition-colors',
                       theme === t
-                        ? 'bg-[var(--accent-button)] text-[var(--text-bright)]'
+                        ? 'bg-[var(--accent-button)] text-[var(--text-on-accent)]'
                         : 'bg-[var(--bg-button)] text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]',
                     ].join(' ')}
                   >
@@ -175,7 +220,7 @@ export function SettingsModal() {
                     className={[
                       'flex-1 py-2 rounded text-sm font-medium transition-colors',
                       preset === p.key
-                        ? 'bg-[var(--accent-button)] text-[var(--text-bright)]'
+                        ? 'bg-[var(--accent-button)] text-[var(--text-on-accent)]'
                         : 'bg-[var(--bg-button)] text-[var(--text-primary)] hover:bg-[var(--bg-button-hover)]',
                     ].join(' ')}
                     title={p.desc}
@@ -247,7 +292,7 @@ export function SettingsModal() {
             <button
               type="button"
               onClick={close}
-              className="px-4 py-1.5 bg-[var(--accent-button)] hover:bg-[var(--accent-button-hover)] text-white text-sm rounded transition-colors"
+              className="px-4 py-1.5 bg-[var(--accent-button)] hover:bg-[var(--accent-button-hover)] text-[var(--text-on-accent)] text-sm rounded transition-colors"
             >
               Done
             </button>

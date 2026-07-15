@@ -24,6 +24,8 @@ function IconButton({
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
+      aria-pressed={active}
       className={[
         'w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition-colors',
         active
@@ -74,15 +76,34 @@ export function SceneControls({ viewerRef }: SceneControlsProps) {
   }
 
   return (
-    <div className="absolute top-3 right-3 flex flex-col items-center gap-2 z-20">
-      {/* View Cube — click face to snap, drag to orbit */}
-      <ViewCube onSnapToView={handleSnap} onOrbitBy={handleOrbitBy} getCamera={getCamera} />
-
-      {/* Button column */}
-      <div
-        className="flex flex-col gap-1 backdrop-blur-sm rounded-lg p-1.5"
-        style={{ backgroundColor: 'color-mix(in srgb, var(--bg-panel) 60%, transparent)' }}
+    <>
+      <div className="absolute top-3 right-3 z-20">
+        <ViewCube onSnapToView={handleSnap} onOrbitBy={handleOrbitBy} getCamera={getCamera} />
+      </div>
+      <nav
+        aria-label="Camera navigation"
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 rounded p-1.5 shadow-[0_4px_18px_var(--shadow-color)]"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--bg-panel) 88%, transparent)' }}
       >
+        <label className="sr-only" htmlFor="standard-view">Standard view</label>
+        <select
+          id="standard-view"
+          aria-label="Standard view"
+          defaultValue=""
+          onChange={(event) => {
+            if (event.target.value) handleSnap(event.target.value as ViewDirection)
+            event.target.value = ''
+          }}
+          className="h-8 max-w-28 rounded border border-[var(--border-input)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
+        >
+          <option value="" disabled>Views</option>
+          <option value="front">Front</option>
+          <option value="back">Back</option>
+          <option value="top">Top</option>
+          <option value="bottom">Bottom</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
         <IconButton onClick={handleFitAll} title="Fit All (zoom to fit all objects)">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="3" y="3" width="10" height="10" rx="1" />
@@ -97,7 +118,7 @@ export function SceneControls({ viewerRef }: SceneControlsProps) {
           </svg>
         </IconButton>
 
-        <div className="h-px bg-[var(--border)] my-0.5" />
+        <div className="w-px h-6 bg-[var(--border)] mx-0.5" />
 
         <IconButton onClick={handleZoomIn} title="Zoom In">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -113,7 +134,7 @@ export function SceneControls({ viewerRef }: SceneControlsProps) {
           </svg>
         </IconButton>
 
-        <div className="h-px bg-[var(--border)] my-0.5" />
+        <div className="w-px h-6 bg-[var(--border)] mx-0.5" />
 
         <IconButton
           onClick={handleToggleProjection}
@@ -122,7 +143,7 @@ export function SceneControls({ viewerRef }: SceneControlsProps) {
         >
           {projectionMode === 'perspective' ? 'P' : 'O'}
         </IconButton>
-      </div>
-    </div>
+      </nav>
+    </>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Sidebar } from './Sidebar'
 import { useViewerStore } from '../store/viewerStore'
@@ -33,5 +33,15 @@ describe('Sidebar desktop variant', () => {
   it('renders the hidden placeholder when sidebarVisible is false', () => {
     const { container } = render(<Sidebar />)
     expect(container.querySelector('aside.hidden')).toBeTruthy()
+  })
+
+  it('supports keyboard resizing when visible', async () => {
+    useViewerStore.setState({ sidebarVisible: true })
+    render(<Sidebar />)
+
+    const separator = screen.getByRole('separator', { name: 'Resize Details' })
+    expect(separator.getAttribute('aria-valuenow')).toBe('256')
+    fireEvent.keyDown(separator, { key: 'ArrowLeft' })
+    expect(separator.getAttribute('aria-valuenow')).toBe('266')
   })
 })

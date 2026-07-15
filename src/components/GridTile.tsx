@@ -69,14 +69,15 @@ export function GridTile({ file, queue }: GridTileProps) {
   return (
     <div
       ref={ref}
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
-      aria-label={`Open ${file.name}`}
-      title={file.name}
       className="group relative flex flex-col rounded border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden text-left hover:border-[var(--accent)] transition-colors"
     >
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${file.name}`}
+        title={file.name}
+        className="flex flex-col text-left"
+      >
       <div className="relative aspect-square bg-[var(--bg-app)] flex items-center justify-center">
         {status === 'ready' && dataUrl ? (
           <img src={dataUrl} alt={file.name} className="w-full h-full object-contain" />
@@ -89,15 +90,6 @@ export function GridTile({ file, queue }: GridTileProps) {
           <div className="w-2/3 h-2/3 rounded bg-[var(--bg-button)] animate-pulse" />
         )}
 
-        <button
-          type="button"
-          aria-label={`Add ${file.name} to scene`}
-          title="Add to scene"
-          onClick={(e) => { e.stopPropagation(); addToScene() }}
-          className="absolute top-1 right-1 w-5 h-5 hidden group-hover:flex items-center justify-center rounded bg-[var(--bg-button)] text-[var(--text-muted)] hover:text-[var(--accent)] text-sm font-bold leading-none"
-        >
-          +
-        </button>
       </div>
 
       <div className="flex items-center gap-1.5 px-2 py-1.5">
@@ -105,6 +97,16 @@ export function GridTile({ file, queue }: GridTileProps) {
         <span className="truncate text-xs text-[var(--text-primary)] flex-1">{file.name}</span>
         <span className="text-[10px] text-[var(--text-muted)] shrink-0 font-mono tabular-nums">{formatBytes(file.size)}</span>
       </div>
+      </button>
+      <button
+        type="button"
+        aria-label={`Add ${file.name} to scene`}
+        title="Add to scene"
+        onClick={addToScene}
+        className="absolute top-1 right-1 w-11 h-11 flex items-center justify-center rounded bg-[var(--bg-button)] text-[var(--text-primary)] hover:text-[var(--accent)] text-base font-bold leading-none md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus:opacity-100 transition-opacity"
+      >
+        +
+      </button>
     </div>
   )
 }

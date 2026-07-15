@@ -26,6 +26,7 @@ export default function App() {
   const mainView = useViewerStore((s) => s.mainView)
   const mobileDrawer = useViewerStore((s) => s.mobileDrawer)
   const setMobileDrawer = useViewerStore((s) => s.setMobileDrawer)
+  const settingsOpen = useViewerStore((s) => s.settingsOpen)
 
   useEffect(() => {
     const colors = getTheme(theme)
@@ -37,11 +38,12 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
-      <Toolbar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen}>
+        <Toolbar />
+        <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
         <DirectoryPanel />
-        <div className="flex-1 relative min-w-0 overflow-hidden">
+        <main className="flex-1 relative min-w-0 overflow-hidden" aria-busy={isLoading}>
           {dirPath && mainView === 'grid' ? (
             <PreviewGrid />
           ) : filePath || loadedModels.length > 0 ? (
@@ -55,16 +57,16 @@ export default function App() {
           )}
 
           {isLoading && (
-            <div className="absolute inset-0 bg-[var(--scrim)] flex items-center justify-center z-10">
+            <div role="status" aria-live="polite" className="absolute inset-0 bg-[var(--scrim)] flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-4 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin" />
+                <div aria-hidden="true" className="w-10 h-10 border-4 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin" />
                 <span className="text-sm text-[var(--text-primary)]">Loading...</span>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="absolute bottom-0 left-0 right-0 border-l-2 border-[var(--error)] bg-[color-mix(in_srgb,var(--error)_22%,var(--bg-toolbar))] text-[var(--text-bright)] px-4 py-2 flex justify-between items-center z-10">
+            <div role="alert" className="absolute bottom-0 left-0 right-0 border-l-2 border-[var(--error)] bg-[color-mix(in_srgb,var(--error)_22%,var(--bg-toolbar))] text-[var(--text-bright)] px-4 py-2 flex justify-between items-center z-10">
               <span className="text-sm">{error}</span>
               <button
                 onClick={() => setError(null)}
@@ -75,16 +77,16 @@ export default function App() {
               </button>
             </div>
           )}
-        </div>
+        </main>
         <Sidebar />
-        {/* Mobile-only overlay drawers */}
-        <MobileDrawer side="left" open={mobileDrawer === 'explorer'} onClose={() => setMobileDrawer('none')}>
-          <DirectoryPanel mobile />
-        </MobileDrawer>
-        <MobileDrawer side="right" open={mobileDrawer === 'details'} onClose={() => setMobileDrawer('none')}>
-          <Sidebar mobile />
-        </MobileDrawer>
+        </div>
       </div>
+      <MobileDrawer side="left" open={mobileDrawer === 'explorer'} onClose={() => setMobileDrawer('none')}>
+        <DirectoryPanel mobile />
+      </MobileDrawer>
+      <MobileDrawer side="right" open={mobileDrawer === 'details'} onClose={() => setMobileDrawer('none')}>
+        <Sidebar mobile />
+      </MobileDrawer>
       <SettingsModal />
     </div>
   )

@@ -83,6 +83,23 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
       {!mobile && (
         <div
           onMouseDown={handleMouseDown}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault()
+              setWidth((value) => Math.min(MAX_WIDTH, value + 10))
+            }
+            if (event.key === 'ArrowRight') {
+              event.preventDefault()
+              setWidth((value) => Math.max(MIN_WIDTH, value - 10))
+            }
+          }}
+          role="separator"
+          aria-label="Resize Details"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_WIDTH}
+          aria-valuemax={MAX_WIDTH}
+          aria-valuenow={width}
+          tabIndex={0}
           className="absolute top-0 -left-1 w-3 h-full cursor-col-resize z-10 group"
         >
           <div className="absolute top-0 left-1 w-1 h-full group-hover:bg-[var(--accent)]/50 group-active:bg-[var(--accent)]/70 transition-colors" />
@@ -159,7 +176,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
           <div>
             <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Triangles</dt>
             <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">
-              {triangleCount !== null ? triangleCount.toLocaleString() : '—'}
+              {triangleCount !== null ? triangleCount.toLocaleString() : 'N/A'}
             </dd>
           </div>
         </dl>

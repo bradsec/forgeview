@@ -16,6 +16,7 @@ export interface ThemeColors {
   textBright: string
   textMuted: string
   textLabel: string
+  textOnAccent: string
   accent: string
   accentHover: string
   accentButton: string
@@ -51,6 +52,7 @@ export const darkTheme: ThemeColors = {
   textBright: '#EEEEEE',
   textMuted: '#9A9AA0',
   textLabel: '#A5A5AA',
+  textOnAccent: '#F7F7F8',
   accent: '#0696D7',
   accentHover: '#42B6DF',
   accentButton: '#354F85',
@@ -85,10 +87,11 @@ export const lightTheme: ThemeColors = {
   textBright: '#1A1A1A',
   textMuted: '#6E6E6E',
   textLabel: '#666666',
+  textOnAccent: '#FFFFFF',
   accent: '#0696D7',
   accentHover: '#007FC6',
-  accentButton: '#0696D7',
-  accentButtonHover: '#007FC6',
+  accentButton: '#0078A8',
+  accentButtonHover: '#006B96',
   error: '#D93025',
   warning: '#E8A020',
   success: '#1E8E3E',
@@ -127,6 +130,7 @@ export function applyThemeCssVars(element: HTMLElement, theme: ThemeColors): voi
     '--text-bright': theme.textBright,
     '--text-muted': theme.textMuted,
     '--text-label': theme.textLabel,
+    '--text-on-accent': theme.textOnAccent,
     '--accent': theme.accent,
     '--accent-hover': theme.accentHover,
     '--accent-button': theme.accentButton,

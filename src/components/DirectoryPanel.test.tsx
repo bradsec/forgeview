@@ -87,8 +87,7 @@ describe('DirectoryPanel', () => {
     })
     render(<DirectoryPanel />)
 
-    const fileEntry = screen.getByText('cube.stl').closest('li')!
-    fireEvent.click(fileEntry)
+    fireEvent.click(screen.getByRole('button', { name: 'Open file cube.stl' }))
 
     const state = useViewerStore.getState()
     expect(state.filePath).toBe('/my/models/cube.stl')
@@ -132,6 +131,16 @@ describe('DirectoryPanel', () => {
     expect(screen.queryByText('part-100.stl')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Load more (1 remaining)' }))
     expect(screen.getByText('part-100.stl')).toBeTruthy()
+  })
+
+  it('supports keyboard resizing', async () => {
+    useViewerStore.setState({ dirPath: '/models', dirTree: [] })
+    render(<DirectoryPanel />)
+
+    const separator = screen.getByRole('separator', { name: 'Resize Explorer' })
+    expect(separator.getAttribute('aria-valuenow')).toBe('224')
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    expect(separator.getAttribute('aria-valuenow')).toBe('234')
   })
 })
 
