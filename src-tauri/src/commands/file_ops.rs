@@ -96,8 +96,10 @@ pub async fn get_file_metadata(
 }
 
 fn read_file_bounded(path: &Path, max_size: u64) -> Result<Vec<u8>, String> {
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-    let metadata = file.metadata().map_err(|e| e.to_string())?;
+    // Inspect the path before opening it. Windows rejects opening directories
+    // with "Access is denied", while Unix permits the open, so checking first
+    // keeps the command error stable across platforms.
+    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
     if !metadata.is_file() {
         return Err("Path is not a regular file".to_string());
     }
@@ -109,6 +111,7 @@ fn read_file_bounded(path: &Path, max_size: u64) -> Result<Vec<u8>, String> {
         ));
     }
 
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let mut bytes = Vec::with_capacity(metadata.len() as usize);
     file.take(max_size + 1)
         .read_to_end(&mut bytes)
