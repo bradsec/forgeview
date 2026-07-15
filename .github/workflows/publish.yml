@@ -3,10 +3,10 @@
 # workflow artifacts (no GitHub Release required).
 #
 # Artifacts produced per matrix job:
-#   ubuntu-22.04  → forge-view_*.deb, forge-view_*.AppImage
+#   ubuntu-22.04  → forge-view_*.deb, forge-view_*.AppImage, forge-view_*.rpm
 #   windows-latest → forge-view_*_x64_en-US.msi, forge-view_*_x64-setup.exe
-#   macos-latest (aarch64) → forge-view_*_aarch64.dmg
-#   macos-latest (x86_64)  → forge-view_*_x64.dmg
+#   macos-latest (aarch64) → forge-view_*_aarch64.dmg, forge-view_*.app
+#   macos-latest (x86_64)  → forge-view_*_x64.dmg, forge-view_*.app
 #
 # Source: https://v2.tauri.app/distribute/pipelines/github/
 
@@ -20,7 +20,7 @@ on:
 jobs:
   publish-tauri:
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +66,22 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: install frontend dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: test frontend
+        run: pnpm test
+
+      - name: check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: lint Rust
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: test Rust
+        working-directory: src-tauri
+        run: cargo test --locked
 
       - uses: tauri-apps/tauri-action@v0
         env:
