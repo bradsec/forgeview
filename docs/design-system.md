@@ -13,10 +13,11 @@ Tailwind color classes.
 
 ## Palette tokens
 
-Defined per theme in `src/themes/index.ts`. Single accent: cyan-blue
-`#0696D7` (Fusion 360 lineage), used identically everywhere. Selected and
-active states use `--bg-button-active`, not a second blue. Status colors:
-`--error`, `--warning`, `--success`.
+Defined per theme in `src/themes/index.ts`. Single accent: cyan-blue. Dark mode
+uses `#0696D7`; light mode uses `#0078A8` so white button text meets WCAG AA.
+Selected and active states use `--bg-button-active`, not a second blue. Text on
+accent backgrounds uses `--text-on-accent`. Status colors: `--error`,
+`--warning`, `--success`.
 
 - `--text-muted` is tuned for WCAG AA on its panel background (>= 4.5:1):
   `#9A9AA0` dark, `#6E6E6E` light. Do not darken/lighten past those.
@@ -42,6 +43,14 @@ Hierarchy comes from weight and color, not raw size.
 
 One rule page-wide: `rounded` (4px) for controls, badges, inputs, panels;
 `rounded-full` only for genuinely circular elements (spinner, toggle knob).
+
+## Workspace chrome
+
+Desktop uses a two-row command bar: application and file actions on the first
+row, contextual View controls on the second. The Explorer is left, Details is
+right, the view cube stays at the viewport's top-right, and camera navigation
+is centered at the viewport bottom. Mobile collapses secondary actions into one
+labelled More menu and exposes Explorer and Details as modal drawers.
 
 ## Icons
 

@@ -116,8 +116,6 @@ tauri = { version = "2.10", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1", features = ["full"] }
 ```
 
 ### Key Tauri commands to implement in `src/commands/file_ops.rs`:

@@ -5,6 +5,9 @@
 node_modules/
 dist/
 .vite/
+.env
+.env.*
+!.env.example
 
 # Rust/Tauri
 src-tauri/target/
@@ -23,3 +26,5 @@ Thumbs.db
 
 # Agent session skills/notes
 .claude/
+.agents/
+.codex-plugins/

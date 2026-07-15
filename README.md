@@ -10,8 +10,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 ## Features
 
 - Native file open dialog and drag-and-drop loading
-- Directory explorer with multi-model "add to scene" assembly view
-- Orbit, pan, zoom controls plus a view cube and standard view snaps
+- Paged directory explorer and preview grid with multi-model "add to scene" assembly view
+- Fusion-inspired command bar, left Explorer, right Details panel, and bottom camera navigation
+- Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
 - Solid, wireframe, and points view modes
 - Perspective and orthographic projection
 - Dark and light themes
@@ -48,6 +49,8 @@ back to browser pickers) and view it with all camera, view mode, and theme
 controls. Open Folder loads a snapshot of the selected folder into the
 explorer and preview grid; re-pick the folder to refresh it. Settings
 persistence needs native file system access and is disabled in the browser.
+The explorer initially shows 100 entries per directory and the preview grid
+shows 60 files, with Load more controls for larger folders.
 
 Note: WebGL2 is required. Chrome and Edge disable WebGL entirely when
 hardware acceleration is off (chrome://settings/system) and no longer fall

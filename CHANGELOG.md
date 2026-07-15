@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Constrain native reads and writes to paths granted by the runtime file scope,
+  and reject oversized or non-regular files before parsing.
+- Bound viewer and thumbnail resource lifetimes, preserve camera clipping planes
+  when switching projections, and reject models with invalid geometry bounds.
+- Page large explorer directories and preview grids, cap the thumbnail cache,
+  and batch file metadata reads.
+- Refine the workspace around a Fusion-inspired command bar, Explorer, Details
+  panel, view cube, and bottom camera navigation.
+- Add keyboard navigation, dialog focus management, visible focus states, and
+  WCAG AA accent contrast.
+- Gate native packaging on frontend tests, Rust tests, formatting, and linting.
+
 ## 1.2.1 - 2026-07-12
 
 - Add source-visible fallback content for crawlers and no-JavaScript visitors.
@@ -61,6 +75,5 @@ Initial release.
 
 ### Security
 
-- Native file commands validate paths against the runtime fs scope and the
-  user's home directory (canonicalized, traversal-safe)
+- Native file commands validate canonical paths against the runtime fs scope
 - Content-Security-Policy enabled for the webview
