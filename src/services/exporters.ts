@@ -45,6 +45,10 @@ export function collectExportMeshes(root: THREE.Object3D, options?: { makeSolid?
 
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh) || !child.geometry) return
+    // Make solid collapses the scene into one mesh and leaves attribute-less
+    // placeholder geometries behind; they hold nothing exportable.
+    const position = (child.geometry as THREE.BufferGeometry).getAttribute('position')
+    if (!position || position.count === 0) return
     if (child instanceof THREE.InstancedMesh) {
       const instanceMatrix = new THREE.Matrix4()
       for (let index = 0; index < child.count; index++) {

@@ -14,7 +14,6 @@ import { FolderAccessNotice } from './components/FolderAccessNotice'
 import { MobileDrawer } from './components/MobileDrawer'
 import { StatusBar } from './components/StatusBar'
 import { SolidEditorDialog } from './components/SolidEditorDialog'
-import { ResizeDialog } from './components/ResizeDialog'
 import { useSettingsPersistence } from './hooks/useSettings'
 import { useGlobalFileDrop } from './hooks/useGlobalFileDrop'
 import { useViewerStore } from './store/viewerStore'
@@ -25,6 +24,7 @@ export default function App() {
   const fileExtension = useViewerStore((s) => s.fileExtension)
   const viewMode = useViewerStore((s) => s.viewMode)
   const isLoading = useViewerStore((s) => s.isLoading)
+  const progressStatus = useViewerStore((s) => s.progressStatus)
   const error = useViewerStore((s) => s.error)
   const setError = useViewerStore((s) => s.setError)
   const loadedModels = useViewerStore((s) => s.loadedModels)
@@ -35,7 +35,6 @@ export default function App() {
   const setMobileDrawer = useViewerStore((s) => s.setMobileDrawer)
   const settingsOpen = useViewerStore((s) => s.settingsOpen)
   const solidEditorOpen = useViewerStore((s) => s.solidEditorOpen)
-  const resizeOpen = useViewerStore((s) => s.resizeOpen)
 
   useEffect(() => {
     const colors = getTheme(theme)
@@ -49,7 +48,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
-      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || solidEditorOpen || resizeOpen}>
+      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || solidEditorOpen}>
         <Toolbar onUndoEdit={() => viewerRef.current?.undoEdit()} />
         <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
@@ -82,7 +81,10 @@ export default function App() {
               <div className="loading-card">
                 <div aria-hidden="true" className="loading-line loading-line-wide" />
                 <div aria-hidden="true" className="loading-line" />
-                <span>Preparing model</span>
+                <span>{progressStatus?.label ?? 'Preparing model'}</span>
+                {progressStatus?.percent !== null && progressStatus?.percent !== undefined && (
+                  <progress className="w-full mt-2" value={progressStatus.percent} max={100} />
+                )}
               </div>
             </div>
           )}
@@ -112,7 +114,6 @@ export default function App() {
       <SettingsModal />
       <ExportDialog viewerRef={viewerRef} />
       <SolidEditorDialog viewerRef={viewerRef} />
-      <ResizeDialog viewerRef={viewerRef} />
       <FolderAccessNotice />
       <StatusBar />
     </div>

@@ -91,7 +91,7 @@ describe('makeSolidGeometry', () => {
     expect(result.geometry.index?.count).toBe(36)
   })
 
-  it('repairs an open outer surface before removing its enclosed shell', () => {
+  it('does not alter an open outer surface or remove geometry through it', () => {
     const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
     const outerPositions = outer.getAttribute('position')
     const inner = new THREE.BoxGeometry(2, 2, 2).toNonIndexed()
@@ -109,12 +109,11 @@ describe('makeSolidGeometry', () => {
 
     const result = makeSolidGeometry(geo)
 
-    expect(result.shellsRemoved).toBe(1)
-    expect(result.geometry.index?.count).toBe(36)
-    expect(splitIntoShells(result.geometry)[0].closed).toBe(true)
+    expect(result.shellsRemoved).toBe(0)
+    expect(result.geometry.index?.count).toBe(69)
   })
 
-  it('fills a simple planar hole without moving exterior vertices', () => {
+  it('preserves a simple planar opening and every exterior triangle', () => {
     const box = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
     const position = box.getAttribute('position')
     const positions: number[] = []
@@ -126,18 +125,23 @@ describe('makeSolidGeometry', () => {
     }
     const openBox = new THREE.BufferGeometry()
     openBox.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+    openBox.computeVertexNormals()
+    const originalPositions = Array.from(openBox.getAttribute('position').array)
+    const originalNormals = Array.from(openBox.getAttribute('normal').array)
 
     const result = makeSolidGeometry(openBox)
     const shells = splitIntoShells(result.geometry)
 
-    expect(result.geometry.index?.count).toBe(36)
+    expect(result.geometry.index?.count).toBe(30)
     expect(shells).toHaveLength(1)
-    expect(shells[0].closed).toBe(true)
+    expect(shells[0].closed).toBe(false)
+    expect(Array.from(result.geometry.getAttribute('position').array)).toEqual(originalPositions)
+    expect(Array.from(result.geometry.getAttribute('normal').array)).toEqual(originalNormals)
     expect(new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute('position') as THREE.BufferAttribute))
       .toEqual(new THREE.Box3(new THREE.Vector3(-5, -5, -5), new THREE.Vector3(5, 5, 5)))
   })
 
-  it('removes duplicate and degenerate faces', () => {
+  it('preserves duplicate and degenerate exterior faces rather than remeshing', () => {
     const geometry = mergedBoxes([2], [origin])
     const position = geometry.getAttribute('position')
     const values = Array.from(position.array as Float32Array)
@@ -147,7 +151,6 @@ describe('makeSolidGeometry', () => {
 
     const result = makeSolidGeometry(geometry)
 
-    expect(result.geometry.index?.count).toBe(36)
-    expect(splitIntoShells(result.geometry)[0].closed).toBe(true)
+    expect(result.geometry.index?.count).toBe(42)
   })
 })

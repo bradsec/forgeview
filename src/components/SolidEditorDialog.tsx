@@ -9,6 +9,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
   const [phase, setPhase] = useState('Ready to analyse the model')
   const [stats, setStats] = useState<SolidRepairStats | null>(null)
   const [busy, setBusy] = useState(false)
+  const [resolution, setResolution] = useState(128)
   const controllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
     setBusy(true)
     useViewerStore.getState().setError(null)
     try {
-      const result = await viewer.makeSolid((percent, nextPhase) => {
+      const result = await viewer.makeSolid(resolution, (percent, nextPhase) => {
         setProgress(percent)
         setPhase(nextPhase)
       }, controller.signal)
@@ -54,9 +55,18 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
       <section role="dialog" aria-modal="true" aria-labelledby="solid-editor-title" className="w-full max-w-lg rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] shadow-xl">
         <div className="p-5 border-b border-[var(--border)]">
           <h2 id="solid-editor-title" className="text-base font-semibold text-[var(--text-bright)]">Make solid</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">Closes simple planar holes, removes duplicate and degenerate faces, and removes fully enclosed shells. Existing exterior vertices are not moved.</p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Fills the model into one STL-style solid: internal geometry that is not part of the outside surface, including enclosed cavities and parts hidden inside other parts, is deleted, and touching parts join under one skin. The outer appearance is preserved exactly; materials collapse to one.</p>
         </div>
         <div className="p-5">
+          {!busy && !stats && (
+            <label className="block text-sm mb-4">Interior detection detail
+              <select value={resolution} onChange={(event) => setResolution(Number(event.target.value))} className="block w-full mt-1 rounded border border-[var(--border-input)] bg-[var(--bg-button)] px-2 py-1.5">
+                <option value={96}>Draft, faster</option>
+                <option value={128}>Standard</option>
+                <option value={160}>Fine, more memory</option>
+              </select>
+            </label>
+          )}
           <div className="flex justify-between text-sm"><span>{phase}</span><span className="tabular-nums">{progress}%</span></div>
           <progress className="w-full mt-2" value={progress} max={100}>{progress}%</progress>
           {stats && (
@@ -65,9 +75,9 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
               <div><dt className="text-[var(--text-muted)]">Vertices</dt><dd>{stats.before.vertices.toLocaleString()} → {stats.after.vertices.toLocaleString()}</dd></div>
               <div><dt className="text-[var(--text-muted)]">Boundary edges</dt><dd>{stats.before.boundaryEdges.toLocaleString()} → {stats.after.boundaryEdges.toLocaleString()}</dd></div>
               <div><dt className="text-[var(--text-muted)]">Non-manifold edges</dt><dd>{stats.before.nonManifoldEdges.toLocaleString()} → {stats.after.nonManifoldEdges.toLocaleString()}</dd></div>
-              <div><dt className="text-[var(--text-muted)]">Faces removed</dt><dd>{(stats.before.duplicateFaces + stats.before.degenerateFaces).toLocaleString()}</dd></div>
-              <div><dt className="text-[var(--text-muted)]">Enclosed shells removed</dt><dd>{stats.shellsRemoved.toLocaleString()}</dd></div>
-              <div><dt className="text-[var(--text-muted)]">Result</dt><dd>{stats.after.watertight ? 'Watertight' : 'Further repair needed'}</dd></div>
+              <div><dt className="text-[var(--text-muted)]">Source meshes</dt><dd>{stats.meshes.toLocaleString()} → 1</dd></div>
+              <div><dt className="text-[var(--text-muted)]">Detection grid</dt><dd>{stats.resolution}³</dd></div>
+              <div><dt className="text-[var(--text-muted)]">Result</dt><dd>{stats.after.watertight ? 'Watertight solid' : 'Interior removed, exterior kept'}</dd></div>
             </dl>
           )}
         </div>
@@ -79,4 +89,3 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
     </div>
   )
 }
-

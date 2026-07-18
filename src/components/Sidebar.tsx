@@ -22,7 +22,6 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
   const fileSize = useViewerStore((s) => s.fileSize)
   const triangleCount = useViewerStore((s) => s.triangleCount)
   const geometryDetails = useViewerStore((s) => s.geometryDetails)
-  const measurementUnit = useViewerStore((s) => s.measurementUnit)
   const isLoading = useViewerStore((s) => s.isLoading)
   const error = useViewerStore((s) => s.error)
   const sidebarVisible = useViewerStore((s) => (mobile ? true : s.sidebarVisible))
@@ -194,20 +193,12 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
         <>
           <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide mt-6">Geometry</h2>
           <dl className="mt-3 grid grid-cols-2 gap-3">
-            {([
-              ['Width', geometryDetails.width],
-              ['Height', geometryDetails.height],
-              ['Depth', geometryDetails.depth],
-            ] as const).map(([label, value]) => (
-              <div key={label}><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">{label}</dt><dd className="text-sm font-mono tabular-nums">{(value / ({ mm: 1, cm: 10, m: 1000, in: 25.4 }[measurementUnit])).toLocaleString(undefined, { maximumFractionDigits: 3 })} {measurementUnit}</dd></div>
-            ))}
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Vertices</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.vertices.toLocaleString()}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Meshes</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.meshes.toLocaleString()}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Mesh health</dt><dd className="text-sm">{geometryDetails.watertight ? 'Watertight' : 'Needs repair'}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Boundary edges</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.boundaryEdges.toLocaleString()}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Non-manifold</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.nonManifoldEdges.toLocaleString()}</dd></div>
           </dl>
-          <p className="mt-3 text-xs text-[var(--text-muted)]">Dimensions assume each model coordinate is one millimetre.</p>
         </>
       )}
       </div>

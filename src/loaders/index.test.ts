@@ -20,6 +20,7 @@ import {
 } from './index'
 
 import { invoke } from '@tauri-apps/api/core'
+import { export3MF } from '../services/exporters'
 
 describe('SUPPORTED_EXTENSIONS', () => {
   it('contains all required extensions', () => {
@@ -419,6 +420,17 @@ endsolid test
     expect(invoke).not.toHaveBeenCalled()
   })
 
+  it('reads the declared physical unit from a 3MF file', async () => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 3))
+    const bytes = export3MF([mesh], 'inch')
+    const buffer = new Uint8Array(bytes.byteLength)
+    buffer.set(bytes)
+
+    const object = await parseModelBuffer(buffer.buffer, '.3mf')
+
+    expect(object.userData.modelUnitInMm).toBe(25.4)
+  })
+
   it('rejects unsupported extensions', async () => {
     await expect(parseModelBuffer(stlBuffer(), '.xyz')).rejects.toThrow('Unsupported format: .xyz')
   })
@@ -438,5 +450,14 @@ endsolid test
     camera.position.set(9, 9, 9)
     await loadModelFromBuffer(stlBuffer(), '.stl', scene, camera, { center: false })
     expect(camera.position.toArray()).toEqual([9, 9, 9])
+  })
+
+  it('loadModelFromBuffer reports parse and scene stages through onStatus', async () => {
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera()
+    const labels: string[] = []
+    await loadModelFromBuffer(stlBuffer(), '.stl', scene, camera, { onStatus: (label) => labels.push(label) })
+    expect(labels[0]).toMatch(/^Parsing .* model$/)
+    expect(labels[1]).toBe('Preparing scene')
   })
 })

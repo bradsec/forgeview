@@ -229,7 +229,6 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
           {(close) => (
             <>
               <MenuItem disabled={!hasModel} onClick={() => { close(); useViewerStore.getState().setSolidEditorOpen(true) }}>Make solid…</MenuItem>
-              <MenuItem disabled={!hasModel} onClick={() => { close(); useViewerStore.getState().setResizeOpen(true) }}>Resize…</MenuItem>
               <div className="menu-separator" role="separator" />
               <MenuItem disabled={!canUndoEdit} onClick={() => { close(); onUndoEdit?.() }}>Undo last model edit</MenuItem>
             </>

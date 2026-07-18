@@ -4,6 +4,7 @@ import type { Viewer3DHandle } from './Viewer3D'
 import { EXPORT_FORMATS, THREE_MF_UNITS } from '../services/exportFormats'
 import type { ExportFormat, ThreeMFUnit } from '../services/exportFormats'
 import { saveExportedFile } from '../services/saveFile'
+import { nextPaint } from '../utils/nextPaint'
 
 interface ExportDialogProps {
   viewerRef: React.RefObject<Viewer3DHandle | null>
@@ -26,6 +27,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const [format, setFormat] = useState<ExportFormat>('.stl')
   const [threeMFUnit, setThreeMFUnit] = useState<ThreeMFUnit>('millimeter')
   const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -82,9 +84,17 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     store.setError(null)
     let meshes: import('three').Mesh[] = []
     try {
+      // Serialization is synchronous; yield after each phase label so it
+      // paints before the heavy work starts.
+      setPhase('Collecting scene meshes')
+      await nextPaint()
       const { collectExportMeshes, exportMeshes } = await import('../services/exporters')
       meshes = collectExportMeshes(scene)
+      setPhase(`Serializing ${format} data`)
+      await nextPaint()
       const bytes = await exportMeshes(meshes, format, { threeMFUnit })
+      setPhase(`Saving ${(bytes.byteLength / (1024 * 1024)).toFixed(1)} MB file`)
+      await nextPaint()
       const target = exportFileName(fileName, format)
       const saved = await saveExportedFile(bytes, target)
       if (saved !== null) {
@@ -99,6 +109,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
         disposeExportMeshes(meshes)
       }
       setBusy(false)
+      setPhase(null)
     }
   }
 
@@ -163,6 +174,12 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
               </label>
             )}
 
+            {busy && phase && (
+              <div role="status" aria-live="polite" className="mb-1">
+                <div className="flex justify-between text-sm text-[var(--text-primary)]"><span>{phase}</span></div>
+                <progress className="w-full mt-1" max={100} />
+              </div>
+            )}
           </div>
 
           <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">

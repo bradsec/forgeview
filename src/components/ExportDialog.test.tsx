@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as THREE from 'three'
 import { ExportDialog } from './ExportDialog'
@@ -34,7 +34,7 @@ describe('ExportDialog', () => {
     const viewerRef = { current: { getScene: () => new THREE.Scene() } as Viewer3DHandle }
     render(<ExportDialog viewerRef={viewerRef} />)
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
-    expect(useViewerStore.getState().error).toBe('Unsupported deformation')
+    await waitFor(() => expect(useViewerStore.getState().error).toBe('Unsupported deformation'))
   })
 
   it('passes the selected physical unit to 3MF export', async () => {
@@ -44,6 +44,6 @@ describe('ExportDialog', () => {
     await userEvent.selectOptions(screen.getByLabelText('3MF units'), 'inch')
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
 
-    expect(exportMeshes).toHaveBeenCalledWith([], '.3mf', { threeMFUnit: 'inch' })
+    await waitFor(() => expect(exportMeshes).toHaveBeenCalledWith([], '.3mf', { threeMFUnit: 'inch' }))
   })
 })

@@ -19,8 +19,82 @@ endfacet
 endsolid cube
 `
 
+const OPEN_BOX_STL = `solid openbox
+facet normal 0 0 -1
+outer loop
+vertex 0 0 0
+vertex 1 1 0
+vertex 1 0 0
+endloop
+endfacet
+facet normal 0 0 -1
+outer loop
+vertex 0 0 0
+vertex 0 1 0
+vertex 1 1 0
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 0
+vertex 1 0 0
+vertex 1 0 1
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 0
+vertex 1 0 1
+vertex 0 0 1
+endloop
+endfacet
+facet normal 0 1 0
+outer loop
+vertex 0 1 0
+vertex 0 1 1
+vertex 1 1 1
+endloop
+endfacet
+facet normal 0 1 0
+outer loop
+vertex 0 1 0
+vertex 1 1 1
+vertex 1 1 0
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 0
+vertex 0 0 1
+vertex 0 1 1
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 0
+vertex 0 1 1
+vertex 0 1 0
+endloop
+endfacet
+facet normal 1 0 0
+outer loop
+vertex 1 0 0
+vertex 1 1 0
+vertex 1 1 1
+endloop
+endfacet
+facet normal 1 0 0
+outer loop
+vertex 1 0 0
+vertex 1 1 1
+vertex 1 0 1
+endloop
+endfacet
+endsolid openbox
+`
+
 /** Drop an in-memory STL file onto the window (browser drag-and-drop path). */
-async function dropStl(page: import('@playwright/test').Page, name: string): Promise<void> {
+async function dropStl(page: import('@playwright/test').Page, name: string, content = CUBE_STL): Promise<void> {
   await page.evaluate(
     ({ content, fileName }) => {
       const file = new File([content], fileName, { type: 'model/stl' })
@@ -28,7 +102,7 @@ async function dropStl(page: import('@playwright/test').Page, name: string): Pro
       dataTransfer.items.add(file)
       window.dispatchEvent(new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true }))
     },
-    { content: CUBE_STL, fileName: name }
+    { content, fileName: name }
   )
 }
 
@@ -82,7 +156,7 @@ test('exports the open model as binary STL via download', async ({ page, isMobil
 
 test('repairs the open model from the Edit menu with visible progress', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Edit flow verified on desktop')
-  await dropStl(page, 'repairme.stl')
+  await dropStl(page, 'repairme.stl', OPEN_BOX_STL)
   await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Edit', exact: true }).click()
@@ -90,8 +164,8 @@ test('repairs the open model from the Edit menu with visible progress', async ({
   const dialog = page.getByRole('dialog', { name: 'Make solid' })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: 'Repair model' }).click()
-  await expect(dialog.getByText('Repair complete')).toBeVisible()
-  await expect(dialog.getByText('Further repair needed')).toBeVisible()
+  await expect(dialog.getByText('Solid fill complete')).toBeVisible()
+  await expect(dialog.getByText('Watertight solid')).toBeVisible()
 })
 
 test('export menu item is disabled with no model open', async ({ page }) => {

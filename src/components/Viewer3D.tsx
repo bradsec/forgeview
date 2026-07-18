@@ -28,8 +28,7 @@ export interface Viewer3DHandle {
   orbitBy: (deltaTheta: number, deltaPhi: number) => void
   getCamera: () => THREE.PerspectiveCamera | THREE.OrthographicCamera | undefined
   getScene: () => THREE.Scene | undefined
-  makeSolid: (onProgress: (percent: number, phase: string) => void, signal?: AbortSignal) => Promise<SolidRepairStats>
-  resizeModel: (width: number, height: number, depth: number) => void
+  makeSolid: (resolution: number, onProgress: (percent: number, phase: string) => void, signal?: AbortSignal) => Promise<SolidRepairStats>
   getModelDimensions: () => THREE.Vector3 | null
   undoEdit: () => void
 }
@@ -112,7 +111,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   }
   const updateGeometryDetails = () => {
     const roots = modelRoots()
-    const meshes = modelMeshes()
+    // Make solid leaves attribute-less placeholder geometries on collapsed
+    // meshes; they carry no content and must not drag health to "needs repair".
+    const meshes = modelMeshes().filter((mesh) => {
+      const position = (mesh.geometry as THREE.BufferGeometry).getAttribute('position')
+      return position !== undefined && position.count > 0
+    })
     if (roots.length === 0 || meshes.length === 0) {
       useViewerStore.getState().setGeometryDetails(null)
       return
@@ -126,9 +130,41 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       nonManifoldEdges: sum.nonManifoldEdges + item.nonManifoldEdges,
       watertight: sum.watertight && item.watertight,
     }), { vertices: 0, boundaryEdges: 0, nonManifoldEdges: 0, watertight: true })
+    const unitScales = roots.map((root) => root.userData.modelUnitInMm).filter((value): value is number => typeof value === 'number')
+    const modelUnitInMm = unitScales.length === roots.length && unitScales.every((value) => value === unitScales[0])
+      ? unitScales[0]
+      : null
     useViewerStore.getState().setGeometryDetails({
-      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, ...health,
+      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, ...health,
     })
+  }
+  const refreshSceneEnvironment = () => {
+    const roots = modelRoots()
+    const scene = sceneRef.current
+    const camera = cameraRef.current
+    const controls = controlsRef.current
+    if (roots.length === 0 || !scene || !camera || !controls) return
+    fitAllModels(roots, camera, controls)
+    const box = new THREE.Box3()
+    for (const root of roots) box.expandByObject(root)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    const maxDim = Math.max(size.x, size.y, size.z)
+    if (gridRef.current) {
+      scene.remove(gridRef.current)
+      gridRef.current.dispose()
+    }
+    const settings = getEffectiveSettings(
+      useViewerStore.getState().performancePreset,
+      useViewerStore.getState().performanceOverrides
+    )
+    const colors = getTheme(useViewerStore.getState().theme)
+    const grid = new THREE.GridHelper(maxDim * 3, settings.gridDivisions, colors.gridPrimary, colors.gridSecondary)
+    ;(grid as any)._divisions = settings.gridDivisions
+    ;(grid as any)._gridSize = maxDim * 3
+    grid.position.set(center.x, box.min.y, center.z)
+    scene.add(grid)
+    gridRef.current = grid
   }
   const updateTriangleDetails = () => {
     if (modelGroupRef.current) useViewerStore.getState().setTriangleCount(countTriangles(modelGroupRef.current))
@@ -189,20 +225,36 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       for (const root of roots) box.expandByObject(root)
       return box.getSize(new THREE.Vector3())
     },
-    makeSolid: async (onProgress, signal) => {
+    makeSolid: async (resolution, onProgress, signal) => {
       const meshes = modelMeshes()
-      const result = await repairGeometriesInWorker(meshes.map((mesh) => mesh.geometry), onProgress, signal)
+      const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal)
       const currentMeshes = modelMeshes()
       if (currentMeshes.length !== meshes.length || meshes.some((mesh, index) => mesh !== currentMeshes[index])) {
         result.geometries.forEach((geometry) => geometry.dispose())
         throw new Error('The open model changed while repair was running')
       }
-      const originals = meshes.map((mesh) => mesh.geometry)
       clearUndo()
+      const originals = meshes.map((mesh) => mesh.geometry)
+      const originalMaterial = meshes[0].material
       meshes.forEach((mesh, index) => { mesh.geometry = result.geometries[index] })
+      // The filled solid is one STL-style geometry without uv/color attributes;
+      // the source material (possibly textured) would render it broken.
+      const solidMaterial = new THREE.MeshStandardMaterial({
+        color: getTheme(useViewerStore.getState().theme).modelColor,
+        roughness: 0.85,
+        metalness: 0,
+      })
+      meshes[0].material = solidMaterial
       undoRef.current = {
-        apply: () => meshes.forEach((mesh, index) => { mesh.geometry.dispose(); mesh.geometry = originals[index] }),
-        discard: () => originals.forEach((geometry) => geometry.dispose()),
+        apply: () => {
+          meshes.forEach((mesh, index) => { mesh.geometry.dispose(); mesh.geometry = originals[index] })
+          meshes[0].material = originalMaterial
+          solidMaterial.dispose()
+        },
+        discard: () => {
+          originals.forEach((geometry) => geometry.dispose())
+          for (const material of Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial]) material.dispose()
+        },
       }
       useViewerStore.getState().setCanUndoEdit(true)
       const roots = modelRoots()
@@ -211,36 +263,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       updateGeometryDetails()
       invalidate()
       return result.stats
-    },
-    resizeModel: (width, height, depth) => {
-      const roots = modelRoots()
-      if (roots.length === 0) throw new Error('The scene has no model to resize')
-      const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
-      const size = box.getSize(new THREE.Vector3())
-      if ([size.x, size.y, size.z, width, height, depth].some((value) => !Number.isFinite(value) || value <= 0)) {
-        throw new Error('Width, height, and depth must be greater than zero')
-      }
-      const factor = new THREE.Vector3(width / size.x, height / size.y, depth / size.z)
-      const anchor = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2)
-      const snapshots = roots.map((root) => ({ root, position: root.position.clone(), scale: root.scale.clone() }))
-      clearUndo()
-      for (const root of roots) {
-        root.position.sub(anchor).multiply(factor).add(anchor)
-        root.scale.multiply(factor)
-        root.updateMatrixWorld(true)
-      }
-      undoRef.current = {
-        apply: () => { for (const snapshot of snapshots) {
-          snapshot.root.position.copy(snapshot.position)
-          snapshot.root.scale.copy(snapshot.scale)
-          snapshot.root.updateMatrixWorld(true)
-        } },
-        discard: () => {},
-      }
-      useViewerStore.getState().setCanUndoEdit(true)
-      updateGeometryDetails()
-      invalidate()
     },
     undoEdit: () => {
       const undo = undoRef.current
@@ -251,6 +273,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
       updateTriangleDetails()
       updateGeometryDetails()
+      refreshSceneEnvironment()
       invalidate()
     },
   }))
@@ -466,9 +489,14 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     // Browser-supplied files (drag-and-drop / file input) carry their bytes
     // in the store; native files are read by path over Tauri IPC
+    const onStatus = (label: string) => {
+      if (previewVersionRef.current === version) {
+        useViewerStore.getState().setProgressStatus({ label, percent: null })
+      }
+    }
     const loadPromise = fileBuffer
-      ? loadModelFromBuffer(fileBuffer, fileExtension, scene, cameraRef.current)
-      : loadModel(filePath, fileExtension, scene, cameraRef.current)
+      ? loadModelFromBuffer(fileBuffer, fileExtension, scene, cameraRef.current, { onStatus })
+      : loadModel(filePath, fileExtension, scene, cameraRef.current, { onStatus })
 
     loadPromise
       .then((obj) => {
@@ -536,7 +564,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         setError(message)
       })
       .finally(() => {
-        if (previewVersionRef.current === version) setLoading(false)
+        if (previewVersionRef.current === version) {
+          setLoading(false)
+          useViewerStore.getState().setProgressStatus(null)
+        }
       })
   }, [filePath, fileExtension, fileBuffer])
 

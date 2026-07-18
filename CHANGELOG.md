@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.0 - 2026-07-18
+
+- Rework Edit > Make solid into a solid fill that preserves the outer
+  appearance exactly: internal geometry not visible from outside air is
+  deleted, touching parts join under one continuous skin, the openings left
+  behind are sealed, and the result collapses to one STL-style solid with a
+  single material. Triangle and vertex counts drop instead of growing.
+- Keep a two-voxel safety margin around outside-reachable air so recessed
+  visible detail such as grooves and panel gaps is never deleted.
+- Remove the voxel remesh and voxel core modes, whose reconstructed surfaces
+  replaced the original skin with blocky geometry.
+- Show stage-by-stage progress while reading and parsing large model files and
+  while serializing and saving exports.
+- Skip empty placeholder meshes during export and in Details, fixing an export
+  crash and a stale "Needs repair" status after Make solid.
+- Remove Edit > Resize.
+
 ## 1.4.5 - 2026-07-18
 
 - Reset the view mode to Solid when opening a model, and use the browser Save As
@@ -7,11 +24,11 @@
 - Export the open scene as STL, 3MF, OBJ, PLY, or GLB from File > Export
   model as. Browser mode downloads the file; the desktop app saves through
   the native dialog on the Rust side.
-- Add Edit > Make solid with background repair progress, planar hole closure,
-  duplicate and degenerate face cleanup, enclosed-shell removal, mesh-health
-  results, and one-level undo.
+- Add Edit > Make solid with a dependency-free volumetric remesher, selectable
+  resolution, watertight validation, mesh-health results, and one-level undo.
 - Add Edit > Resize with linked proportions and selectable display units, plus
-  dimensions, vertex count, mesh count, and topology health in Details.
+  vertex count, mesh count, and topology health in Details.
+- Automatically refit the camera and grid after resizing.
 - Correct scene-wide shell removal, preserve export attributes and material
   groups, expand instances, and keep reflected geometry winding outward.
 - Prevent incomplete assembly exports while models are loading and reject live

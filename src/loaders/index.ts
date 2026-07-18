@@ -5,12 +5,37 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js'
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js'
+import { unzipSync, strFromU8 } from 'three/addons/libs/fflate.module.js'
 import * as THREE from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { invoke } from '@tauri-apps/api/core'
 import { getBrowserFile } from '../services/browserFs'
+import { nextPaint } from '../utils/nextPaint'
 
 export const SUPPORTED_EXTENSIONS = ['.stl', '.3mf', '.obj', '.gltf', '.glb', '.ply', '.dae']
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const THREE_MF_UNIT_MM: Record<string, number> = {
+  micron: 0.001,
+  millimeter: 1,
+  centimeter: 10,
+  inch: 25.4,
+  foot: 304.8,
+  meter: 1000,
+}
+
+function threeMFUnitScale(buffer: ArrayBuffer): number {
+  const archive = unzipSync(new Uint8Array(buffer))
+  const model = Object.entries(archive).find(([path]) => path.toLowerCase().endsWith('.model'))?.[1]
+  if (!model) return 1
+  const unit = /<model\b[^>]*\bunit=["']([^"']+)["']/i.exec(strFromU8(model))?.[1]?.toLowerCase() ?? 'millimeter'
+  return THREE_MF_UNIT_MM[unit] ?? 1
+}
 
 export function getLoaderForExtension(ext: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +122,7 @@ export async function parseModelBuffer(buffer: ArrayBuffer, ext: string): Promis
     }
     case '.3mf': {
       object = new ThreeMFLoader().parse(buffer) as THREE.Group
+      object.userData.modelUnitInMm = threeMFUnitScale(buffer)
       break
     }
     case '.obj': {
@@ -109,12 +135,14 @@ export async function parseModelBuffer(buffer: ArrayBuffer, ext: string): Promis
       const result = new ColladaLoader().parse(text, '')
       if (!result) throw new Error('ColladaLoader failed to parse file')
       object = result.scene
+      object.userData.modelUnitInMm = 1000
       break
     }
     case '.gltf':
     case '.glb': {
       const gltf = await new GLTFLoader().parseAsync(buffer, '')
       object = gltf.scene
+      object.userData.modelUnitInMm = 1000
       break
     }
     default:
@@ -134,9 +162,16 @@ export async function loadModelFromBuffer(
   ext: string,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera,
-  options?: { center?: boolean }
+  options?: { center?: boolean; onStatus?: (label: string) => void }
 ): Promise<THREE.Object3D> {
+  if (options?.onStatus) {
+    options.onStatus(`Parsing ${formatBytes(buffer.byteLength)} model`)
+    // Parsing is synchronous and can block for seconds on large files; let the
+    // label paint before it starts.
+    await nextPaint()
+  }
   const object = await parseModelBuffer(buffer, ext)
+  options?.onStatus?.('Preparing scene')
   try {
     if (options?.center !== false) {
       fitModelToView(object, camera)
@@ -161,8 +196,9 @@ export async function loadModel(
   ext: string,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera,
-  options?: { center?: boolean }
+  options?: { center?: boolean; onStatus?: (label: string) => void }
 ): Promise<THREE.Object3D> {
+  options?.onStatus?.('Reading file')
   const browserFile = getBrowserFile(path)
   if (browserFile) {
     return loadModelFromBuffer(await browserFile.arrayBuffer(), ext, scene, camera, options)

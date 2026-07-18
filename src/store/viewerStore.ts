@@ -14,6 +14,7 @@ export interface GeometryDetails {
   boundaryEdges: number
   nonManifoldEdges: number
   watertight: boolean
+  modelUnitInMm: number | null
 }
 
 export interface LoadedModel {
@@ -53,6 +54,9 @@ interface ViewerState {
   fileBuffer: ArrayBuffer | null
   viewMode: ViewMode
   isLoading: boolean
+  /** Current long-running stage (file load, export) shown with the busy UI.
+   *  percent is null while the stage length is unknown (indeterminate). */
+  progressStatus: { label: string; percent: number | null } | null
   /** True while a file drag hovers the window (drives drop highlight). */
   isDragOver: boolean
   error: string | null
@@ -81,6 +85,7 @@ interface ViewerState {
   setFileFromBuffer: (name: string, ext: string, size: number, buffer: ArrayBuffer) => void
   setViewMode: (mode: ViewMode) => void
   setLoading: (loading: boolean) => void
+  setProgressStatus: (status: { label: string; percent: number | null } | null) => void
   setDragOver: (over: boolean) => void
   setError: (error: string | null) => void
   setProjectionMode: (mode: 'perspective' | 'orthographic') => void
@@ -108,10 +113,8 @@ interface ViewerState {
   exportOpen: boolean
   setExportOpen: (open: boolean) => void
   solidEditorOpen: boolean
-  resizeOpen: boolean
   canUndoEdit: boolean
   setSolidEditorOpen: (open: boolean) => void
-  setResizeOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
@@ -161,6 +164,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   fileBuffer: null,
   viewMode: 'solid',
   isLoading: false,
+  progressStatus: null,
   isDragOver: false,
   error: null,
   triangleCount: null,
@@ -191,10 +195,8 @@ export const useViewerStore = create<ViewerState>((set) => ({
   exportOpen: false,
   setExportOpen: (open) => set({ exportOpen: open }),
   solidEditorOpen: false,
-  resizeOpen: false,
   canUndoEdit: false,
   setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
-  setResizeOpen: (open) => set({ resizeOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   notice: null,
   setNotice: (notice) => set({ notice }),
@@ -218,6 +220,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
     set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
+  setProgressStatus: (status) => set({ progressStatus: status }),
   setDragOver: (over) => set({ isDragOver: over }),
   setError: (error) => set({ error }),
   setProjectionMode: (mode) => set({ projectionMode: mode }),

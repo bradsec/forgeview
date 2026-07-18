@@ -46,6 +46,16 @@ describe('collectExportMeshes', () => {
     expect(collectExportMeshes(scene)).toHaveLength(1)
   })
 
+  it('skips empty placeholder geometries left by make solid', async () => {
+    // Repair collapses the scene into mesh[0] and leaves attribute-less
+    // BufferGeometry placeholders on the remaining meshes.
+    const scene = sceneWithBox()
+    scene.add(new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial()))
+    const collected = collectExportMeshes(scene)
+    expect(collected).toHaveLength(1)
+    await expect(exportMeshes(collected, '.3mf')).resolves.toBeInstanceOf(Uint8Array)
+  })
+
   it('preserves material arrays and reflected triangle winding', () => {
     const scene = new THREE.Scene()
     const geometry = new THREE.BufferGeometry()
