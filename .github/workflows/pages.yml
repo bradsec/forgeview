@@ -1,6 +1,6 @@
 # Forge View — GitHub Pages deploy
-# Builds the web bundle (browser fallback mode: drag-and-drop and file-picker
-# viewing, no native folder browsing) and publishes it to GitHub Pages.
+# Builds the web bundle (browser mode: drag-and-drop, file picking, and read-only
+# folder picking with a compatible fallback) and publishes it to GitHub Pages.
 #
 # Requires Pages to be enabled for the repository with source "GitHub Actions"
 # (Settings > Pages > Build and deployment > Source).
@@ -38,10 +38,16 @@ jobs:
           cache: 'pnpm'
 
       - name: install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: run tests
         run: pnpm test
+
+      - name: install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: run end-to-end tests
+        run: pnpm test:e2e
 
       # Project Pages are served from /<repo>/, so the asset base path must
       # match the repository name
