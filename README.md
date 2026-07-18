@@ -127,3 +127,23 @@ cd src-tauri && cargo test     # backend unit tests
 - `src/` React + Three.js frontend (components, loaders, hooks, store, themes)
 - `src-tauri/` Rust backend (file IO commands, app setup)
 - `CLAUDE.md` architecture and conventions reference
+
+## Acknowledgements
+
+Forge View is built on these open-source projects:
+
+- [Three.js](https://threejs.org/) (MIT) — 3D rendering, model loaders
+  (STL, 3MF, OBJ, GLTF, PLY, DAE), exporters, and the bundled
+  [fflate](https://github.com/101arrowz/fflate) zip library used for 3MF
+- [Tauri 2](https://tauri.app/) (MIT/Apache-2.0) — desktop shell, dialog and
+  filesystem plugins, and the Rust backend framework
+- [React](https://react.dev/) (MIT) — user interface
+- [Zustand](https://github.com/pmndrs/zustand) (MIT) — application state
+- [Tailwind CSS](https://tailwindcss.com/) (MIT) — styling
+- [Serde](https://serde.rs/) (MIT/Apache-2.0) — Rust serialization
+- [Vite](https://vite.dev/), [Vitest](https://vitest.dev/),
+  [Playwright](https://playwright.dev/), and
+  [TypeScript](https://www.typescriptlang.org/) (MIT/Apache-2.0) — build and
+  test tooling
+
+Thanks to the maintainers and contributors of these projects.
