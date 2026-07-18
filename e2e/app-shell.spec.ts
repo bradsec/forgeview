@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import packageJson from '../package.json'
+import packageJson from '../package.json' with { type: 'json' }
 
 const APP_VERSION = packageJson.version
 

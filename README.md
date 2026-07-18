@@ -9,8 +9,11 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 
 ## Features
 
-- Native file open dialog and drag-and-drop loading
+- Native file open dialog and drag-and-drop loading (drops work any time, including over an open model)
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
+- Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
+- Export the scene as STL, 3MF, OBJ, PLY, or GLB (File > Export model as)
+- Optional "Make solid" on export: removes enclosed internal shells for 3D printing without changing the outer surface
 - Compact app menu, left Explorer, right Details panel, and bottom camera navigation
 - In-app format help, About information, and repository/version status footer
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
@@ -69,7 +72,9 @@ mode you can drag and drop a model file (or use Open / Open Folder, which fall
 back to browser pickers) and view it with all camera, view mode, and theme
 controls. Open Folder loads a local, read-only snapshot of the selected folder
 into the explorer and preview grid; Forgeview does not upload those files.
-Re-pick the folder to refresh it. Settings
+In browsers without the native directory picker (Firefox, Safari) an in-app
+dialog explains this before the browser shows its upload-style confirmation.
+Exports download directly as files. Re-pick the folder to refresh it. Settings
 persistence needs native file system access and is disabled in the browser.
 The explorer initially shows 100 entries per directory and the preview grid
 shows 60 files, with Load more controls for larger folders.

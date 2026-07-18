@@ -499,24 +499,20 @@ capability file below, not a `plugins.fs.scope` block.
   "permissions": [
     "core:default",
     "dialog:allow-open",
-    "fs:allow-read-file",
-    "fs:allow-read-dir",
-    "fs:allow-stat",
-    "fs:scope-home-recursive",
-    "fs:scope-desktop-recursive",
-    "fs:scope-download-recursive",
-    "fs:scope-document-recursive",
-    "fs:allow-write-file",
-    "fs:allow-mkdir",
-    "fs:scope-appconfig-recursive"
+    "fs:default",
+    "fs:allow-write-text-file"
   ]
 }
 ```
 
-The write/mkdir/appconfig permissions back settings persistence
-(`src/hooks/useSettings.ts`). The custom Rust commands (`read_file_bytes`,
-`get_file_metadata`) additionally validate paths against the runtime fs scope
-plus the user's home directory in `src-tauri/src/commands/file_ops.rs`.
+`fs:default` grants app-specific config/data directory access (including
+mkdir), which with `fs:allow-write-text-file` backs settings persistence
+(`src/hooks/useSettings.ts`). Dialog picks and drops extend the runtime fs
+scope, and the custom Rust commands (`read_file_bytes`, `get_file_metadata`)
+canonicalize and validate paths against that scope in
+`src-tauri/src/commands/file_ops.rs`. Export saves never take a path from the
+frontend: `export_model_file` (`src-tauri/src/commands/export_ops.rs`) runs
+the native save dialog and the write entirely on the Rust side.
 
 ---
 

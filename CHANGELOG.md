@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- Export the open scene as STL, 3MF, OBJ, PLY, or GLB from File > Export
+  model as. Browser mode downloads the file; the desktop app saves through
+  the native dialog on the Rust side.
+- Add a Make solid export option that removes fully enclosed internal
+  shells (cavities) without changing the outer surface, for 3D printing.
+- Accept dropped model files at any time, not only on the empty start
+  screen, with a drop highlight over the viewer and grid.
+- Add breadcrumb navigation and name/size/modified sorting to the preview
+  grid, and persist rendered thumbnails in IndexedDB so revisited folders
+  load instantly.
+- Explain the browser folder-picker fallback with an in-app dialog before
+  the browser shows its upload-style confirmation.
+- Fix the preview model staying visible in the scene after removing it
+  while other models were loaded, stale triangle counts while a new model
+  loads, and camera jumps when removing a model from the scene.
+- Validate persisted settings before applying them so a corrupt
+  settings.json cannot break the renderer.
+- Derive the version asserted by end-to-end tests from package.json.
+
 ## 1.4.3 - 2026-07-18
 
 - Add a scene context menu for common camera, standard view, projection, and
