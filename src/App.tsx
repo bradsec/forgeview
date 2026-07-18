@@ -10,6 +10,7 @@ import { SceneContextMenu } from './components/SceneContextMenu'
 import { PreviewGrid } from './components/PreviewGrid'
 import { SettingsModal } from './components/SettingsModal'
 import { ExportDialog } from './components/ExportDialog'
+import { FolderAccessNotice } from './components/FolderAccessNotice'
 import { MobileDrawer } from './components/MobileDrawer'
 import { StatusBar } from './components/StatusBar'
 import { useSettingsPersistence } from './hooks/useSettings'
@@ -106,6 +107,7 @@ export default function App() {
       </MobileDrawer>
       <SettingsModal />
       <ExportDialog viewerRef={viewerRef} />
+      <FolderAccessNotice />
       <StatusBar />
     </div>
   )

@@ -123,6 +123,15 @@ export function listBrowserDirRecursive(dir: string): BrowserDirEntry[] {
 }
 
 /**
+ * True when the browser offers the read-only directory picker API. Where it
+ * is missing (Firefox, Safari), folder opening falls back to a
+ * webkitdirectory input, and the browser frames that as an "upload".
+ */
+export function supportsNativeDirectoryPicker(): boolean {
+  return typeof (window as Window & { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
+}
+
+/**
  * Open the browser's read-only directory picker where available. Unlike a file
  * input, this API does not describe local folder access as an "upload". The
  * webkitdirectory input remains as a compatibility fallback.

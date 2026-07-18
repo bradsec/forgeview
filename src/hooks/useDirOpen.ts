@@ -6,7 +6,8 @@ import { useViewerStore } from '../store/viewerStore'
 import type { DirTreeEntry } from '../store/viewerStore'
 import { dirname, extname } from '../utils/pathUtils'
 import { isTauri } from '../utils/isTauri'
-import { isBrowserPath, listBrowserDir, pickBrowserFolder, registerBrowserFolderSelection } from '../services/browserFs'
+import { isBrowserPath, listBrowserDir, pickBrowserFolder, registerBrowserFolderSelection, supportsNativeDirectoryPicker } from '../services/browserFs'
+import { confirmFolderFallback } from '../components/FolderAccessNotice'
 
 const METADATA_CONCURRENCY = 16
 
@@ -131,6 +132,9 @@ export function useDirOpen() {
   const openDir = async (): Promise<void> => {
     try {
       if (!isTauri()) {
+        // The webkitdirectory fallback surfaces a scary browser "upload"
+        // confirmation — explain in-app first that nothing is uploaded
+        if (!supportsNativeDirectoryPicker() && !(await confirmFolderFallback())) return
         const picked = await pickBrowserFolder()
         if (picked === null) return
         const root = registerBrowserFolderSelection(picked)
