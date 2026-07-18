@@ -99,6 +99,9 @@ upload-style confirmation.
 
 Supported browsers show a Save As picker for exports, allowing the filename and
 location to be selected; other browsers use their configured download behavior.
+On iOS the file picker lists all files, because iOS greys out extensions it
+cannot map to system types (such as .stl); unsupported picks are rejected after
+selection instead.
 Settings persistence needs native file system access and is disabled in the
 browser. The explorer initially shows 100 entries per directory and the preview
 grid shows 60 files, with Load more controls for larger folders.

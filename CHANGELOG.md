@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.2 - 2026-07-19
+
+- Leave the browser file picker unfiltered on iOS, where extension-only accept
+  filters grey out .stl and other model files; unsupported selections are
+  rejected after picking instead.
+
 ## 1.5.1 - 2026-07-18
 
 - Fix a crash when switching to Points view, or running Make solid again,
