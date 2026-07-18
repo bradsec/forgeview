@@ -141,7 +141,7 @@ function SegmentedControl<T extends string>({
   )
 }
 
-export function Toolbar() {
+export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
   const [aboutOpen, setAboutOpen] = useState(false)
   const aboutRef = useRef<HTMLElement>(null)
   const aboutPreviousFocusRef = useRef<HTMLElement | null>(null)
@@ -182,6 +182,7 @@ export function Toolbar() {
   const explorerVisible = useViewerStore((state) => state.explorerVisible)
   const sidebarVisible = useViewerStore((state) => state.sidebarVisible)
   const theme = useViewerStore((state) => state.theme)
+  const canUndoEdit = useViewerStore((state) => state.canUndoEdit)
 
   const openFolder = async () => {
     await openDir()
@@ -221,6 +222,16 @@ export function Toolbar() {
               >
                 Export model as…
               </MenuItem>
+            </>
+          )}
+        </Menu>
+        <Menu label="Edit">
+          {(close) => (
+            <>
+              <MenuItem disabled={!hasModel} onClick={() => { close(); useViewerStore.getState().setSolidEditorOpen(true) }}>Make solid…</MenuItem>
+              <MenuItem disabled={!hasModel} onClick={() => { close(); useViewerStore.getState().setResizeOpen(true) }}>Resize…</MenuItem>
+              <div className="menu-separator" role="separator" />
+              <MenuItem disabled={!canUndoEdit} onClick={() => { close(); onUndoEdit?.() }}>Undo last model edit</MenuItem>
             </>
           )}
         </Menu>

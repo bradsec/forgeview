@@ -13,6 +13,8 @@ import { ExportDialog } from './components/ExportDialog'
 import { FolderAccessNotice } from './components/FolderAccessNotice'
 import { MobileDrawer } from './components/MobileDrawer'
 import { StatusBar } from './components/StatusBar'
+import { SolidEditorDialog } from './components/SolidEditorDialog'
+import { ResizeDialog } from './components/ResizeDialog'
 import { useSettingsPersistence } from './hooks/useSettings'
 import { useGlobalFileDrop } from './hooks/useGlobalFileDrop'
 import { useViewerStore } from './store/viewerStore'
@@ -32,6 +34,8 @@ export default function App() {
   const mobileDrawer = useViewerStore((s) => s.mobileDrawer)
   const setMobileDrawer = useViewerStore((s) => s.setMobileDrawer)
   const settingsOpen = useViewerStore((s) => s.settingsOpen)
+  const solidEditorOpen = useViewerStore((s) => s.solidEditorOpen)
+  const resizeOpen = useViewerStore((s) => s.resizeOpen)
 
   useEffect(() => {
     const colors = getTheme(theme)
@@ -45,8 +49,8 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
-      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen}>
-        <Toolbar />
+      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || solidEditorOpen || resizeOpen}>
+        <Toolbar onUndoEdit={() => viewerRef.current?.undoEdit()} />
         <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
         <DirectoryPanel />
@@ -107,6 +111,8 @@ export default function App() {
       </MobileDrawer>
       <SettingsModal />
       <ExportDialog viewerRef={viewerRef} />
+      <SolidEditorDialog viewerRef={viewerRef} />
+      <ResizeDialog viewerRef={viewerRef} />
       <FolderAccessNotice />
       <StatusBar />
     </div>

@@ -91,7 +91,7 @@ describe('makeSolidGeometry', () => {
     expect(result.geometry.index?.count).toBe(36)
   })
 
-  it('does not classify geometry inside an open surface as removable', () => {
+  it('repairs an open outer surface before removing its enclosed shell', () => {
     const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
     const outerPositions = outer.getAttribute('position')
     const inner = new THREE.BoxGeometry(2, 2, 2).toNonIndexed()
@@ -109,6 +109,45 @@ describe('makeSolidGeometry', () => {
 
     const result = makeSolidGeometry(geo)
 
-    expect(result.shellsRemoved).toBe(0)
+    expect(result.shellsRemoved).toBe(1)
+    expect(result.geometry.index?.count).toBe(36)
+    expect(splitIntoShells(result.geometry)[0].closed).toBe(true)
+  })
+
+  it('fills a simple planar hole without moving exterior vertices', () => {
+    const box = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
+    const position = box.getAttribute('position')
+    const positions: number[] = []
+    for (let triangle = 0; triangle < position.count / 3; triangle++) {
+      if (triangle === 0 || triangle === 1) continue
+      for (let corner = triangle * 3; corner < triangle * 3 + 3; corner++) {
+        positions.push(position.getX(corner), position.getY(corner), position.getZ(corner))
+      }
+    }
+    const openBox = new THREE.BufferGeometry()
+    openBox.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+
+    const result = makeSolidGeometry(openBox)
+    const shells = splitIntoShells(result.geometry)
+
+    expect(result.geometry.index?.count).toBe(36)
+    expect(shells).toHaveLength(1)
+    expect(shells[0].closed).toBe(true)
+    expect(new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute('position') as THREE.BufferAttribute))
+      .toEqual(new THREE.Box3(new THREE.Vector3(-5, -5, -5), new THREE.Vector3(5, 5, 5)))
+  })
+
+  it('removes duplicate and degenerate faces', () => {
+    const geometry = mergedBoxes([2], [origin])
+    const position = geometry.getAttribute('position')
+    const values = Array.from(position.array as Float32Array)
+    values.push(...values.slice(0, 9))
+    values.push(0, 0, 0, 0, 0, 0, 0, 0, 0)
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(values, 3))
+
+    const result = makeSolidGeometry(geometry)
+
+    expect(result.geometry.index?.count).toBe(36)
+    expect(splitIntoShells(result.geometry)[0].closed).toBe(true)
   })
 })

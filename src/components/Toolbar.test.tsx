@@ -16,6 +16,17 @@ beforeEach(() => {
 })
 
 describe('Toolbar application menus', () => {
+  it('opens model editing tools and invokes undo from the Edit menu', async () => {
+    const undo = vi.fn()
+    useViewerStore.setState({ filePath: '/m/model.stl', canUndoEdit: true, solidEditorOpen: false, resizeOpen: false })
+    render(<Toolbar onUndoEdit={undo} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-edit-menu')).getByRole('menuitem', { name: 'Make solid…' }))
+    expect(useViewerStore.getState().solidEditorOpen).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-edit-menu')).getByRole('menuitem', { name: 'Undo last model edit' }))
+    expect(undo).toHaveBeenCalledOnce()
+  })
   it('opens and closes the File menu after choosing Open file', async () => {
     render(<Toolbar />)
     await userEvent.click(screen.getByRole('button', { name: 'File' }))

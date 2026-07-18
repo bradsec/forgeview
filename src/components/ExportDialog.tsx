@@ -16,7 +16,7 @@ function exportFileName(sourceName: string | null, format: ExportFormat): string
 
 /**
  * In-app export dialog: pick a target format, optionally make the model
- * solid (strip internal cavities), then save. Browser mode downloads the
+ * then save. Browser mode downloads the
  * file directly; the desktop app opens the native save dialog from Rust.
  */
 export function ExportDialog({ viewerRef }: ExportDialogProps) {
@@ -25,7 +25,6 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const pendingModelLoads = useViewerStore((s) => s.pendingModelLoads)
   const [format, setFormat] = useState<ExportFormat>('.stl')
   const [threeMFUnit, setThreeMFUnit] = useState<ThreeMFUnit>('millimeter')
-  const [makeSolid, setMakeSolid] = useState(false)
   const [busy, setBusy] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -84,7 +83,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     let meshes: import('three').Mesh[] = []
     try {
       const { collectExportMeshes, exportMeshes } = await import('../services/exporters')
-      meshes = collectExportMeshes(scene, { makeSolid })
+      meshes = collectExportMeshes(scene)
       const bytes = await exportMeshes(meshes, format, { threeMFUnit })
       const target = exportFileName(fileName, format)
       const saved = await saveExportedFile(bytes, target)
@@ -164,20 +163,6 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
               </label>
             )}
 
-            <label className="flex items-start gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={makeSolid}
-                onChange={(event) => setMakeSolid(event.target.checked)}
-                className="mt-0.5 accent-[var(--accent)]"
-              />
-              <span>
-                Make solid
-                <span className="block text-xs text-[var(--text-muted)]">
-                  Removes fully enclosed internal shells (cavities) without changing the outside surface. Useful for 3D printing.
-                </span>
-              </span>
-            </label>
           </div>
 
           <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">

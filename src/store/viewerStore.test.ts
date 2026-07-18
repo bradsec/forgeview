@@ -45,7 +45,7 @@ describe('viewerStore', () => {
 
   it('setFile() populates all file fields and clears error', () => {
     const { setFile } = useViewerStore.getState()
-    useViewerStore.setState({ error: 'previous error' })
+    useViewerStore.setState({ error: 'previous error', viewMode: 'points' })
     setFile('/path/to/model.stl', 'model.stl', '.stl', 1234567)
     const state = useViewerStore.getState()
     expect(state.filePath).toBe('/path/to/model.stl')
@@ -54,6 +54,7 @@ describe('viewerStore', () => {
     expect(state.fileSize).toBe(1234567)
     expect(state.error).toBeNull()
     expect(state.mainView).toBe('3d')
+    expect(state.viewMode).toBe('solid')
   })
 
   it('setLoading() toggles isLoading', () => {
@@ -286,6 +287,7 @@ describe('setFileFromBuffer (browser files)', () => {
       fileBuffer: null,
       error: 'stale error',
       mainView: 'grid',
+      viewMode: 'wireframe',
     })
   })
 
@@ -300,6 +302,7 @@ describe('setFileFromBuffer (browser files)', () => {
     expect(state.fileBuffer).toBe(buffer)
     expect(state.error).toBeNull()
     expect(state.mainView).toBe('3d')
+    expect(state.viewMode).toBe('solid')
   })
 
   it('setFile clears any previous browser buffer', () => {

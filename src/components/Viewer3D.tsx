@@ -15,6 +15,8 @@ import {
 } from '../utils/cameraActions'
 import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
+import { analyzeGeometry } from '../services/makeSolid'
+import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
 
 export interface Viewer3DHandle {
   snapToView: (direction: ViewDirection) => void
@@ -26,6 +28,10 @@ export interface Viewer3DHandle {
   orbitBy: (deltaTheta: number, deltaPhi: number) => void
   getCamera: () => THREE.PerspectiveCamera | THREE.OrthographicCamera | undefined
   getScene: () => THREE.Scene | undefined
+  makeSolid: (onProgress: (percent: number, phase: string) => void, signal?: AbortSignal) => Promise<SolidRepairStats>
+  resizeModel: (width: number, height: number, depth: number) => void
+  getModelDimensions: () => THREE.Vector3 | null
+  undoEdit: () => void
 }
 
 export function disposeViewerResources(
@@ -95,7 +101,44 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // (model loads, view mode, theme, settings all land in the store). A small
   // budget instead of a boolean absorbs mutations that land mid-frame.
   const framesToRenderRef = useRef(3)
+  const undoRef = useRef<{ apply: () => void; discard: () => void } | null>(null)
   const invalidate = () => { framesToRenderRef.current = 3 }
+
+  const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values()].filter((root): root is THREE.Object3D => Boolean(root))
+  const modelMeshes = () => {
+    const meshes: THREE.Mesh[] = []
+    for (const root of modelRoots()) root.traverse((child) => { if (child instanceof THREE.Mesh) meshes.push(child) })
+    return meshes
+  }
+  const updateGeometryDetails = () => {
+    const roots = modelRoots()
+    const meshes = modelMeshes()
+    if (roots.length === 0 || meshes.length === 0) {
+      useViewerStore.getState().setGeometryDetails(null)
+      return
+    }
+    const box = new THREE.Box3()
+    for (const root of roots) box.expandByObject(root)
+    const size = box.getSize(new THREE.Vector3())
+    const health = meshes.map((mesh) => analyzeGeometry(mesh.geometry)).reduce((sum, item) => ({
+      vertices: sum.vertices + item.vertices,
+      boundaryEdges: sum.boundaryEdges + item.boundaryEdges,
+      nonManifoldEdges: sum.nonManifoldEdges + item.nonManifoldEdges,
+      watertight: sum.watertight && item.watertight,
+    }), { vertices: 0, boundaryEdges: 0, nonManifoldEdges: 0, watertight: true })
+    useViewerStore.getState().setGeometryDetails({
+      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, ...health,
+    })
+  }
+  const updateTriangleDetails = () => {
+    if (modelGroupRef.current) useViewerStore.getState().setTriangleCount(countTriangles(modelGroupRef.current))
+    for (const [id, root] of modelMapRef.current) useViewerStore.getState().updateModelTriangles(id, countTriangles(root))
+  }
+  const clearUndo = () => {
+    undoRef.current?.discard()
+    undoRef.current = null
+    useViewerStore.getState().setCanUndoEdit(false)
+  }
 
   useImperativeHandle(ref, () => ({
     snapToView: (direction: ViewDirection) => {
@@ -139,6 +182,77 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     },
     getCamera: () => cameraRef.current,
     getScene: () => sceneRef.current,
+    getModelDimensions: () => {
+      const roots = modelRoots()
+      if (roots.length === 0) return null
+      const box = new THREE.Box3()
+      for (const root of roots) box.expandByObject(root)
+      return box.getSize(new THREE.Vector3())
+    },
+    makeSolid: async (onProgress, signal) => {
+      const meshes = modelMeshes()
+      const result = await repairGeometriesInWorker(meshes.map((mesh) => mesh.geometry), onProgress, signal)
+      const currentMeshes = modelMeshes()
+      if (currentMeshes.length !== meshes.length || meshes.some((mesh, index) => mesh !== currentMeshes[index])) {
+        result.geometries.forEach((geometry) => geometry.dispose())
+        throw new Error('The open model changed while repair was running')
+      }
+      const originals = meshes.map((mesh) => mesh.geometry)
+      clearUndo()
+      meshes.forEach((mesh, index) => { mesh.geometry = result.geometries[index] })
+      undoRef.current = {
+        apply: () => meshes.forEach((mesh, index) => { mesh.geometry.dispose(); mesh.geometry = originals[index] }),
+        discard: () => originals.forEach((geometry) => geometry.dispose()),
+      }
+      useViewerStore.getState().setCanUndoEdit(true)
+      const roots = modelRoots()
+      for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
+      updateTriangleDetails()
+      updateGeometryDetails()
+      invalidate()
+      return result.stats
+    },
+    resizeModel: (width, height, depth) => {
+      const roots = modelRoots()
+      if (roots.length === 0) throw new Error('The scene has no model to resize')
+      const box = new THREE.Box3()
+      for (const root of roots) box.expandByObject(root)
+      const size = box.getSize(new THREE.Vector3())
+      if ([size.x, size.y, size.z, width, height, depth].some((value) => !Number.isFinite(value) || value <= 0)) {
+        throw new Error('Width, height, and depth must be greater than zero')
+      }
+      const factor = new THREE.Vector3(width / size.x, height / size.y, depth / size.z)
+      const anchor = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2)
+      const snapshots = roots.map((root) => ({ root, position: root.position.clone(), scale: root.scale.clone() }))
+      clearUndo()
+      for (const root of roots) {
+        root.position.sub(anchor).multiply(factor).add(anchor)
+        root.scale.multiply(factor)
+        root.updateMatrixWorld(true)
+      }
+      undoRef.current = {
+        apply: () => { for (const snapshot of snapshots) {
+          snapshot.root.position.copy(snapshot.position)
+          snapshot.root.scale.copy(snapshot.scale)
+          snapshot.root.updateMatrixWorld(true)
+        } },
+        discard: () => {},
+      }
+      useViewerStore.getState().setCanUndoEdit(true)
+      updateGeometryDetails()
+      invalidate()
+    },
+    undoEdit: () => {
+      const undo = undoRef.current
+      undoRef.current = null
+      undo?.apply()
+      useViewerStore.getState().setCanUndoEdit(false)
+      const roots = modelRoots()
+      for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
+      updateTriangleDetails()
+      updateGeometryDetails()
+      invalidate()
+    },
   }))
 
   // Effect 1: Renderer initialization (StrictMode-safe via rendererRef guard)
@@ -333,6 +447,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     setLoading(true)
     setError(null)
+    clearUndo()
 
     // Clear any multi-model scene — preview replaces everything
     for (const obj of modelMapRef.current.values()) {
@@ -364,6 +479,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         }
         modelGroupRef.current = obj
         setTriangleCount(countTriangles(obj))
+        updateGeometryDetails()
         // Apply current view mode to newly loaded model
         applyViewMode(obj, useViewerStore.getState().viewMode)
 
@@ -487,6 +603,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     const currentIds = new Set(modelMapRef.current.keys())
     const nextIds = new Set(loadedModels.map((m) => m.id))
+    if (currentIds.size !== nextIds.size || [...currentIds].some((id) => !nextIds.has(id))) clearUndo()
 
     // Find removed IDs — dispose and delete from map
     for (const id of currentIds) {
@@ -556,6 +673,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // re-fit — the user's camera position would jump for no reason.
     if (addPromises.length === 0) return
     Promise.all(addPromises).then(() => {
+      updateGeometryDetails()
       if (sceneRef.current !== scene || loadingIdsRef.current.size > 0) return
       const allObjects = [...modelMapRef.current.values()]
       if (allObjects.length > 0 && cameraRef.current && controlsRef.current) {

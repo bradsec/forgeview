@@ -182,6 +182,7 @@ export function disposeModel(object: THREE.Object3D, scene: THREE.Scene): void {
   const companions = object.userData.pointsCompanions as THREE.Points[] | undefined
   if (companions) {
     for (const pts of companions) {
+      pts.geometry.dispose()
       if (pts.material instanceof THREE.PointsMaterial) pts.material.dispose()
       if (pts.parent) pts.parent.remove(pts)
     }
@@ -253,21 +254,12 @@ export function applyViewMode(
   const companions = root.userData.pointsCompanions as THREE.Points[] | undefined
   if (companions) {
     for (const pts of companions) {
+      pts.geometry.dispose()
       if (pts.material instanceof THREE.PointsMaterial) pts.material.dispose()
       if (pts.parent) pts.parent.remove(pts)
     }
   }
   root.userData.pointsCompanions = []
-
-  // Point size derived once from the whole model's bounding box —
-  // computing it per mesh inside traverse is O(n^2) for multi-mesh models
-  let pointSize = 0
-  if (mode === 'points') {
-    const bbox = new THREE.Box3().setFromObject(root)
-    const modelSize = bbox.getSize(new THREE.Vector3())
-    const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z)
-    pointSize = Math.max(0.5, maxDim * 0.005)
-  }
 
   // Apply the mode to all meshes
   root.traverse((child) => {
@@ -291,8 +283,14 @@ export function applyViewMode(
         child.visible = false
 
         const points = new THREE.Points(
-          child.geometry,
-          new THREE.PointsMaterial({ color: 0xaaaaaa, size: pointSize })
+          pointCloudGeometry(child.geometry),
+          new THREE.PointsMaterial({
+            color: 0xc56a45,
+            size: 2,
+            sizeAttenuation: false,
+            transparent: true,
+            opacity: 0.9,
+          })
         )
         points.position.copy(child.position)
         points.rotation.copy(child.rotation)
@@ -305,6 +303,44 @@ export function applyViewMode(
       }
     }
   })
+}
+
+/** Build one point per used vertex, welding duplicated STL triangle corners. */
+function pointCloudGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
+  const position = source.getAttribute('position')
+  const bounds = new THREE.Box3()
+  const point = new THREE.Vector3()
+  for (let index = 0; index < position.count; index++) {
+    point.set(position.getX(index), position.getY(index), position.getZ(index))
+    bounds.expandByPoint(point)
+  }
+  const scale = bounds.getSize(new THREE.Vector3()).length()
+  const tolerance = Math.max(scale * 1e-7, 1e-9)
+  const unique = new Map<string, [number, number, number]>()
+  const add = (index: number) => {
+    const x = position.getX(index)
+    const y = position.getY(index)
+    const z = position.getZ(index)
+    const key = `${Math.round(x / tolerance)},${Math.round(y / tolerance)},${Math.round(z / tolerance)}`
+    if (!unique.has(key)) unique.set(key, [x, y, z])
+  }
+
+  if (source.index) {
+    for (let index = 0; index < source.index.count; index++) add(source.index.getX(index))
+  } else {
+    for (let index = 0; index < position.count; index++) add(index)
+  }
+
+  const values = new Float32Array(unique.size * 3)
+  let offset = 0
+  for (const vertex of unique.values()) {
+    values[offset++] = vertex[0]
+    values[offset++] = vertex[1]
+    values[offset++] = vertex[2]
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(values, 3))
+  return geometry
 }
 
 /**

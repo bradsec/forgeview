@@ -171,12 +171,31 @@ describe('applyViewMode', () => {
     expect(group.children.filter((c) => c instanceof THREE.Points).length).toBeGreaterThan(0)
   })
 
+  it('welds duplicate triangle corners and uses fixed screen-space points', () => {
+    mesh.geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+      0, 0, 0, 1, 0, 0, 0, 1, 0,
+      1, 0, 0, 1, 1, 0, 0, 1, 0,
+    ], 3))
+
+    applyViewMode(group, 'points')
+
+    const [points] = group.userData.pointsCompanions as THREE.Points[]
+    expect(points.geometry.getAttribute('position').count).toBe(4)
+    expect((points.material as THREE.PointsMaterial).size).toBe(2)
+    expect((points.material as THREE.PointsMaterial).sizeAttenuation).toBe(false)
+  })
+
   it('removes Points companions when switching to solid', () => {
     applyViewMode(group, 'points')
+    const [points] = group.userData.pointsCompanions as THREE.Points[]
+    const geometryDispose = vi.spyOn(points.geometry, 'dispose')
+    const materialDispose = vi.spyOn(points.material as THREE.PointsMaterial, 'dispose')
     applyViewMode(group, 'solid')
     const companions = group.userData.pointsCompanions as THREE.Points[]
     expect(companions).toHaveLength(0)
     expect(group.children.filter((c) => c instanceof THREE.Points)).toHaveLength(0)
+    expect(geometryDispose).toHaveBeenCalledOnce()
+    expect(materialDispose).toHaveBeenCalledOnce()
   })
 })
 

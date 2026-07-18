@@ -3,6 +3,18 @@ import type { QualityPreset, PerformanceOverrides } from '../utils/performancePr
 import type { ThemeMode } from '../themes'
 
 type ViewMode = 'solid' | 'wireframe' | 'points'
+export type MeasurementUnit = 'mm' | 'cm' | 'm' | 'in'
+
+export interface GeometryDetails {
+  width: number
+  height: number
+  depth: number
+  vertices: number
+  meshes: number
+  boundaryEdges: number
+  nonManifoldEdges: number
+  watertight: boolean
+}
 
 export interface LoadedModel {
   id: string
@@ -45,6 +57,8 @@ interface ViewerState {
   isDragOver: boolean
   error: string | null
   triangleCount: number | null
+  geometryDetails: GeometryDetails | null
+  measurementUnit: MeasurementUnit
   projectionMode: 'perspective' | 'orthographic'
   mainView: 'grid' | '3d'
   mobileDrawer: 'none' | 'explorer' | 'details'
@@ -76,6 +90,8 @@ interface ViewerState {
   setGridFolder: (path: string | null) => void
   setGridSort: (s: 'name' | 'size' | 'mtime') => void
   setTriangleCount: (count: number | null) => void
+  setGeometryDetails: (details: GeometryDetails | null) => void
+  setMeasurementUnit: (unit: MeasurementUnit) => void
   addRecentFile: (path: string) => void
 
   // Multi-model actions
@@ -91,6 +107,12 @@ interface ViewerState {
   settingsOpen: boolean
   exportOpen: boolean
   setExportOpen: (open: boolean) => void
+  solidEditorOpen: boolean
+  resizeOpen: boolean
+  canUndoEdit: boolean
+  setSolidEditorOpen: (open: boolean) => void
+  setResizeOpen: (open: boolean) => void
+  setCanUndoEdit: (canUndo: boolean) => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
   setNotice: (notice: string | null) => void
@@ -142,6 +164,8 @@ export const useViewerStore = create<ViewerState>((set) => ({
   isDragOver: false,
   error: null,
   triangleCount: null,
+  geometryDetails: null,
+  measurementUnit: 'mm',
   projectionMode: 'perspective' as const,
   mainView: 'grid' as const,
   mobileDrawer: 'none' as const,
@@ -166,6 +190,12 @@ export const useViewerStore = create<ViewerState>((set) => ({
   settingsOpen: false,
   exportOpen: false,
   setExportOpen: (open) => set({ exportOpen: open }),
+  solidEditorOpen: false,
+  resizeOpen: false,
+  canUndoEdit: false,
+  setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
+  setResizeOpen: (open) => set({ resizeOpen: open }),
+  setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   notice: null,
   setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
@@ -183,9 +213,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', triangleCount: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', triangleCount: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setDragOver: (over) => set({ isDragOver: over }),
@@ -197,6 +227,8 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setGridFolder: (path) => set({ gridFolder: path }),
   setGridSort: (s) => set({ gridSort: s }),
   setTriangleCount: (count) => set({ triangleCount: count }),
+  setGeometryDetails: (details) => set({ geometryDetails: details }),
+  setMeasurementUnit: (unit) => set({ measurementUnit: unit }),
   addRecentFile: (path) =>
     set((state) => ({
       recentFiles: [path, ...state.recentFiles.filter((f) => f !== path)].slice(0, 10),

@@ -61,7 +61,6 @@ test('exports the open model as binary STL via download', async ({ page, isMobil
   const dialog = page.getByRole('dialog', { name: 'Export model' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('radio', { name: 'STL (binary)' })).toBeChecked()
-  await expect(dialog.getByRole('checkbox', { name: /Make solid/ })).toBeVisible()
 
   const downloadPromise = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export', exact: true }).click()
@@ -75,6 +74,20 @@ test('exports the open model as binary STL via download', async ({ page, isMobil
   // Binary STL: 80-byte header + count + 2 triangles * 50 bytes
   expect(bytes.byteLength).toBe(84 + 2 * 50)
   expect(bytes.readUInt32LE(80)).toBe(2)
+})
+
+test('repairs the open model from the Edit menu with visible progress', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Edit flow verified on desktop')
+  await dropStl(page, 'repairme.stl')
+  await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Make solid…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Make solid' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Repair model' }).click()
+  await expect(dialog.getByText('Repair complete')).toBeVisible()
+  await expect(dialog.getByText('Further repair needed')).toBeVisible()
 })
 
 test('export menu item is disabled with no model open', async ({ page }) => {

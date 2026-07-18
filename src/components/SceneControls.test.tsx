@@ -19,6 +19,10 @@ describe('SceneControls', () => {
         orbitBy: vi.fn(),
         getCamera: vi.fn(),
         getScene: vi.fn(),
+        makeSolid: vi.fn(),
+        resizeModel: vi.fn(),
+        getModelDimensions: vi.fn(),
+        undoEdit: vi.fn(),
       } satisfies Viewer3DHandle,
     }
     render(<SceneControls viewerRef={viewerRef} />)

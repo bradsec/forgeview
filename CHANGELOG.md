@@ -1,12 +1,17 @@
 # Changelog
 
-## 1.4.4 - 2026-07-18
+## 1.4.5 - 2026-07-18
 
+- Reset the view mode to Solid when opening a model, and use the browser Save As
+  picker for export naming and location where the browser supports it.
 - Export the open scene as STL, 3MF, OBJ, PLY, or GLB from File > Export
   model as. Browser mode downloads the file; the desktop app saves through
   the native dialog on the Rust side.
-- Add a Make solid export option that removes fully enclosed internal
-  shells (cavities) without changing the outer surface, for 3D printing.
+- Add Edit > Make solid with background repair progress, planar hole closure,
+  duplicate and degenerate face cleanup, enclosed-shell removal, mesh-health
+  results, and one-level undo.
+- Add Edit > Resize with linked proportions and selectable display units, plus
+  dimensions, vertex count, mesh count, and topology health in Details.
 - Correct scene-wide shell removal, preserve export attributes and material
   groups, expand instances, and keep reflected geometry winding outward.
 - Prevent incomplete assembly exports while models are loading and reject live
