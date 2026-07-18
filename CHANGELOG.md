@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.4 - 2026-07-18
 
 - Export the open scene as STL, 3MF, OBJ, PLY, or GLB from File > Export
   model as. Browser mode downloads the file; the desktop app saves through
