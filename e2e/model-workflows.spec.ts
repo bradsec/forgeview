@@ -52,6 +52,10 @@ test('drop works again while a model is already open', async ({ page }) => {
 
 test('exports the open model as binary STL via download', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Export flow verified on desktop')
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true })
+  })
+  await page.reload()
   await dropStl(page, 'exportme.stl')
   await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
 
