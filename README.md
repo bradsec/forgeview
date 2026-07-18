@@ -67,8 +67,9 @@ magick -background none public/icon.svg -define icon:auto-resize=64,48,32,16 pub
 The frontend also runs as a static site without the Tauri backend. In browser
 mode you can drag and drop a model file (or use Open / Open Folder, which fall
 back to browser pickers) and view it with all camera, view mode, and theme
-controls. Open Folder loads a snapshot of the selected folder into the
-explorer and preview grid; re-pick the folder to refresh it. Settings
+controls. Open Folder loads a local, read-only snapshot of the selected folder
+into the explorer and preview grid; Forgeview does not upload those files.
+Re-pick the folder to refresh it. Settings
 persistence needs native file system access and is disabled in the browser.
 The explorer initially shows 100 entries per directory and the preview grid
 shows 60 files, with Load more controls for larger folders.

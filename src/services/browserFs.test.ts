@@ -15,6 +15,7 @@ import {
   getBrowserFile,
   listBrowserDir,
   listBrowserDirRecursive,
+  pickBrowserFolder,
 } from './browserFs'
 import { listGridFiles } from './gridFiles'
 import { readDirTree } from '../hooks/useDirOpen'
@@ -31,6 +32,40 @@ function fakeFile(relPath: string, size = 100, lastModified = 1000): File {
 
 beforeEach(() => {
   clearBrowserFolder()
+  delete (window as Window & { showDirectoryPicker?: unknown }).showDirectoryPicker
+})
+
+describe('pickBrowserFolder', () => {
+  it('uses the native read-only directory picker and preserves nested paths', async () => {
+    const cube = fakeFile('cube.stl')
+    const gear = fakeFile('gear.obj')
+    const subdirectory = {
+      kind: 'directory',
+      name: 'parts',
+      async *values() {
+        yield { kind: 'file', name: 'gear.obj', getFile: async () => gear }
+      },
+    }
+    const root = {
+      kind: 'directory',
+      name: 'models',
+      async *values() {
+        yield { kind: 'file', name: 'cube.stl', getFile: async () => cube }
+        yield subdirectory
+      },
+    }
+    const showDirectoryPicker = vi.fn().mockResolvedValue(root)
+    ;(window as Window & { showDirectoryPicker?: typeof showDirectoryPicker }).showDirectoryPicker = showDirectoryPicker
+
+    const selection = await pickBrowserFolder()
+
+    expect(showDirectoryPicker).toHaveBeenCalledWith({ id: 'forgeview-model-folder', mode: 'read' })
+    expect(selection?.rootName).toBe('models')
+    expect(selection?.files.map((entry) => entry.relativePath)).toEqual([
+      'models/cube.stl',
+      'models/parts/gear.obj',
+    ])
+  })
 })
 
 describe('registerBrowserFolder', () => {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.3 - 2026-07-18
+
+- Add a scene context menu for common camera, standard view, projection, and
+  display actions.
+- Use the browser's read-only directory picker where supported, avoiding
+  misleading bulk-upload language while retaining a compatible fallback.
+
 ## 1.4.0 - 2026-07-15
 
 - Redesign the web interface around a compact application menu, responsive

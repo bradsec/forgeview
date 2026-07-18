@@ -6,6 +6,7 @@ import { Sidebar } from './components/Sidebar'
 import { DirectoryPanel } from './components/DirectoryPanel'
 import { DropZone } from './components/DropZone'
 import { SceneControls } from './components/SceneControls'
+import { SceneContextMenu } from './components/SceneContextMenu'
 import { PreviewGrid } from './components/PreviewGrid'
 import { SettingsModal } from './components/SettingsModal'
 import { MobileDrawer } from './components/MobileDrawer'
@@ -48,13 +49,12 @@ export default function App() {
           {dirPath && mainView === 'grid' ? (
             <PreviewGrid />
           ) : filePath || loadedModels.length > 0 ? (
-            <Viewer3D ref={viewerRef} filePath={filePath} fileExtension={fileExtension} viewMode={viewMode} />
+            <SceneContextMenu viewerRef={viewerRef}>
+              <Viewer3D ref={viewerRef} filePath={filePath} fileExtension={fileExtension} viewMode={viewMode} />
+              <SceneControls viewerRef={viewerRef} />
+            </SceneContextMenu>
           ) : (
             <DropZone />
-          )}
-
-          {!(dirPath && mainView === 'grid') && (filePath || loadedModels.length > 0) && (
-            <SceneControls viewerRef={viewerRef} />
           )}
 
           {isLoading && (

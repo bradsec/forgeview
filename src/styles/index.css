@@ -138,6 +138,17 @@ button:not(:disabled) {
   box-shadow: 0 14px 36px var(--shadow-color), inset 0 1px color-mix(in srgb, var(--text-bright) 5%, transparent);
 }
 
+.scene-context-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 220px;
+  padding: 5px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background: var(--bg-dialog);
+  box-shadow: 0 14px 36px var(--shadow-color), inset 0 1px color-mix(in srgb, var(--text-bright) 5%, transparent);
+}
+
 .app-menu-item {
   display: flex;
   width: 100%;

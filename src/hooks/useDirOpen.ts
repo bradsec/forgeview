@@ -6,7 +6,7 @@ import { useViewerStore } from '../store/viewerStore'
 import type { DirTreeEntry } from '../store/viewerStore'
 import { dirname, extname } from '../utils/pathUtils'
 import { isTauri } from '../utils/isTauri'
-import { isBrowserPath, listBrowserDir, pickBrowserFolder, registerBrowserFolder } from '../services/browserFs'
+import { isBrowserPath, listBrowserDir, pickBrowserFolder, registerBrowserFolderSelection } from '../services/browserFs'
 
 const METADATA_CONCURRENCY = 16
 
@@ -132,8 +132,8 @@ export function useDirOpen() {
     try {
       if (!isTauri()) {
         const picked = await pickBrowserFolder()
-        if (picked === null || picked.length === 0) return
-        const root = registerBrowserFolder(picked)
+        if (picked === null) return
+        const root = registerBrowserFolderSelection(picked)
         if (root === null) return
         await applyDir(root)
         return

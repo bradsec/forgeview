@@ -10,6 +10,16 @@
 const registry = new Map<string, File>()
 let browserRoot: string | null = null
 
+export interface BrowserFolderFile {
+  file: File
+  relativePath: string
+}
+
+export interface BrowserFolderSelection {
+  rootName: string
+  files: BrowserFolderFile[]
+}
+
 /** Root folder name of the registered browser folder, or null. */
 export function getBrowserRoot(): string | null {
   return browserRoot
@@ -31,14 +41,18 @@ export function getBrowserFile(path: string): File | undefined {
  * Returns the root folder name, or null when the list is empty.
  */
 export function registerBrowserFolder(files: File[]): string | null {
+  const entries = files
+    .filter((file) => file.webkitRelativePath)
+    .map((file) => ({ file, relativePath: file.webkitRelativePath }))
+  const rootName = entries[0]?.relativePath.split('/')[0] ?? ''
+  return registerBrowserFolderSelection({ rootName, files: entries })
+}
+
+/** Replace the registry with files returned by a native browser directory picker. */
+export function registerBrowserFolderSelection(selection: BrowserFolderSelection): string | null {
   registry.clear()
-  browserRoot = null
-  for (const f of files) {
-    const rel = f.webkitRelativePath
-    if (!rel) continue
-    registry.set(rel, f)
-    if (browserRoot === null) browserRoot = rel.split('/')[0]
-  }
+  browserRoot = selection.rootName || null
+  for (const { file, relativePath } of selection.files) registry.set(relativePath, file)
   return browserRoot
 }
 
@@ -109,16 +123,51 @@ export function listBrowserDirRecursive(dir: string): BrowserDirEntry[] {
 }
 
 /**
- * Open a browser folder picker via <input webkitdirectory>. Resolves with the
- * selected files, or null when the user cancels. Works in Chrome, Firefox,
- * Edge, and Safari — no File System Access API required.
+ * Open the browser's read-only directory picker where available. Unlike a file
+ * input, this API does not describe local folder access as an "upload". The
+ * webkitdirectory input remains as a compatibility fallback.
  */
-export function pickBrowserFolder(): Promise<File[] | null> {
+export async function pickBrowserFolder(): Promise<BrowserFolderSelection | null> {
+  const picker = (window as Window & {
+    showDirectoryPicker?: (options?: { id?: string; mode?: 'read' }) => Promise<FileSystemDirectoryHandle>
+  }).showDirectoryPicker
+
+  if (picker) {
+    try {
+      const root = await picker.call(window, { id: 'forgeview-model-folder', mode: 'read' })
+      const files: BrowserFolderFile[] = []
+
+      const collect = async (directory: FileSystemDirectoryHandle, path: string): Promise<void> => {
+        for await (const handle of directory.values()) {
+          const relativePath = `${path}/${handle.name}`
+          if (handle.kind === 'file') {
+            files.push({ file: await handle.getFile(), relativePath })
+          } else {
+            await collect(handle, relativePath)
+          }
+        }
+      }
+
+      await collect(root, root.name)
+      return { rootName: root.name, files }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return null
+      throw error
+    }
+  }
+
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.webkitdirectory = true
-    input.onchange = () => resolve(input.files ? Array.from(input.files) : null)
+    input.onchange = () => {
+      const selected = input.files ? Array.from(input.files) : []
+      const files = selected
+        .filter((file) => file.webkitRelativePath)
+        .map((file) => ({ file, relativePath: file.webkitRelativePath }))
+      const rootName = files[0]?.relativePath.split('/')[0] ?? ''
+      resolve(files.length > 0 ? { rootName, files } : null)
+    }
     input.oncancel = () => resolve(null)
     input.click()
   })
