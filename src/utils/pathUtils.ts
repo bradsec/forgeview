@@ -31,3 +31,31 @@ export function extname(path: string): string {
   const dot = name.lastIndexOf('.')
   return dot > 0 ? name.slice(dot).toLowerCase() : ''
 }
+
+export interface Breadcrumb {
+  name: string
+  path: string
+}
+
+/**
+ * Breadcrumb trail from a workspace root down to the current folder.
+ * `current` must be `root` itself or a descendant; anything else collapses
+ * to just the root crumb. Handles both '/' and '\\' separators.
+ */
+export function breadcrumbsFor(root: string, current: string): Breadcrumb[] {
+  const trimmedRoot = root.replace(/[/\\]+$/, '')
+  const rootCrumb: Breadcrumb = { name: basename(trimmedRoot) || trimmedRoot, path: trimmedRoot }
+  if (current === trimmedRoot || current === root) return [rootCrumb]
+
+  const sep = current.includes('\\') ? '\\' : '/'
+  if (!current.startsWith(trimmedRoot + sep)) return [rootCrumb]
+
+  const crumbs = [rootCrumb]
+  let acc = trimmedRoot
+  for (const segment of current.slice(trimmedRoot.length + 1).split(/[/\\]/)) {
+    if (!segment) continue
+    acc = acc + sep + segment
+    crumbs.push({ name: segment, path: acc })
+  }
+  return crumbs
+}

@@ -1,6 +1,7 @@
 import type { GridFile } from './gridFiles'
 import * as THREE from 'three'
 import { loadModel, disposeModel } from '../loaders'
+import { thumbCacheGet, thumbCachePut } from './thumbCache'
 
 export type ThumbStatus = 'pending' | 'ready' | 'error'
 
@@ -101,10 +102,17 @@ function buildRenderer() {
   const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1e7)
 
   const render = async (f: GridFile): Promise<string> => {
+    // Persistent cache first — skips reading and parsing the model entirely
+    const key = cacheKey(f)
+    const cached = await thumbCacheGet(key)
+    if (cached) return cached
+
     const obj = await loadModel(f.path, f.extension, scene, camera, { center: true })
     try {
       renderer.render(scene, camera)
-      return renderer.domElement.toDataURL('image/png')
+      const dataUrl = renderer.domElement.toDataURL('image/png')
+      void thumbCachePut(key, dataUrl)
+      return dataUrl
     } finally {
       disposeModel(obj, scene)
     }

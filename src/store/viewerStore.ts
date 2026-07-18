@@ -50,6 +50,9 @@ interface ViewerState {
   mobileDrawer: 'none' | 'explorer' | 'details'
   gridScope: 'current' | 'recursive'
   gridFolder: string | null
+  /** File ordering in the preview grid. Name sorts ascending; size and
+   *  modified sort descending (largest / newest first). */
+  gridSort: 'name' | 'size' | 'mtime'
   recentFiles: string[]
 
   // Multi-model state
@@ -70,6 +73,7 @@ interface ViewerState {
   setMobileDrawer: (d: 'none' | 'explorer' | 'details') => void
   setGridScope: (s: 'current' | 'recursive') => void
   setGridFolder: (path: string | null) => void
+  setGridSort: (s: 'name' | 'size' | 'mtime') => void
   setTriangleCount: (count: number | null) => void
   addRecentFile: (path: string) => void
 
@@ -136,6 +140,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   mobileDrawer: 'none' as const,
   gridScope: 'current' as const,
   gridFolder: null,
+  gridSort: 'name' as const,
   recentFiles: [],
 
   // Multi-model initial state
@@ -178,6 +183,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setMobileDrawer: (d) => set({ mobileDrawer: d }),
   setGridScope: (s) => set({ gridScope: s }),
   setGridFolder: (path) => set({ gridFolder: path }),
+  setGridSort: (s) => set({ gridSort: s }),
   setTriangleCount: (count) => set({ triangleCount: count }),
   addRecentFile: (path) =>
     set((state) => ({

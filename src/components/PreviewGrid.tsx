@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { listGridFiles } from '../services/gridFiles'
-import type { GridListing } from '../services/gridFiles'
+import type { GridFile, GridListing } from '../services/gridFiles'
 import { GridTile } from './GridTile'
+import { breadcrumbsFor } from '../utils/pathUtils'
 
 const PAGE_SIZE = 60
+
+export function sortGridFiles(files: GridFile[], sort: 'name' | 'size' | 'mtime'): GridFile[] {
+  const sorted = [...files]
+  if (sort === 'size') sorted.sort((a, b) => b.size - a.size || a.name.localeCompare(b.name))
+  else if (sort === 'mtime') sorted.sort((a, b) => b.mtime - a.mtime || a.name.localeCompare(b.name))
+  else sorted.sort((a, b) => a.name.localeCompare(b.name))
+  return sorted
+}
 
 export function PreviewGrid() {
   const gridFolder = useViewerStore((s) => s.gridFolder)
   const gridScope = useViewerStore((s) => s.gridScope)
+  const gridSort = useViewerStore((s) => s.gridSort)
+  const dirPath = useViewerStore((s) => s.dirPath)
   const [listing, setListing] = useState<GridListing>({ folders: [], files: [] })
   const [loading, setLoading] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -34,13 +45,37 @@ export function PreviewGrid() {
   const total = listing.files.length
   const entries = [
     ...listing.folders.map((folder) => ({ kind: 'folder' as const, folder })),
-    ...listing.files.map((file) => ({ kind: 'file' as const, file })),
+    ...sortGridFiles(listing.files, gridSort).map((file) => ({ kind: 'file' as const, file })),
   ]
   const visibleEntries = entries.slice(0, visibleCount)
 
+  const crumbs = dirPath && gridFolder ? breadcrumbsFor(dirPath, gridFolder) : []
+
   return (
     <div className="w-full h-full flex flex-col bg-[var(--bg-app)] overflow-hidden">
-      {/* Toolbar row: scope toggle + count */}
+      {/* Breadcrumb trail — navigate back up the folder hierarchy */}
+      {crumbs.length > 1 && (
+        <nav aria-label="Folder path" className="flex items-center gap-1 px-4 pt-2 text-xs shrink-0 flex-wrap">
+          {crumbs.map((crumb, index) => (
+            <span key={crumb.path} className="flex items-center gap-1 min-w-0">
+              {index > 0 && <span aria-hidden="true" className="text-[var(--text-muted)]">/</span>}
+              {index === crumbs.length - 1 ? (
+                <span className="text-[var(--text-primary)] truncate" aria-current="location">{crumb.name}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => useViewerStore.getState().setGridFolder(crumb.path)}
+                  className="text-[var(--accent)] hover:text-[var(--accent-hover)] truncate"
+                >
+                  {crumb.name}
+                </button>
+              )}
+            </span>
+          ))}
+        </nav>
+      )}
+
+      {/* Toolbar row: scope toggle + sort + count */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] shrink-0">
         <div className="flex rounded overflow-hidden border border-[var(--border-input)]">
           {(['current', 'recursive'] as const).map((s) => (
@@ -60,6 +95,19 @@ export function PreviewGrid() {
             </button>
           ))}
         </div>
+        <label className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+          <span className="sr-only">Sort files by</span>
+          <select
+            aria-label="Sort files by"
+            value={gridSort}
+            onChange={(event) => useViewerStore.getState().setGridSort(event.target.value as 'name' | 'size' | 'mtime')}
+            className="h-6 rounded border border-[var(--border-input)] bg-[var(--bg-input)] px-1.5 text-xs text-[var(--text-primary)]"
+          >
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+            <option value="mtime">Modified</option>
+          </select>
+        </label>
         <span className="text-xs text-[var(--text-muted)] font-mono tabular-nums">
           {loading ? 'scanning...' : `${total} file${total === 1 ? '' : 's'}`}
         </span>

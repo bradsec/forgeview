@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { basename, dirname, extname } from './pathUtils'
+import { basename, breadcrumbsFor, dirname, extname } from './pathUtils'
+
+describe('breadcrumbsFor', () => {
+  it('returns only the root crumb at the root', () => {
+    expect(breadcrumbsFor('/home/user/models', '/home/user/models')).toEqual([
+      { name: 'models', path: '/home/user/models' },
+    ])
+  })
+  it('builds the trail for nested unix folders', () => {
+    expect(breadcrumbsFor('/home/user/models', '/home/user/models/cars/wheels')).toEqual([
+      { name: 'models', path: '/home/user/models' },
+      { name: 'cars', path: '/home/user/models/cars' },
+      { name: 'wheels', path: '/home/user/models/cars/wheels' },
+    ])
+  })
+  it('builds the trail for windows folders', () => {
+    expect(breadcrumbsFor('C:\\models', 'C:\\models\\cars')).toEqual([
+      { name: 'models', path: 'C:\\models' },
+      { name: 'cars', path: 'C:\\models\\cars' },
+    ])
+  })
+  it('handles browser virtual paths without leading separators', () => {
+    expect(breadcrumbsFor('models', 'models/sub')).toEqual([
+      { name: 'models', path: 'models' },
+      { name: 'sub', path: 'models/sub' },
+    ])
+  })
+  it('collapses to the root crumb when current is outside the root', () => {
+    expect(breadcrumbsFor('/home/user/models', '/etc')).toEqual([
+      { name: 'models', path: '/home/user/models' },
+    ])
+  })
+})
 
 describe('basename', () => {
   it('returns the final segment for unix paths', () => {

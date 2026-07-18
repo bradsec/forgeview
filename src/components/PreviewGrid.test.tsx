@@ -9,12 +9,46 @@ vi.mock('./GridTile', () => ({
 }))
 
 import { listGridFiles } from '../services/gridFiles'
-import { PreviewGrid } from './PreviewGrid'
+import { PreviewGrid, sortGridFiles } from './PreviewGrid'
+
+describe('sortGridFiles', () => {
+  const files = [
+    { name: 'b.stl', path: '/b.stl', extension: '.stl', size: 10, mtime: 300 },
+    { name: 'a.stl', path: '/a.stl', extension: '.stl', size: 30, mtime: 100 },
+    { name: 'c.stl', path: '/c.stl', extension: '.stl', size: 20, mtime: 200 },
+  ]
+
+  it('sorts by name ascending', () => {
+    expect(sortGridFiles(files, 'name').map((f) => f.name)).toEqual(['a.stl', 'b.stl', 'c.stl'])
+  })
+  it('sorts by size descending', () => {
+    expect(sortGridFiles(files, 'size').map((f) => f.name)).toEqual(['a.stl', 'c.stl', 'b.stl'])
+  })
+  it('sorts by mtime descending', () => {
+    expect(sortGridFiles(files, 'mtime').map((f) => f.name)).toEqual(['b.stl', 'c.stl', 'a.stl'])
+  })
+  it('does not mutate the input array', () => {
+    const input = [...files]
+    sortGridFiles(input, 'size')
+    expect(input).toEqual(files)
+  })
+})
 
 describe('PreviewGrid', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useViewerStore.setState({ gridFolder: '/many', gridScope: 'current', error: null })
+    useViewerStore.setState({ gridFolder: '/many', gridScope: 'current', gridSort: 'name', dirPath: '/many', error: null })
+  })
+
+  it('shows breadcrumbs in subfolders and navigates back up', async () => {
+    vi.mocked(listGridFiles).mockResolvedValue({ folders: [], files: [] })
+    useViewerStore.setState({ dirPath: '/many', gridFolder: '/many/sub' })
+    render(<PreviewGrid />)
+
+    const rootCrumb = await screen.findByRole('button', { name: 'many' })
+    expect(screen.getByText('sub')).toBeTruthy()
+    await userEvent.click(rootCrumb)
+    expect(useViewerStore.getState().gridFolder).toBe('/many')
   })
 
   it('renders large listings in pages', async () => {
