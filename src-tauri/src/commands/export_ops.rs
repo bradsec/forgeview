@@ -1,5 +1,7 @@
 use tauri_plugin_dialog::DialogExt;
 
+const MAX_EXPORT_SIZE: usize = 500 * 1024 * 1024;
+
 /// Decode a percent-encoded UTF-8 string (the frontend sends the suggested
 /// filename through an ASCII-safe IPC header).
 fn percent_decode(input: &str) -> String {
@@ -8,10 +10,9 @@ fn percent_decode(input: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(byte) = u8::from_str_radix(
-                std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""),
-                16,
-            ) {
+            if let Ok(byte) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
                 out.push(byte);
                 i += 3;
                 continue;
@@ -28,13 +29,39 @@ fn percent_decode(input: &str) -> String {
 fn sanitize_filename(name: &str) -> String {
     let cleaned: String = name
         .chars()
-        .filter(|c| !matches!(c, '/' | '\\' | ':') && !c.is_control())
+        .filter(|c| {
+            !matches!(c, '/' | '\\' | ':' | '<' | '>' | '"' | '|' | '?' | '*') && !c.is_control()
+        })
         .collect();
+    let cleaned = cleaned.trim_end_matches([' ', '.']);
     if cleaned.trim().is_empty() {
         "model.stl".to_string()
+    } else if is_windows_reserved_name(cleaned) {
+        format!("_{cleaned}")
     } else {
-        cleaned
+        cleaned.to_string()
     }
+}
+
+fn is_windows_reserved_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or_default();
+    let upper = stem.to_ascii_uppercase();
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || upper
+            .strip_prefix("COM")
+            .or_else(|| upper.strip_prefix("LPT"))
+            .is_some_and(|suffix| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
+}
+
+fn validate_export_size(size: usize, max_size: usize) -> Result<(), String> {
+    if size > max_size {
+        return Err(format!(
+            "Export too large ({:.0} MB). Maximum supported size is {:.0} MB.",
+            size as f64 / (1024.0 * 1024.0),
+            max_size as f64 / (1024.0 * 1024.0)
+        ));
+    }
+    Ok(())
 }
 
 /// Open the native save dialog with the suggested filename and write the
@@ -55,7 +82,10 @@ pub async fn export_model_file(
         .unwrap_or_else(|| "model.stl".to_string());
 
     let bytes = match request.body() {
-        tauri::ipc::InvokeBody::Raw(bytes) => bytes.clone(),
+        tauri::ipc::InvokeBody::Raw(bytes) => {
+            validate_export_size(bytes.len(), MAX_EXPORT_SIZE)?;
+            bytes.clone()
+        }
         _ => return Err("Expected binary payload".to_string()),
     };
 
@@ -112,5 +142,29 @@ mod tests {
     #[test]
     fn sanitize_falls_back_when_empty() {
         assert_eq!(sanitize_filename("///"), "model.stl");
+    }
+
+    #[test]
+    fn sanitize_removes_windows_invalid_characters_and_suffixes() {
+        assert_eq!(sanitize_filename("bad<>:\"/\\|?*.stl. "), "bad.stl");
+    }
+
+    #[test]
+    fn sanitize_prefixes_windows_reserved_names() {
+        for name in [
+            "CON", "con.stl", "PRN.obj", "AUX", "NUL.3mf", "COM1", "lpt9.stl",
+        ] {
+            assert_eq!(sanitize_filename(name), format!("_{name}"));
+        }
+        assert_eq!(sanitize_filename("COM10.stl"), "COM10.stl");
+        assert_eq!(sanitize_filename("LPT0.stl"), "LPT0.stl");
+    }
+
+    #[test]
+    fn validate_export_size_rejects_only_values_over_limit() {
+        assert!(validate_export_size(4, 4).is_ok());
+        assert!(validate_export_size(5, 4)
+            .unwrap_err()
+            .starts_with("Export too large"));
     }
 }

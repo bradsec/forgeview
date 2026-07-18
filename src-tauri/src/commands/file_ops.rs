@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 use tauri_plugin_fs::FsExt;
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct FileMetadata {
     pub path: String,
     pub filename: String,
@@ -51,48 +51,53 @@ pub async fn get_file_metadata(
     path: String,
 ) -> Result<FileMetadata, String> {
     let resolved = resolve_allowed_path(&app, &path)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let p = Path::new(&resolved);
+    tauri::async_runtime::spawn_blocking(move || file_metadata(path, &resolved))
+        .await
+        .map_err(|e| e.to_string())?
+}
 
-        let filename = p
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string();
+fn file_metadata(path: String, resolved: &Path) -> Result<FileMetadata, String> {
+    let p = resolved;
 
-        let extension = p
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| format!(".{}", e.to_lowercase()))
-            .unwrap_or_default();
+    let filename = p
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
 
-        let metadata = std::fs::metadata(&resolved).map_err(|e| e.to_string())?;
+    let extension = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| format!(".{}", e.to_lowercase()))
+        .unwrap_or_default();
 
-        let size_bytes = metadata.len();
+    let metadata = std::fs::metadata(resolved).map_err(|e| e.to_string())?;
+    if !metadata.is_file() {
+        return Err("Path is not a regular file".to_string());
+    }
 
-        let modified = metadata
-            .modified()
-            .map_err(|e| e.to_string())
-            .and_then(|t| {
-                t.duration_since(UNIX_EPOCH)
-                    .map_err(|e| e.to_string())
-                    .map(|d| {
-                        let secs = d.as_secs();
-                        format_iso8601(secs)
-                    })
-            })
-            .unwrap_or_else(|_| "unknown".to_string());
+    let size_bytes = metadata.len();
 
-        Ok(FileMetadata {
-            path,
-            filename,
-            extension,
-            size_bytes,
-            modified,
+    let modified = metadata
+        .modified()
+        .map_err(|e| e.to_string())
+        .and_then(|t| {
+            t.duration_since(UNIX_EPOCH)
+                .map_err(|e| e.to_string())
+                .map(|d| {
+                    let secs = d.as_secs();
+                    format_iso8601(secs)
+                })
         })
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    Ok(FileMetadata {
+        path,
+        filename,
+        extension,
+        size_bytes,
+        modified,
     })
-    .await
-    .map_err(|e| e.to_string())?
 }
 
 fn read_file_bounded(path: &Path, max_size: u64) -> Result<Vec<u8>, String> {
@@ -212,6 +217,16 @@ mod tests {
         let base = temp_base("directory");
         assert_eq!(
             read_file_bounded(&base, 4).unwrap_err(),
+            "Path is not a regular file"
+        );
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn file_metadata_rejects_directory() {
+        let base = temp_base("metadata-directory");
+        assert_eq!(
+            file_metadata(base.display().to_string(), &base).unwrap_err(),
             "Path is not a regular file"
         );
         std::fs::remove_dir_all(&base).unwrap();
