@@ -7,6 +7,14 @@
   the native dialog on the Rust side.
 - Add a Make solid export option that removes fully enclosed internal
   shells (cavities) without changing the outer surface, for 3D printing.
+- Correct scene-wide shell removal, preserve export attributes and material
+  groups, expand instances, and keep reflected geometry winding outward.
+- Prevent incomplete assembly exports while models are loading and reject live
+  skinned or morph-deformed meshes until their displayed shape is baked.
+- Bound recursive folder and thumbnail work, cancel obsolete queued previews,
+  and preserve settings changed during startup hydration.
+- Bound native export payloads and reject invalid native file metadata and
+  cross-platform filename suggestions before filesystem operations.
 - Accept dropped model files at any time, not only on the empty start
   screen, with a drop highlight over the viewer and grid.
 - Add breadcrumb navigation and name/size/modified sorting to the preview

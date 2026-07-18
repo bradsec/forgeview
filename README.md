@@ -13,7 +13,7 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
 - Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
 - Export the scene as STL, 3MF, OBJ, PLY, or GLB (File > Export model as)
-- Optional "Make solid" on export: removes enclosed internal shells for 3D printing without changing the outer surface
+- Optional "Make solid" on export: removes closed, fully enclosed internal shells across the scene without changing the outer surface
 - Compact app menu, left Explorer, right Details panel, and bottom camera navigation
 - In-app format help, About information, and repository/version status footer
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
@@ -78,6 +78,12 @@ Exports download directly as files. Re-pick the folder to refresh it. Settings
 persistence needs native file system access and is disabled in the browser.
 The explorer initially shows 100 entries per directory and the preview grid
 shows 60 files, with Load more controls for larger folders.
+
+Export preserves static mesh transforms, instances, material groups, vertex
+colors, and other geometry attributes supported by the target format. Bake
+skinned poses and active morph deformation into static geometry before export.
+"Make solid" removes enclosed watertight shells; it does not close holes or
+repair self-intersections and non-manifold geometry.
 
 Note: WebGL2 is required. Chrome and Edge disable WebGL entirely when
 hardware acceleration is off (chrome://settings/system) and no longer fall
