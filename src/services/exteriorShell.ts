@@ -159,17 +159,152 @@ export function exteriorTriangleFlags(
   return flags
 }
 
+interface SolidMesh {
+  /** xyz per vertex id; cap centroids are appended as new ids. */
+  vertexPosition: number[]
+  /** vertex-id triples, winding preserved from the source soup. */
+  faces: number[]
+}
+
+function buildDirectedEdges(mesh: SolidMesh): Map<number, number> {
+  const stride = mesh.vertexPosition.length / 3 + 1
+  const directed = new Map<number, number>()
+  for (let face = 0; face < mesh.faces.length; face += 3) {
+    const [a, b, c] = [mesh.faces[face], mesh.faces[face + 1], mesh.faces[face + 2]]
+    for (const [u, v] of [[a, b], [b, c], [c, a]]) {
+      directed.set(u * stride + v, (directed.get(u * stride + v) ?? 0) + 1)
+    }
+  }
+  return directed
+}
+
+/** Drop degenerate triangles and exact duplicate faces in place. */
+function dedupeFaces(mesh: SolidMesh): void {
+  const kept: number[] = []
+  const seen = new Set<string>()
+  for (let face = 0; face < mesh.faces.length; face += 3) {
+    const [a, b, c] = [mesh.faces[face], mesh.faces[face + 1], mesh.faces[face + 2]]
+    if (a === b || b === c || c === a) continue
+    const key = [a, b, c].sort((x, y) => x - y).join(':')
+    if (seen.has(key)) continue
+    seen.add(key)
+    kept.push(a, b, c)
+  }
+  mesh.faces = kept
+}
+
+function boundaryEdgeList(mesh: SolidMesh): Array<[number, number]> {
+  const stride = mesh.vertexPosition.length / 3 + 1
+  const directed = buildDirectedEdges(mesh)
+  const boundary: Array<[number, number]> = []
+  for (const [packed, count] of directed) {
+    const u = Math.floor(packed / stride)
+    const v = packed % stride
+    if (count === 1 && !directed.has(v * stride + u)) boundary.push([u, v])
+  }
+  return boundary
+}
+
+/**
+ * Cap boundary-edge loops with centroid fans. Chains follow the most
+ * geometrically continuous outgoing edge at junction vertices (a figure-8
+ * then splits into two clean loops instead of one broken walk), and a walk
+ * that cannot close releases its edges for later walks. Cap winding follows
+ * the surrounding surface: boundary direction u->v means the missing twin is
+ * v->u, which the fan triangle (v, u, centroid) supplies.
+ */
+function capBoundaryLoops(mesh: SolidMesh): void {
+  const boundary = boundaryEdgeList(mesh)
+  if (boundary.length === 0) return
+  const pos = mesh.vertexPosition
+  const outgoing = new Map<number, number[]>()
+  for (const [u, v] of boundary) {
+    const list = outgoing.get(u)
+    if (list) list.push(v)
+    else outgoing.set(u, [v])
+  }
+  const stride = pos.length / 3 + 1
+  const consumed = new Set<number>()
+  const continuity = (from: number, via: number, to: number) => {
+    const ax = pos[via * 3] - pos[from * 3]
+    const ay = pos[via * 3 + 1] - pos[from * 3 + 1]
+    const az = pos[via * 3 + 2] - pos[from * 3 + 2]
+    const bx = pos[to * 3] - pos[via * 3]
+    const by = pos[to * 3 + 1] - pos[via * 3 + 1]
+    const bz = pos[to * 3 + 2] - pos[via * 3 + 2]
+    const lengths = Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz)
+    return lengths > 0 ? (ax * bx + ay * by + az * bz) / lengths : -2
+  }
+  for (const [start] of outgoing) {
+    let previous = -1
+    let current = start
+    const loop: number[] = []
+    const walked: number[] = []
+    for (let steps = 0; steps <= boundary.length; steps++) {
+      const candidates = (outgoing.get(current) ?? []).filter((v) => !consumed.has(current * stride + v))
+      if (candidates.length === 0) break
+      const next = previous < 0
+        ? candidates[0]
+        : candidates.reduce((best, v) => continuity(previous, current, v) > continuity(previous, current, best) ? v : best)
+      consumed.add(current * stride + next)
+      walked.push(current * stride + next)
+      loop.push(current)
+      previous = current
+      current = next
+      if (current === start) break
+    }
+    if (current !== start || loop.length < 3) {
+      for (const edge of walked) consumed.delete(edge)
+      continue
+    }
+    const centroid = [0, 0, 0]
+    for (const id of loop) for (let axis = 0; axis < 3; axis++) centroid[axis] += pos[id * 3 + axis]
+    for (let axis = 0; axis < 3; axis++) centroid[axis] /= loop.length
+    const centroidId = pos.length / 3
+    pos.push(centroid[0], centroid[1], centroid[2])
+    for (let i = 0; i < loop.length; i++) {
+      mesh.faces.push(loop[(i + 1) % loop.length], loop[i], centroidId)
+    }
+  }
+}
+
+/**
+ * Merge boundary vertices that sit within `tolerance` of each other and remap
+ * faces onto the survivors. Only rim vertices of open edges move, so the
+ * visible surface stays put while crack rims wider than the base weld snap
+ * together.
+ */
+function snapBoundaryVertices(mesh: SolidMesh, tolerance: number): void {
+  const boundary = boundaryEdgeList(mesh)
+  if (boundary.length === 0) return
+  const ids = new Set<number>()
+  for (const [u, v] of boundary) { ids.add(u); ids.add(v) }
+  const buckets = new Map<string, number>()
+  const remap = new Map<number, number>()
+  const pos = mesh.vertexPosition
+  for (const id of ids) {
+    const key = `${Math.round(pos[id * 3] / tolerance)},${Math.round(pos[id * 3 + 1] / tolerance)},${Math.round(pos[id * 3 + 2] / tolerance)}`
+    const existing = buckets.get(key)
+    if (existing === undefined) buckets.set(key, id)
+    else remap.set(id, existing)
+  }
+  if (remap.size === 0) return
+  for (let i = 0; i < mesh.faces.length; i++) {
+    const mapped = remap.get(mesh.faces[i])
+    if (mapped !== undefined) mesh.faces[i] = mapped
+  }
+  dedupeFaces(mesh)
+}
+
 /**
  * Finish a kept-exterior soup into the best solid the data allows:
  *
- * 1. Weld vertices at a scale-relative tolerance and snap every corner to its
- *    representative, physically closing hairline cracks between faces.
- * 2. Drop degenerate triangles and exact duplicate faces (double walls),
- *    which otherwise register as non-manifold or duplicate geometry.
- * 3. Cap every remaining boundary-edge loop with a centroid fan. Loops left
- *    where hidden interior geometry was cut away sit inside the filled volume
- *    and stay invisible; holes in the original skin become flat caps. Cap
- *    winding follows the surrounding surface.
+ * 1. Weld vertices at a scale-relative tolerance, closing hairline cracks.
+ * 2. Drop degenerate and exact duplicate (double-wall) faces.
+ * 3. Cap boundary-edge loops with centroid fans; junction loops end up inside
+ *    the filled volume, skin holes become flat caps.
+ * 4. While open edges remain, snap boundary rim vertices together at a
+ *    growing (still sub-visible) tolerance and cap again.
  */
 export function finalizeSolid(positions: Float32Array): Float32Array {
   const triangles = Math.floor(positions.length / 9)
@@ -184,98 +319,33 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
   const quantum = Math.max(diagonal * 1e-5, 1e-9)
 
   const vertexIds = new Map<string, number>()
-  const vertexPosition: number[] = []
-  const cornerId = new Int32Array(triangles * 3)
+  const mesh: SolidMesh = { vertexPosition: [], faces: [] }
   for (let corner = 0; corner < triangles * 3; corner++) {
     const offset = corner * 3
-    const k = `${Math.round(positions[offset] / quantum)},${Math.round(positions[offset + 1] / quantum)},${Math.round(positions[offset + 2] / quantum)}`
-    let id = vertexIds.get(k)
+    const key = `${Math.round(positions[offset] / quantum)},${Math.round(positions[offset + 1] / quantum)},${Math.round(positions[offset + 2] / quantum)}`
+    let id = vertexIds.get(key)
     if (id === undefined) {
       id = vertexIds.size
-      vertexIds.set(k, id)
-      vertexPosition.push(positions[offset], positions[offset + 1], positions[offset + 2])
+      vertexIds.set(key, id)
+      mesh.vertexPosition.push(positions[offset], positions[offset + 1], positions[offset + 2])
     }
-    cornerId[corner] = id
+    mesh.faces.push(id)
   }
 
-  const kept: number[] = []
-  const seenFaces = new Set<string>()
-  const directed = new Map<number, number>()
-  const pack = (a: number, b: number) => a * vertexIds.size + b
-  for (let triangle = 0; triangle < triangles; triangle++) {
-    const a = cornerId[triangle * 3]
-    const b = cornerId[triangle * 3 + 1]
-    const c = cornerId[triangle * 3 + 2]
-    if (a === b || b === c || c === a) continue
-    const face = [a, b, c].sort((x, y) => x - y).join(':')
-    if (seenFaces.has(face)) continue
-    seenFaces.add(face)
-    kept.push(a, b, c)
-    for (const [u, v] of [[a, b], [b, c], [c, a]]) {
-      directed.set(pack(u, v), (directed.get(pack(u, v)) ?? 0) + 1)
-    }
+  dedupeFaces(mesh)
+  capBoundaryLoops(mesh)
+  for (const factor of [20, 100]) {
+    if (boundaryEdgeList(mesh).length === 0) break
+    snapBoundaryVertices(mesh, quantum * factor)
+    capBoundaryLoops(mesh)
   }
 
-  // A directed edge used once with no opposite twin lies on the boundary.
-  const nextByStart = new Map<number, number[]>()
-  for (const [packed, count] of directed) {
-    const u = Math.floor(packed / vertexIds.size)
-    const v = packed % vertexIds.size
-    if (count !== 1 || directed.has(pack(v, u))) continue
-    const list = nextByStart.get(u)
-    if (list) list.push(v)
-    else nextByStart.set(u, [v])
-  }
-
-  const capIds: number[] = []
-  const capCentroids: number[] = []
-  const consumed = new Set<number>()
-  for (const [start] of nextByStart) {
-    let current = start
-    const loop: number[] = []
-    // Walk successor edges until the loop closes; bail out on open or tangled
-    // chains rather than fabricating geometry.
-    for (let steps = 0; steps <= nextByStart.size; steps++) {
-      const candidates = nextByStart.get(current)
-      const next = candidates?.find((v) => !consumed.has(pack(current, v)))
-      if (next === undefined) break
-      consumed.add(pack(current, next))
-      loop.push(current)
-      current = next
-      if (current === start) break
-    }
-    if (current !== start || loop.length < 3) continue
-    const centroid = [0, 0, 0]
-    for (const id of loop) {
-      for (let axis = 0; axis < 3; axis++) centroid[axis] += vertexPosition[id * 3 + axis]
-    }
-    for (let axis = 0; axis < 3; axis++) centroid[axis] /= loop.length
-    const centroidIndex = capCentroids.length / 3
-    capCentroids.push(centroid[0], centroid[1], centroid[2])
-    for (let i = 0; i < loop.length; i++) {
-      // Boundary direction u→v means the missing twin is v→u; the cap
-      // triangle (v, u, centroid) supplies it with matching orientation.
-      capIds.push(loop[(i + 1) % loop.length], loop[i], centroidIndex)
-    }
-  }
-
-  const result = new Float32Array(kept.length * 3 + capIds.length * 3)
+  const result = new Float32Array(mesh.faces.length * 3)
   let out = 0
-  for (const id of kept) {
-    result[out++] = vertexPosition[id * 3]
-    result[out++] = vertexPosition[id * 3 + 1]
-    result[out++] = vertexPosition[id * 3 + 2]
-  }
-  for (let i = 0; i < capIds.length; i += 3) {
-    for (const id of [capIds[i], capIds[i + 1]]) {
-      result[out++] = vertexPosition[id * 3]
-      result[out++] = vertexPosition[id * 3 + 1]
-      result[out++] = vertexPosition[id * 3 + 2]
-    }
-    const centroid = capIds[i + 2]
-    result[out++] = capCentroids[centroid * 3]
-    result[out++] = capCentroids[centroid * 3 + 1]
-    result[out++] = capCentroids[centroid * 3 + 2]
+  for (const id of mesh.faces) {
+    result[out++] = mesh.vertexPosition[id * 3]
+    result[out++] = mesh.vertexPosition[id * 3 + 1]
+    result[out++] = mesh.vertexPosition[id * 3 + 2]
   }
   return result
 }

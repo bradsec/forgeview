@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.5 - 2026-07-19
+
+- Seal the last open edges after solid fill: boundary loops now chain through
+  junction vertices by geometric continuity, failed walks release their edges
+  for other loops, and remaining crack rims are snapped together at a growing
+  sub-visible tolerance before re-capping.
+
 ## 1.5.4 - 2026-07-19
 
 - Report mesh health in three states: Watertight, Sealed (closed volume with

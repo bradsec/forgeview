@@ -124,6 +124,19 @@ describe('finalizeSolid', () => {
     expect(health.watertight).toBe(true)
   })
 
+  it('snaps crack rims wider than the base weld and still seals', () => {
+    // Scale-1000 box with the z=1 face shifted 0.3 units: the gap is far
+    // beyond the base weld quantum (~0.017) and only closes via the
+    // boundary-vertex snap rounds.
+    const soup = openBoxSoup()
+    const scaled = new Float32Array(soup.length)
+    for (let i = 0; i < soup.length; i++) scaled[i] = soup[i] * 1000
+    for (let i = 18; i < 36; i += 3) scaled[i + 2] += 0.3
+    const health = analyzeSoup(finalizeSolid(scaled))
+    expect(health.boundaryEdges).toBe(0)
+    expect(health.watertight).toBe(true)
+  })
+
   it('removes duplicate double-wall faces that break manifoldness', () => {
     const soup = sphereSoup(24, 10)
     const doubled = new Float32Array(soup.length + 9)
