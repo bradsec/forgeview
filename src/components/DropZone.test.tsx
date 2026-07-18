@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, renderHook } from '@testing-library/react'
 
 vi.mock('@tauri-apps/api/webview', () => ({
   getCurrentWebview: vi.fn(() => ({
@@ -17,11 +17,13 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 }))
 
 import { DropZone } from './DropZone'
+import { useGlobalFileDrop } from '../hooks/useGlobalFileDrop'
 import { useViewerStore } from '../store/viewerStore'
 
-// jsdom has no __TAURI_INTERNALS__, so DropZone runs in browser mode
+// jsdom has no __TAURI_INTERNALS__, so the hook runs in browser mode with
+// window-level drag listeners
 
-describe('DropZone browser drag-and-drop fallback', () => {
+describe('useGlobalFileDrop browser drag-and-drop', () => {
   beforeEach(() => {
     useViewerStore.setState({
       filePath: null,
@@ -30,16 +32,16 @@ describe('DropZone browser drag-and-drop fallback', () => {
       fileSize: null,
       fileBuffer: null,
       error: null,
+      isDragOver: false,
       mainView: 'grid',
     })
   })
 
   it('loads a dropped supported file into the store', async () => {
-    render(<DropZone />)
-    const zone = screen.getByTestId('dropzone')
+    renderHook(() => useGlobalFileDrop())
     const file = new File(['solid t\nendsolid t\n'], 'cube.stl', { type: 'model/stl' })
 
-    fireEvent.drop(zone, { dataTransfer: { files: [file] } })
+    fireEvent.drop(window, { dataTransfer: { files: [file] } })
 
     await waitFor(() => {
       const state = useViewerStore.getState()
@@ -50,12 +52,23 @@ describe('DropZone browser drag-and-drop fallback', () => {
     })
   })
 
+  it('works while a model is already open (drop replaces it)', async () => {
+    useViewerStore.setState({ filePath: 'old.stl', fileName: 'old.stl', fileExtension: '.stl', mainView: '3d' })
+    renderHook(() => useGlobalFileDrop())
+    const file = new File(['solid t\nendsolid t\n'], 'next.stl', { type: 'model/stl' })
+
+    fireEvent.drop(window, { dataTransfer: { files: [file] } })
+
+    await waitFor(() => {
+      expect(useViewerStore.getState().filePath).toBe('next.stl')
+    })
+  })
+
   it('sets an error for unsupported extensions', async () => {
-    render(<DropZone />)
-    const zone = screen.getByTestId('dropzone')
+    renderHook(() => useGlobalFileDrop())
     const file = new File(['nope'], 'readme.txt', { type: 'text/plain' })
 
-    fireEvent.drop(zone, { dataTransfer: { files: [file] } })
+    fireEvent.drop(window, { dataTransfer: { files: [file] } })
 
     await waitFor(() => {
       expect(useViewerStore.getState().error).toBe('Unsupported format: .txt')
@@ -63,14 +76,17 @@ describe('DropZone browser drag-and-drop fallback', () => {
     })
   })
 
-  it('highlights on dragover and clears on dragleave', () => {
+  it('tracks drag-over state and DropZone highlights from it', () => {
+    renderHook(() => useGlobalFileDrop())
     render(<DropZone />)
     const zone = screen.getByTestId('dropzone')
 
-    fireEvent.dragOver(zone, { dataTransfer: { files: [] } })
+    fireEvent.dragOver(window, { dataTransfer: { files: [] } })
+    expect(useViewerStore.getState().isDragOver).toBe(true)
     expect(zone.className).toContain('ring-2')
 
-    fireEvent.dragLeave(zone)
+    fireEvent.dragLeave(window)
+    expect(useViewerStore.getState().isDragOver).toBe(false)
     expect(zone.className).not.toContain('ring-2')
   })
 })

@@ -41,6 +41,8 @@ interface ViewerState {
   fileBuffer: ArrayBuffer | null
   viewMode: ViewMode
   isLoading: boolean
+  /** True while a file drag hovers the window (drives drop highlight). */
+  isDragOver: boolean
   error: string | null
   triangleCount: number | null
   projectionMode: 'perspective' | 'orthographic'
@@ -61,6 +63,7 @@ interface ViewerState {
   setFileFromBuffer: (name: string, ext: string, size: number, buffer: ArrayBuffer) => void
   setViewMode: (mode: ViewMode) => void
   setLoading: (loading: boolean) => void
+  setDragOver: (over: boolean) => void
   setError: (error: string | null) => void
   setProjectionMode: (mode: 'perspective' | 'orthographic') => void
   setMainView: (v: 'grid' | '3d') => void
@@ -125,6 +128,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   fileBuffer: null,
   viewMode: 'solid',
   isLoading: false,
+  isDragOver: false,
   error: null,
   triangleCount: null,
   projectionMode: 'perspective' as const,
@@ -162,11 +166,12 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d' }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', triangleCount: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d' }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', triangleCount: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
+  setDragOver: (over) => set({ isDragOver: over }),
   setError: (error) => set({ error }),
   setProjectionMode: (mode) => set({ projectionMode: mode }),
   setMainView: (v) => set({ mainView: v }),

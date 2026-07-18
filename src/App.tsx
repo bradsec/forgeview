@@ -12,6 +12,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { MobileDrawer } from './components/MobileDrawer'
 import { StatusBar } from './components/StatusBar'
 import { useSettingsPersistence } from './hooks/useSettings'
+import { useGlobalFileDrop } from './hooks/useGlobalFileDrop'
 import { useViewerStore } from './store/viewerStore'
 import { getTheme, applyThemeCssVars } from './themes'
 
@@ -37,6 +38,8 @@ export default function App() {
   }, [theme])
   const viewerRef = useRef<Viewer3DHandle>(null)
   useSettingsPersistence()
+  useGlobalFileDrop()
+  const isDragOver = useViewerStore((s) => s.isDragOver)
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
@@ -55,6 +58,17 @@ export default function App() {
             </SceneContextMenu>
           ) : (
             <DropZone />
+          )}
+
+          {isDragOver && (filePath || loadedModels.length > 0 || (dirPath && mainView === 'grid')) && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 z-10 pointer-events-none ring-2 ring-[var(--accent)] ring-inset bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] flex items-center justify-center"
+            >
+              <span className="px-3 py-1.5 rounded bg-[var(--bg-panel)] text-sm text-[var(--text-bright)] shadow-[0_4px_18px_var(--shadow-color)]">
+                Drop to open
+              </span>
+            </div>
           )}
 
           {isLoading && (
