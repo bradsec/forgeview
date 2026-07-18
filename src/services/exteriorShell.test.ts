@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { exteriorTriangleFlags, sealHoles } from './exteriorShell'
+import { exteriorTriangleFlags, finalizeSolid } from './exteriorShell'
 import { analyzeGeometry } from './makeSolid'
 
 function analyzeSoup(soup: Float32Array) {
@@ -9,14 +9,6 @@ function analyzeSoup(soup: Float32Array) {
   const health = analyzeGeometry(geometry)
   geometry.dispose()
   return health
-}
-
-function withCaps(soup: Float32Array): Float32Array {
-  const caps = sealHoles(soup)
-  const sealed = new Float32Array(soup.length + caps.length)
-  sealed.set(soup)
-  sealed.set(caps, soup.length)
-  return sealed
 }
 
 function sphereSoup(segments: number, radius: number): Float32Array {
@@ -85,7 +77,7 @@ describe('exteriorTriangleFlags', () => {
   })
 })
 
-describe('sealHoles', () => {
+describe('finalizeSolid', () => {
   const quad = (a: number[], b: number[], c: number[], d: number[]) => [...a, ...b, ...c, ...a, ...c, ...d]
 
   function openBoxSoup(): Float32Array {
@@ -103,18 +95,43 @@ describe('sealHoles', () => {
     ])
   }
 
-  it('adds nothing to an already closed surface', () => {
+  it('leaves an already closed surface watertight without adding caps', () => {
+    // Output may shrink: the UV sphere soup contains zero-area pole triangles
+    // that finalization drops as degenerate.
     const soup = sphereSoup(24, 10)
-    expect(sealHoles(soup).length).toBe(0)
+    const sealed = finalizeSolid(soup)
+    expect(sealed.length).toBeLessThanOrEqual(soup.length)
+    expect(analyzeSoup(sealed).watertight).toBe(true)
   })
 
   it('caps an open box into a watertight solid', () => {
     const soup = openBoxSoup()
     const before = analyzeSoup(soup)
     expect(before.boundaryEdges).toBe(4)
-    const sealed = withCaps(soup)
-    const health = analyzeSoup(sealed)
+    const health = analyzeSoup(finalizeSolid(soup))
     expect(health.boundaryEdges).toBe(0)
+    expect(health.watertight).toBe(true)
+  })
+
+  it('welds crack gaps relative to model scale', () => {
+    // Same open box scaled up 1000x with float-noise cracks on the rim:
+    // welding must scale with the model or the cracks stay open.
+    const soup = openBoxSoup()
+    const scaled = new Float32Array(soup.length)
+    for (let i = 0; i < soup.length; i++) scaled[i] = soup[i] * 1000 + (i % 7 === 0 ? 1e-4 : 0)
+    const health = analyzeSoup(finalizeSolid(scaled))
+    expect(health.boundaryEdges).toBe(0)
+    expect(health.watertight).toBe(true)
+  })
+
+  it('removes duplicate double-wall faces that break manifoldness', () => {
+    const soup = sphereSoup(24, 10)
+    const doubled = new Float32Array(soup.length + 9)
+    doubled.set(soup)
+    doubled.set(soup.subarray(0, 9), soup.length)
+    expect(analyzeSoup(doubled).watertight).toBe(false)
+    const health = analyzeSoup(finalizeSolid(doubled))
+    expect(health.duplicateFaces).toBe(0)
     expect(health.watertight).toBe(true)
   })
 
@@ -135,7 +152,7 @@ describe('sealHoles', () => {
     }
     const before = analyzeSoup(filtered)
     expect(before.boundaryEdges).toBeGreaterThan(0)
-    const health = analyzeSoup(withCaps(filtered))
+    const health = analyzeSoup(finalizeSolid(filtered))
     expect(health.boundaryEdges).toBe(0)
   })
 })

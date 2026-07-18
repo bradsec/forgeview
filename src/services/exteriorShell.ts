@@ -160,30 +160,46 @@ export function exteriorTriangleFlags(
 }
 
 /**
- * Cap every boundary-edge loop of a triangle soup with a centroid fan so the
- * surface closes into a solid. Loops left where hidden interior geometry was
- * cut away sit inside the filled volume and stay invisible; loops from holes
- * in the original skin become flat caps. Returns the cap triangles as a soup
- * in the same layout as the input. Winding follows the surrounding surface.
+ * Finish a kept-exterior soup into the best solid the data allows:
+ *
+ * 1. Weld vertices at a scale-relative tolerance and snap every corner to its
+ *    representative, physically closing hairline cracks between faces.
+ * 2. Drop degenerate triangles and exact duplicate faces (double walls),
+ *    which otherwise register as non-manifold or duplicate geometry.
+ * 3. Cap every remaining boundary-edge loop with a centroid fan. Loops left
+ *    where hidden interior geometry was cut away sit inside the filled volume
+ *    and stay invisible; holes in the original skin become flat caps. Cap
+ *    winding follows the surrounding surface.
  */
-export function sealHoles(positions: Float32Array): Float32Array {
+export function finalizeSolid(positions: Float32Array): Float32Array {
   const triangles = Math.floor(positions.length / 9)
-  const key = (offset: number) =>
-    `${Math.round(positions[offset] * 1e6)},${Math.round(positions[offset + 1] * 1e6)},${Math.round(positions[offset + 2] * 1e6)}`
+  if (triangles === 0) return positions
+
+  const bounds = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]
+  for (let i = 0; i < positions.length; i += 3) for (let axis = 0; axis < 3; axis++) {
+    bounds[axis] = Math.min(bounds[axis], positions[i + axis])
+    bounds[axis + 3] = Math.max(bounds[axis + 3], positions[i + axis])
+  }
+  const diagonal = Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
+  const quantum = Math.max(diagonal * 1e-5, 1e-9)
+
   const vertexIds = new Map<string, number>()
-  const vertexAt: number[] = []
+  const vertexPosition: number[] = []
   const cornerId = new Int32Array(triangles * 3)
   for (let corner = 0; corner < triangles * 3; corner++) {
-    const k = key(corner * 3)
+    const offset = corner * 3
+    const k = `${Math.round(positions[offset] / quantum)},${Math.round(positions[offset + 1] / quantum)},${Math.round(positions[offset + 2] / quantum)}`
     let id = vertexIds.get(k)
     if (id === undefined) {
       id = vertexIds.size
       vertexIds.set(k, id)
-      vertexAt.push(corner * 3)
+      vertexPosition.push(positions[offset], positions[offset + 1], positions[offset + 2])
     }
     cornerId[corner] = id
   }
 
+  const kept: number[] = []
+  const seenFaces = new Set<string>()
   const directed = new Map<number, number>()
   const pack = (a: number, b: number) => a * vertexIds.size + b
   for (let triangle = 0; triangle < triangles; triangle++) {
@@ -191,6 +207,10 @@ export function sealHoles(positions: Float32Array): Float32Array {
     const b = cornerId[triangle * 3 + 1]
     const c = cornerId[triangle * 3 + 2]
     if (a === b || b === c || c === a) continue
+    const face = [a, b, c].sort((x, y) => x - y).join(':')
+    if (seenFaces.has(face)) continue
+    seenFaces.add(face)
+    kept.push(a, b, c)
     for (const [u, v] of [[a, b], [b, c], [c, a]]) {
       directed.set(pack(u, v), (directed.get(pack(u, v)) ?? 0) + 1)
     }
@@ -207,7 +227,8 @@ export function sealHoles(positions: Float32Array): Float32Array {
     else nextByStart.set(u, [v])
   }
 
-  const caps: number[] = []
+  const capIds: number[] = []
+  const capCentroids: number[] = []
   const consumed = new Set<number>()
   for (const [start] of nextByStart) {
     let current = start
@@ -226,23 +247,35 @@ export function sealHoles(positions: Float32Array): Float32Array {
     if (current !== start || loop.length < 3) continue
     const centroid = [0, 0, 0]
     for (const id of loop) {
-      const at = vertexAt[id]
-      centroid[0] += positions[at]
-      centroid[1] += positions[at + 1]
-      centroid[2] += positions[at + 2]
+      for (let axis = 0; axis < 3; axis++) centroid[axis] += vertexPosition[id * 3 + axis]
     }
     for (let axis = 0; axis < 3; axis++) centroid[axis] /= loop.length
+    const centroidIndex = capCentroids.length / 3
+    capCentroids.push(centroid[0], centroid[1], centroid[2])
     for (let i = 0; i < loop.length; i++) {
       // Boundary direction u→v means the missing twin is v→u; the cap
       // triangle (v, u, centroid) supplies it with matching orientation.
-      const u = vertexAt[loop[i]]
-      const v = vertexAt[loop[(i + 1) % loop.length]]
-      caps.push(
-        positions[v], positions[v + 1], positions[v + 2],
-        positions[u], positions[u + 1], positions[u + 2],
-        centroid[0], centroid[1], centroid[2]
-      )
+      capIds.push(loop[(i + 1) % loop.length], loop[i], centroidIndex)
     }
   }
-  return new Float32Array(caps)
+
+  const result = new Float32Array(kept.length * 3 + capIds.length * 3)
+  let out = 0
+  for (const id of kept) {
+    result[out++] = vertexPosition[id * 3]
+    result[out++] = vertexPosition[id * 3 + 1]
+    result[out++] = vertexPosition[id * 3 + 2]
+  }
+  for (let i = 0; i < capIds.length; i += 3) {
+    for (const id of [capIds[i], capIds[i + 1]]) {
+      result[out++] = vertexPosition[id * 3]
+      result[out++] = vertexPosition[id * 3 + 1]
+      result[out++] = vertexPosition[id * 3 + 2]
+    }
+    const centroid = capIds[i + 2]
+    result[out++] = capCentroids[centroid * 3]
+    result[out++] = capCentroids[centroid * 3 + 1]
+    result[out++] = capCentroids[centroid * 3 + 2]
+  }
+  return result
 }

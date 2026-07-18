@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { exteriorTriangleFlags, sealHoles } from './exteriorShell'
+import { exteriorTriangleFlags, finalizeSolid } from './exteriorShell'
 
 interface RepairRequest {
   id: number
@@ -25,11 +25,8 @@ scope.onmessage = (event: MessageEvent<RepairRequest>) => {
     filtered.set(positions.subarray(triangle * 9, triangle * 9 + 9), out)
     out += 9
   }
-  scope.postMessage({ id, type: 'progress', percent: 96, phase: 'Sealing openings' })
-  const caps = sealHoles(filtered)
-  const sealed = new Float32Array(filtered.length + caps.length)
-  sealed.set(filtered)
-  sealed.set(caps, filtered.length)
+  scope.postMessage({ id, type: 'progress', percent: 96, phase: 'Welding and sealing openings' })
+  const sealed = finalizeSolid(filtered)
   scope.postMessage(
     { id, type: 'complete', positions: sealed.buffer, resolution },
     [sealed.buffer]

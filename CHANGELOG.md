@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.3 - 2026-07-19
+
+- Make solid now welds hairline cracks at a scale-relative tolerance and
+  removes degenerate and duplicate double-wall faces before sealing, so far
+  fewer models report residual boundary or non-manifold edges after filling.
+
 ## 1.5.2 - 2026-07-19
 
 - Leave the browser file picker unfiltered on iOS, where extension-only accept
