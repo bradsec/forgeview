@@ -143,6 +143,35 @@ function SegmentedControl<T extends string>({
 
 export function Toolbar() {
   const [aboutOpen, setAboutOpen] = useState(false)
+  const aboutRef = useRef<HTMLElement>(null)
+  const aboutPreviousFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!aboutOpen) return
+    aboutPreviousFocusRef.current = document.activeElement as HTMLElement | null
+    return () => aboutPreviousFocusRef.current?.focus()
+  }, [aboutOpen])
+
+  const handleAboutKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      setAboutOpen(false)
+      return
+    }
+    if (event.key !== 'Tab' || !aboutRef.current) return
+    const focusable = Array.from(
+      aboutRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+    )
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
   const { openFile } = useFileOpen()
   const { openDir } = useDirOpen()
   const viewMode = useViewerStore((state) => state.viewMode)
@@ -255,11 +284,9 @@ export function Toolbar() {
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setAboutOpen(false)
           }}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setAboutOpen(false)
-          }}
+          onKeyDown={handleAboutKeyDown}
         >
-          <section role="dialog" aria-modal="true" aria-labelledby="about-title" className="about-dialog">
+          <section ref={aboutRef} role="dialog" aria-modal="true" aria-labelledby="about-title" className="about-dialog">
             <img className="about-mark" src={APP_ICON_URL} alt="" aria-hidden="true" />
             <div className="dialog-heading">
               <h2 id="about-title">About forgeview</h2>
