@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { ExportDialog } from './ExportDialog'
 import type { Viewer3DHandle } from './Viewer3D'
 import { useViewerStore } from '../store/viewerStore'
-import { collectExportMeshes } from '../services/exporters'
+import { collectExportMeshes, exportMeshes } from '../services/exporters'
 
 vi.mock('../services/exporters', () => ({
   EXPORT_FORMATS: [{ format: '.stl', label: 'STL' }],
@@ -35,5 +35,15 @@ describe('ExportDialog', () => {
     render(<ExportDialog viewerRef={viewerRef} />)
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
     expect(useViewerStore.getState().error).toBe('Unsupported deformation')
+  })
+
+  it('passes the selected physical unit to 3MF export', async () => {
+    const viewerRef = { current: { getScene: () => new THREE.Scene() } as Viewer3DHandle }
+    render(<ExportDialog viewerRef={viewerRef} />)
+    await userEvent.click(screen.getByRole('radio', { name: '3MF' }))
+    await userEvent.selectOptions(screen.getByLabelText('3MF units'), 'inch')
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+
+    expect(exportMeshes).toHaveBeenCalledWith([], '.3mf', { threeMFUnit: 'inch' })
   })
 })

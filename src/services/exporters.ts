@@ -5,6 +5,9 @@ import { PLYExporter } from 'three/addons/exporters/PLYExporter.js'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { zipSync, strToU8 } from 'three/addons/libs/fflate.module.js'
 import { makeSolidGeometries } from './makeSolid'
+import type { ExportFormat, ThreeMFUnit } from './exportFormats'
+export { EXPORT_FORMATS } from './exportFormats'
+export type { ExportFormat, ThreeMFUnit } from './exportFormats'
 
 /**
  * Encode text to bytes for fflate. TextEncoder can come from another realm
@@ -15,16 +18,6 @@ import { makeSolidGeometries } from './makeSolid'
 function encodeText(text: string): Uint8Array {
   return new Uint8Array(strToU8(text))
 }
-
-export type ExportFormat = '.stl' | '.3mf' | '.obj' | '.ply' | '.glb'
-
-export const EXPORT_FORMATS: { format: ExportFormat; label: string }[] = [
-  { format: '.stl', label: 'STL (binary)' },
-  { format: '.3mf', label: '3MF' },
-  { format: '.obj', label: 'OBJ' },
-  { format: '.ply', label: 'PLY (binary)' },
-  { format: '.glb', label: 'GLB (glTF binary)' },
-]
 
 /**
  * Clone every mesh in the scene with its world transform baked into the
@@ -162,7 +155,7 @@ export async function exportGLB(meshes: THREE.Mesh[]): Promise<Uint8Array> {
  * OPC content-types part, a root relationship pointing at the model part,
  * and one XML model part holding indexed vertices and triangles.
  */
-export function export3MF(meshes: THREE.Mesh[]): Uint8Array {
+export function export3MF(meshes: THREE.Mesh[], unit: ThreeMFUnit = 'millimeter'): Uint8Array {
   const objectsXml: string[] = []
   const itemsXml: string[] = []
 
@@ -200,7 +193,7 @@ export function export3MF(meshes: THREE.Mesh[]): Uint8Array {
 
   const modelXml =
     '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">' +
+    `<model unit="${unit}" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">` +
     `<resources>${objectsXml.join('')}</resources>` +
     `<build>${itemsXml.join('')}</build>` +
     '</model>'
@@ -226,13 +219,17 @@ export function export3MF(meshes: THREE.Mesh[]): Uint8Array {
 }
 
 /** Export the given meshes in the requested format. */
-export async function exportMeshes(meshes: THREE.Mesh[], format: ExportFormat): Promise<Uint8Array> {
+export async function exportMeshes(
+  meshes: THREE.Mesh[],
+  format: ExportFormat,
+  options?: { threeMFUnit?: ThreeMFUnit }
+): Promise<Uint8Array> {
   if (meshes.length === 0) throw new Error('Nothing to export: the scene has no meshes')
   switch (format) {
     case '.stl':
       return exportSTL(meshes)
     case '.3mf':
-      return export3MF(meshes)
+      return export3MF(meshes, options?.threeMFUnit)
     case '.obj':
       return exportOBJ(meshes)
     case '.ply':

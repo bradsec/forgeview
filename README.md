@@ -84,6 +84,8 @@ colors, and other geometry attributes supported by the target format. Bake
 skinned poses and active morph deformation into static geometry before export.
 "Make solid" removes enclosed watertight shells; it does not close holes or
 repair self-intersections and non-manifold geometry.
+3MF export includes an explicit physical-unit selector and defaults to
+millimetres. STL, OBJ, and PLY do not encode physical units.
 
 Note: WebGL2 is required. Chrome and Edge disable WebGL entirely when
 hardware acceleration is off (chrome://settings/system) and no longer fall

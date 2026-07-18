@@ -15,6 +15,8 @@
   and preserve settings changed during startup hydration.
 - Bound native export payloads and reject invalid native file metadata and
   cross-platform filename suggestions before filesystem operations.
+- Add explicit 3MF unit selection, replace exports through a synced temporary
+  file, use portable PWA manifest paths, and lazy-load export serializers.
 - Accept dropped model files at any time, not only on the empty start
   screen, with a drop highlight over the viewer and grid.
 - Add breadcrumb navigation and name/size/modified sorting to the preview

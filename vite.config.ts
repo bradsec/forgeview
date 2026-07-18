@@ -9,6 +9,12 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react(), tailwindcss()],
 
+  build: {
+    // Three.js and the viewer form one WebGL runtime boundary. The current
+    // main chunk is about 1.05 MB minified (282 KB gzip); warn on growth past it.
+    chunkSizeWarningLimit: 1100,
+  },
+
   test: {
     environment: 'jsdom',
     globals: true,

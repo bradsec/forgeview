@@ -3,6 +3,8 @@ import { useViewerStore } from '../store/viewerStore'
 import type { QualityPreset, PerformanceOverrides } from '../utils/performancePresets'
 import type { ThemeMode } from '../themes'
 import { isTauri } from '../utils/isTauri'
+import * as fs from '@tauri-apps/plugin-fs'
+import * as path from '@tauri-apps/api/path'
 
 interface SettingsFile {
   performance: {
@@ -36,10 +38,6 @@ export function sanitizeOverrides(raw: unknown): PerformanceOverrides {
 
 async function getTauriFs() {
   if (!isTauri()) return null
-  const [fs, path] = await Promise.all([
-    import('@tauri-apps/plugin-fs'),
-    import('@tauri-apps/api/path'),
-  ])
   return { fs, path }
 }
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import type { Viewer3DHandle } from './Viewer3D'
-import { EXPORT_FORMATS, collectExportMeshes, disposeExportMeshes, exportMeshes } from '../services/exporters'
-import type { ExportFormat } from '../services/exporters'
+import { EXPORT_FORMATS, THREE_MF_UNITS } from '../services/exportFormats'
+import type { ExportFormat, ThreeMFUnit } from '../services/exportFormats'
 import { saveExportedFile } from '../services/saveFile'
 
 interface ExportDialogProps {
@@ -24,6 +24,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const fileName = useViewerStore((s) => s.fileName)
   const pendingModelLoads = useViewerStore((s) => s.pendingModelLoads)
   const [format, setFormat] = useState<ExportFormat>('.stl')
+  const [threeMFUnit, setThreeMFUnit] = useState<ThreeMFUnit>('millimeter')
   const [makeSolid, setMakeSolid] = useState(false)
   const [busy, setBusy] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -80,10 +81,11 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     }
     setBusy(true)
     store.setError(null)
-    let meshes: ReturnType<typeof collectExportMeshes> = []
+    let meshes: import('three').Mesh[] = []
     try {
+      const { collectExportMeshes, exportMeshes } = await import('../services/exporters')
       meshes = collectExportMeshes(scene, { makeSolid })
-      const bytes = await exportMeshes(meshes, format)
+      const bytes = await exportMeshes(meshes, format, { threeMFUnit })
       const target = exportFileName(fileName, format)
       const saved = await saveExportedFile(bytes, target)
       if (saved !== null) {
@@ -93,7 +95,10 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     } catch (err) {
       store.setError(err instanceof Error ? err.message : String(err))
     } finally {
-      disposeExportMeshes(meshes)
+      if (meshes.length > 0) {
+        const { disposeExportMeshes } = await import('../services/exporters')
+        disposeExportMeshes(meshes)
+      }
       setBusy(false)
     }
   }
@@ -143,6 +148,21 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
                 </label>
               ))}
             </div>
+
+            {format === '.3mf' && (
+              <label className="block mb-4 text-sm text-[var(--text-primary)]">
+                <span className="block text-xs font-semibold text-[var(--text-label)] uppercase tracking-wide mb-1">3MF units</span>
+                <select
+                  value={threeMFUnit}
+                  onChange={(event) => setThreeMFUnit(event.target.value as ThreeMFUnit)}
+                  className="w-full rounded border border-[var(--border)] bg-[var(--bg-button)] px-2 py-1.5"
+                >
+                  {THREE_MF_UNITS.map((option) => (
+                    <option key={option.unit} value={option.unit}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             <label className="flex items-start gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
               <input

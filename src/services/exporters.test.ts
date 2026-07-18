@@ -5,7 +5,7 @@ import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
-import { strFromU8 } from 'three/addons/libs/fflate.module.js'
+import { strFromU8, unzipSync } from 'three/addons/libs/fflate.module.js'
 import {
   collectExportMeshes,
   exportMeshes,
@@ -127,6 +127,11 @@ describe('export3MF', () => {
       }
     })
     expect(triangles).toBe(12)
+  })
+
+  it('writes the selected physical unit into the model part', () => {
+    const archive = unzipSync(export3MF(collectExportMeshes(sceneWithBox()), 'inch'))
+    expect(strFromU8(archive['3D/3dmodel.model'])).toContain('unit="inch"')
   })
 })
 
