@@ -164,6 +164,14 @@ describe('applyViewMode', () => {
     expect(mesh.visible).toBe(false)
   })
 
+  it('skips attribute-less placeholder meshes in points mode', () => {
+    // Make solid leaves empty BufferGeometry placeholders on collapsed meshes
+    group.add(new THREE.Mesh(new THREE.BufferGeometry(), material))
+    expect(() => applyViewMode(group, 'points')).not.toThrow()
+    const companions = group.userData.pointsCompanions as THREE.Points[]
+    expect(companions).toHaveLength(1)
+  })
+
   it('adds Points companion for points mode', () => {
     applyViewMode(group, 'points')
     const companions = group.userData.pointsCompanions as THREE.Points[]

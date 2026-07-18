@@ -226,9 +226,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       return box.getSize(new THREE.Vector3())
     },
     makeSolid: async (resolution, onProgress, signal) => {
-      const meshes = modelMeshes()
+      // Placeholder geometries from an earlier solid fill hold no triangles
+      // and would crash the soup combination on a second run.
+      const withGeometry = (list: THREE.Mesh[]) =>
+        list.filter((mesh) => ((mesh.geometry as THREE.BufferGeometry).getAttribute('position')?.count ?? 0) > 0)
+      const meshes = withGeometry(modelMeshes())
       const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal)
-      const currentMeshes = modelMeshes()
+      const currentMeshes = withGeometry(modelMeshes())
       if (currentMeshes.length !== meshes.length || meshes.some((mesh, index) => mesh !== currentMeshes[index])) {
         result.geometries.forEach((geometry) => geometry.dispose())
         throw new Error('The open model changed while repair was running')

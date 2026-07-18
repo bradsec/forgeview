@@ -318,6 +318,11 @@ export function applyViewMode(
         }
         child.visible = false
 
+        // Attribute-less placeholder geometries (left on collapsed meshes by
+        // Make solid) have no vertices to show
+        const positionAttribute = child.geometry?.getAttribute('position')
+        if (!positionAttribute || positionAttribute.count === 0) return
+
         const points = new THREE.Points(
           pointCloudGeometry(child.geometry),
           new THREE.PointsMaterial({

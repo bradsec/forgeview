@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1 - 2026-07-18
+
+- Fix a crash when switching to Points view, or running Make solid again,
+  after a solid fill left empty placeholder meshes in the scene.
+
 ## 1.5.0 - 2026-07-18
 
 - Rework Edit > Make solid into a solid fill that preserves the outer

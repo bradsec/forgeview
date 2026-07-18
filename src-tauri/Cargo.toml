@@ -1,6 +1,6 @@
 [package]
 name = "forge-view"
-version = "1.5.0"
+version = "1.5.1"
 description = "Forge View - 3D CAD file previewer"
 authors = ["Forge View contributors"]
 edition = "2021"
