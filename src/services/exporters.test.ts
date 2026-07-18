@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { STLLoader } from 'three/addons/loaders/STLLoader.js'
 import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 import { strFromU8 } from 'three/addons/libs/fflate.module.js'
 import {
   collectExportMeshes,
@@ -41,6 +44,55 @@ describe('collectExportMeshes', () => {
     const scene = sceneWithBox()
     ;(scene.children[0] as THREE.Mesh).visible = false
     expect(collectExportMeshes(scene)).toHaveLength(1)
+  })
+
+  it('preserves material arrays and reflected triangle winding', () => {
+    const scene = new THREE.Scene()
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
+    geometry.addGroup(0, 3, 1)
+    const materials = [new THREE.MeshStandardMaterial({ color: 'red' }), new THREE.MeshStandardMaterial({ color: 'blue' })]
+    const mesh = new THREE.Mesh(geometry, materials)
+    mesh.scale.x = -1
+    scene.add(mesh)
+
+    const [collected] = collectExportMeshes(scene)
+    const pos = collected.geometry.getAttribute('position')
+    const index = collected.geometry.index
+    const a = new THREE.Vector3().fromBufferAttribute(pos, index?.getX(0) ?? 0)
+    const b = new THREE.Vector3().fromBufferAttribute(pos, index?.getX(1) ?? 1)
+    const c = new THREE.Vector3().fromBufferAttribute(pos, index?.getX(2) ?? 2)
+    const normal = b.sub(a).cross(c.sub(a))
+
+    expect(Array.isArray(collected.material)).toBe(true)
+    expect(normal.z).toBeGreaterThan(0)
+  })
+
+  it('expands every instance with its world transform', () => {
+    const scene = new THREE.Scene()
+    const instances = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial(), 2)
+    instances.setMatrixAt(0, new THREE.Matrix4().makeTranslation(-3, 0, 0))
+    instances.setMatrixAt(1, new THREE.Matrix4().makeTranslation(4, 0, 0))
+    scene.add(instances)
+
+    const collected = collectExportMeshes(scene)
+    const centers = collected.map((mesh) => new THREE.Box3().setFromBufferAttribute(
+      mesh.geometry.getAttribute('position') as THREE.BufferAttribute
+    ).getCenter(new THREE.Vector3()).x)
+
+    expect(centers).toEqual([-3, 4])
+  })
+
+  it('rejects live morph deformation instead of exporting the base shape', () => {
+    const scene = new THREE.Scene()
+    const geometry = new THREE.BoxGeometry(1, 1, 1)
+    geometry.morphAttributes.position = [geometry.getAttribute('position').clone()]
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial())
+    mesh.updateMorphTargets()
+    mesh.morphTargetInfluences![0] = 0.5
+    scene.add(mesh)
+
+    expect(() => collectExportMeshes(scene)).toThrow('morph-deformed')
   })
 })
 
@@ -84,6 +136,9 @@ describe('exportOBJ', () => {
     const text = strFromU8(exportOBJ(meshes))
     expect(text).toContain('v ')
     expect(text).toContain('f ')
+    const parsed = new OBJLoader().parse(text)
+    const box = new THREE.Box3().setFromObject(parsed)
+    expect(box.getSize(new THREE.Vector3()).toArray()).toEqual([2, 2, 2])
   })
 })
 
@@ -96,12 +151,51 @@ describe('exportMeshes', () => {
     const meshes = collectExportMeshes(sceneWithBox())
     const bytes = await exportMeshes(meshes, '.glb')
     expect(strFromU8(bytes.slice(0, 4))).toBe('glTF')
+    const parsed = await new GLTFLoader().parseAsync(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+      ''
+    )
+    expect(new THREE.Box3().setFromObject(parsed.scene).getSize(new THREE.Vector3()).toArray()).toEqual([2, 2, 2])
   })
 
   it('exports binary PLY with the ply magic header', async () => {
     const meshes = collectExportMeshes(sceneWithBox())
     const bytes = await exportMeshes(meshes, '.ply')
     expect(strFromU8(bytes.slice(0, 3))).toBe('ply')
+    const geometry = new PLYLoader().parse(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+    )
+    geometry.computeBoundingBox()
+    expect(geometry.boundingBox?.getSize(new THREE.Vector3()).toArray()).toEqual([2, 2, 2])
+  })
+
+  it('round-trips GLB material groups and colors', async () => {
+    const scene = new THREE.Scene()
+    const geometry = new THREE.BoxGeometry(2, 2, 2)
+    geometry.clearGroups()
+    geometry.addGroup(0, 18, 0)
+    geometry.addGroup(18, geometry.index!.count - 18, 1)
+    const materials = [
+      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+      new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+    ]
+    scene.add(new THREE.Mesh(geometry, materials))
+    const meshes = collectExportMeshes(scene)
+
+    const bytes = await exportMeshes(meshes, '.glb')
+    const parsed = await new GLTFLoader().parseAsync(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+      ''
+    )
+    const colors: number[] = []
+    parsed.scene.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return
+      const parsedMaterials = Array.isArray(child.material) ? child.material : [child.material]
+      for (const material of parsedMaterials) {
+        if ('color' in material && material.color instanceof THREE.Color) colors.push(material.color.getHex())
+      }
+    })
+    expect(colors.sort((a, b) => a - b)).toEqual([0x0000ff, 0xff0000])
   })
 
   it('applies make solid before export', async () => {
@@ -121,5 +215,22 @@ describe('exportMeshes', () => {
     const bytes = exportSTL(solidMeshes)
     // Cavity removed: 12 triangles remain instead of 24
     expect(bytes.byteLength).toBe(84 + 12 * 50)
+  })
+
+  it('removes an enclosed shell stored in a separate mesh and preserves colors', () => {
+    const scene = new THREE.Scene()
+    const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
+    const inner = new THREE.BoxGeometry(4, 4, 4).toNonIndexed()
+    outer.setAttribute('color', new THREE.Float32BufferAttribute(new Array(outer.getAttribute('position').count * 3).fill(0.75), 3))
+    scene.add(
+      new THREE.Mesh(outer, new THREE.MeshStandardMaterial({ vertexColors: true })),
+      new THREE.Mesh(inner, new THREE.MeshStandardMaterial())
+    )
+
+    const solidMeshes = collectExportMeshes(scene, { makeSolid: true })
+
+    expect(solidMeshes).toHaveLength(1)
+    expect(solidMeshes[0].geometry.getAttribute('color')).toBeDefined()
+    expect(solidMeshes[0].geometry.index?.count).toBe(36)
   })
 })

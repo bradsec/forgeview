@@ -22,7 +22,7 @@ export async function saveExportedFile(bytes: Uint8Array, filename: string): Pro
     return savedPath
   }
 
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/octet-stream' })
+  const blob = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   try {
     const anchor = document.createElement('a')

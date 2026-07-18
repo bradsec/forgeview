@@ -1,25 +1,12 @@
 import * as THREE from 'three'
 
-/**
- * "Make solid" for 3D printing: drop connected shells (closed surface
- * components) that are fully enclosed inside another shell of the same
- * geometry. The outer surface is untouched, so the printed appearance does
- * not change — only internal cavities and floating islands inside them
- * disappear.
- *
- * Method (standard approach for interior-shell removal): split the triangle
- * soup into connected components by welding coincident vertex positions,
- * then classify each component with a point-in-polyhedron parity test — a
- * ray cast from the component's extreme +X vertex crossing another
- * component's surface an odd number of times means it is enclosed by it.
- */
-
 interface Shell {
-  /** Triangle vertex positions, 9 floats per triangle (non-indexed). */
   positions: Float32Array
+  triangles: number[]
   triangleCount: number
-  /** Extreme vertex with the largest X — the ray origin for parity tests. */
-  extreme: THREE.Vector3
+  samples: THREE.Vector3[]
+  bounds: THREE.Box3
+  closed: boolean
 }
 
 class UnionFind {
@@ -46,11 +33,34 @@ class UnionFind {
 }
 
 function vertexKey(x: number, y: number, z: number): string {
-  // Weld tolerance of 1e-6 model units merges STL's per-triangle duplicates
   return `${Math.round(x * 1e6)},${Math.round(y * 1e6)},${Math.round(z * 1e6)}`
 }
 
-/** Split a geometry's triangles into connected shells by welded position. */
+function edgeKey(a: number, b: number): string {
+  return a < b ? `${a}:${b}` : `${b}:${a}`
+}
+
+function shellSamples(positions: Float32Array): { samples: THREE.Vector3[]; bounds: THREE.Box3 } {
+  const bounds = new THREE.Box3()
+  const point = new THREE.Vector3()
+  const extrema = Array.from({ length: 6 }, () => new THREE.Vector3())
+  const scores = [-Infinity, Infinity, -Infinity, Infinity, -Infinity, Infinity]
+  for (let i = 0; i < positions.length; i += 3) {
+    point.set(positions[i], positions[i + 1], positions[i + 2])
+    bounds.expandByPoint(point)
+    const values = [point.x, point.x, point.y, point.y, point.z, point.z]
+    for (let axis = 0; axis < 6; axis++) {
+      const better = axis % 2 === 0 ? values[axis] > scores[axis] : values[axis] < scores[axis]
+      if (better) {
+        scores[axis] = values[axis]
+        extrema[axis].copy(point)
+      }
+    }
+  }
+  return { samples: extrema, bounds }
+}
+
+/** Split triangles into edge-connected shells and record manifold closure. */
 export function splitIntoShells(geometry: THREE.BufferGeometry): Shell[] {
   const source = geometry.index ? geometry.toNonIndexed() : geometry
   const pos = source.getAttribute('position')
@@ -58,7 +68,6 @@ export function splitIntoShells(geometry: THREE.BufferGeometry): Shell[] {
   const triCount = Math.floor(pos.count / 3)
   if (triCount === 0) return []
 
-  // Weld: map each corner to a canonical vertex id
   const keyToId = new Map<string, number>()
   const cornerVertexId = new Int32Array(triCount * 3)
   for (let corner = 0; corner < triCount * 3; corner++) {
@@ -71,73 +80,122 @@ export function splitIntoShells(geometry: THREE.BufferGeometry): Shell[] {
     cornerVertexId[corner] = id
   }
 
-  // Union triangle corners — triangles sharing a welded vertex connect
-  const uf = new UnionFind(keyToId.size)
+  const uf = new UnionFind(triCount)
+  const edgeTriangles = new Map<string, number[]>()
   for (let tri = 0; tri < triCount; tri++) {
-    uf.union(cornerVertexId[tri * 3], cornerVertexId[tri * 3 + 1])
-    uf.union(cornerVertexId[tri * 3], cornerVertexId[tri * 3 + 2])
+    const ids = [cornerVertexId[tri * 3], cornerVertexId[tri * 3 + 1], cornerVertexId[tri * 3 + 2]]
+    for (let edge = 0; edge < 3; edge++) {
+      const key = edgeKey(ids[edge], ids[(edge + 1) % 3])
+      const connected = edgeTriangles.get(key)
+      if (connected) {
+        for (const other of connected) uf.union(tri, other)
+        connected.push(tri)
+      } else {
+        edgeTriangles.set(key, [tri])
+      }
+    }
   }
 
-  // Group triangles by component root
   const groups = new Map<number, number[]>()
   for (let tri = 0; tri < triCount; tri++) {
-    const root = uf.find(cornerVertexId[tri * 3])
-    let list = groups.get(root)
-    if (!list) {
-      list = []
-      groups.set(root, list)
-    }
-    list.push(tri)
+    const root = uf.find(tri)
+    const group = groups.get(root)
+    if (group) group.push(tri)
+    else groups.set(root, [tri])
   }
 
   const shells: Shell[] = []
-  for (const tris of groups.values()) {
-    const positions = new Float32Array(tris.length * 9)
-    const extreme = new THREE.Vector3(-Infinity, 0, 0)
+  for (const triangles of groups.values()) {
+    const positions = new Float32Array(triangles.length * 9)
+    const shellEdges = new Map<string, number>()
     let out = 0
-    for (const tri of tris) {
+    for (const tri of triangles) {
+      const ids = [cornerVertexId[tri * 3], cornerVertexId[tri * 3 + 1], cornerVertexId[tri * 3 + 2]]
+      for (let edge = 0; edge < 3; edge++) {
+        const key = edgeKey(ids[edge], ids[(edge + 1) % 3])
+        shellEdges.set(key, (shellEdges.get(key) ?? 0) + 1)
+      }
       for (let corner = tri * 3; corner < tri * 3 + 3; corner++) {
-        const x = pos.getX(corner)
-        const y = pos.getY(corner)
-        const z = pos.getZ(corner)
-        positions[out++] = x
-        positions[out++] = y
-        positions[out++] = z
-        if (x > extreme.x) extreme.set(x, y, z)
+        positions[out++] = pos.getX(corner)
+        positions[out++] = pos.getY(corner)
+        positions[out++] = pos.getZ(corner)
       }
     }
-    shells.push({ positions, triangleCount: tris.length, extreme })
+    const { samples, bounds } = shellSamples(positions)
+    shells.push({
+      positions,
+      triangles,
+      triangleCount: triangles.length,
+      samples,
+      bounds,
+      closed: [...shellEdges.values()].every((count) => count === 2),
+    })
   }
   return shells
 }
 
-/**
- * True when `shell` is enclosed by `other`: a ray from the shell's extreme
- * +X vertex pointing further +X crosses the other shell's surface an odd
- * number of times. The slight direction jitter avoids grazing edges and
- * faces exactly parallel to the ray.
- */
-function isEnclosedBy(shell: Shell, other: Shell): boolean {
+function pointIsInside(point: THREE.Vector3, other: Shell): boolean {
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(other.positions, 3))
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }))
-  const raycaster = new THREE.Raycaster(
-    shell.extreme.clone(),
-    new THREE.Vector3(1, 1e-4, 2e-4).normalize()
-  )
-  raycaster.far = Infinity
+  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })
+  const mesh = new THREE.Mesh(geometry, material)
+  const raycaster = new THREE.Raycaster(point, new THREE.Vector3(1, 1e-4, 2e-4).normalize())
   const hits = raycaster.intersectObject(mesh, false)
   geometry.dispose()
-  mesh.material.dispose()
-  // Deduplicate hits at (numerically) the same distance — shared edges can
-  // report the same crossing twice
+  material.dispose()
   let crossings = 0
   let lastDistance = -Infinity
+  const tolerance = Math.max(other.bounds.getSize(new THREE.Vector3()).length() * 1e-9, 1e-9)
   for (const hit of hits) {
-    if (hit.distance - lastDistance > 1e-9) crossings++
+    if (hit.distance - lastDistance > tolerance) crossings++
     lastDistance = hit.distance
   }
   return crossings % 2 === 1
+}
+
+function isEnclosedBy(shell: Shell, other: Shell): boolean {
+  if (!other.closed || !other.bounds.containsBox(shell.bounds)) return false
+  return shell.samples.every((sample) => pointIsInside(sample, other))
+}
+
+function keptTriangles(geometry: THREE.BufferGeometry): { shells: Shell[]; kept: number[]; removed: number } {
+  const shells = splitIntoShells(geometry)
+  const survivors = shells.filter(
+    (shell) => !shells.some((other) => other !== shell && isEnclosedBy(shell, other))
+  )
+  const effective = survivors.length > 0 ? survivors : shells
+  return {
+    shells,
+    kept: effective.flatMap((shell) => shell.triangles).sort((a, b) => a - b),
+    removed: shells.length - effective.length,
+  }
+}
+
+function materialIndexForTriangle(geometry: THREE.BufferGeometry, triangle: number): number {
+  const offset = triangle * 3
+  const group = geometry.groups.find((candidate) => offset >= candidate.start && offset < candidate.start + candidate.count)
+  return group?.materialIndex ?? 0
+}
+
+function selectTriangles(geometry: THREE.BufferGeometry, triangles: number[]): THREE.BufferGeometry {
+  const source = geometry.index ? geometry.toNonIndexed() : geometry.clone()
+  const result = source.clone()
+  const index: number[] = []
+  result.clearGroups()
+  let activeMaterial = -1
+  let activeStart = 0
+  for (const triangle of triangles) {
+    index.push(triangle * 3, triangle * 3 + 1, triangle * 3 + 2)
+    const materialIndex = materialIndexForTriangle(source, triangle)
+    if (materialIndex !== activeMaterial) {
+      if (activeMaterial >= 0) result.addGroup(activeStart, index.length - 3 - activeStart, activeMaterial)
+      activeMaterial = materialIndex
+      activeStart = index.length - 3
+    }
+  }
+  if (activeMaterial >= 0) result.addGroup(activeStart, index.length - activeStart, activeMaterial)
+  result.setIndex(index)
+  return result
 }
 
 export interface MakeSolidResult {
@@ -146,36 +204,52 @@ export interface MakeSolidResult {
   shellsRemoved: number
 }
 
-/**
- * Remove enclosed internal shells from a geometry. Returns a new
- * non-indexed geometry with recomputed normals; the input is not modified.
- */
+/** Remove closed shells fully enclosed by another closed shell. */
 export function makeSolidGeometry(geometry: THREE.BufferGeometry): MakeSolidResult {
-  const shells = splitIntoShells(geometry)
-  if (shells.length <= 1) {
-    const clone = geometry.index ? geometry.toNonIndexed() : geometry.clone()
-    return { geometry: clone, shellsKept: shells.length, shellsRemoved: 0 }
-  }
-
-  const kept = shells.filter(
-    (shell) => !shells.some((other) => other !== shell && isEnclosedBy(shell, other))
-  )
-  const survivors = kept.length > 0 ? kept : shells
-
-  let total = 0
-  for (const shell of survivors) total += shell.positions.length
-  const positions = new Float32Array(total)
-  let offset = 0
-  for (const shell of survivors) {
-    positions.set(shell.positions, offset)
-    offset += shell.positions.length
-  }
-  const result = new THREE.BufferGeometry()
-  result.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  result.computeVertexNormals()
+  const classified = keptTriangles(geometry)
   return {
-    geometry: result,
-    shellsKept: survivors.length,
-    shellsRemoved: shells.length - survivors.length,
+    geometry: selectTriangles(geometry, classified.kept),
+    shellsKept: classified.shells.length - classified.removed,
+    shellsRemoved: classified.removed,
+  }
+}
+
+export interface MakeSolidGeometriesResult {
+  geometries: Array<THREE.BufferGeometry | null>
+  shellsKept: number
+  shellsRemoved: number
+}
+
+/** Classify shells across mesh boundaries, then preserve each source mesh's attributes. */
+export function makeSolidGeometries(geometries: THREE.BufferGeometry[]): MakeSolidGeometriesResult {
+  const sources = geometries.map((geometry) => geometry.index ? geometry.toNonIndexed() : geometry.clone())
+  const positions: number[] = []
+  const triangleOffsets: number[] = []
+  let triangleOffset = 0
+  for (const source of sources) {
+    triangleOffsets.push(triangleOffset)
+    const position = source.getAttribute('position')
+    for (let i = 0; i < position.count; i++) positions.push(position.getX(i), position.getY(i), position.getZ(i))
+    triangleOffset += Math.floor(position.count / 3)
+  }
+  const combined = new THREE.BufferGeometry()
+  combined.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  const classified = keptTriangles(combined)
+  const keptSet = new Set(classified.kept)
+  const filtered = sources.map((source, meshIndex) => {
+    const start = triangleOffsets[meshIndex]
+    const count = Math.floor(source.getAttribute('position').count / 3)
+    const local: number[] = []
+    for (let triangle = 0; triangle < count; triangle++) {
+      if (keptSet.has(start + triangle)) local.push(triangle)
+    }
+    return local.length > 0 ? selectTriangles(source, local) : null
+  })
+  combined.dispose()
+  for (const source of sources) source.dispose()
+  return {
+    geometries: filtered,
+    shellsKept: classified.shells.length - classified.removed,
+    shellsRemoved: classified.removed,
   }
 }

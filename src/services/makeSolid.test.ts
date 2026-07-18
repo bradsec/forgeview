@@ -40,7 +40,7 @@ describe('makeSolidGeometry', () => {
     const result = makeSolidGeometry(geo)
     expect(result.shellsKept).toBe(1)
     expect(result.shellsRemoved).toBe(0)
-    expect(result.geometry.getAttribute('position').count).toBe(36)
+    expect(result.geometry.index?.count).toBe(36)
   })
 
   it('removes a cavity shell nested inside the outer shell', () => {
@@ -49,7 +49,7 @@ describe('makeSolidGeometry', () => {
     expect(result.shellsRemoved).toBe(1)
     expect(result.shellsKept).toBe(1)
     // Outer box triangles survive intact: 12 tris * 3 verts
-    expect(result.geometry.getAttribute('position').count).toBe(36)
+    expect(result.geometry.index?.count).toBe(36)
     const box = new THREE.Box3().setFromBufferAttribute(
       result.geometry.getAttribute('position') as THREE.BufferAttribute
     )
@@ -69,12 +69,46 @@ describe('makeSolidGeometry', () => {
     const result = makeSolidGeometry(geo)
     expect(result.shellsRemoved).toBe(0)
     expect(result.shellsKept).toBe(2)
-    expect(result.geometry.getAttribute('position').count).toBe(72)
+    expect(result.geometry.index?.count).toBe(72)
   })
 
   it('handles indexed input geometry', () => {
     const outer = new THREE.BoxGeometry(10, 10, 10) // indexed
     const result = makeSolidGeometry(outer)
     expect(result.shellsKept).toBe(1)
+  })
+
+  it('preserves vertex attributes on surviving triangles', () => {
+    const geo = mergedBoxes([10, 4], [origin, origin])
+    const count = geo.getAttribute('position').count
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(new Array(count * 3).fill(0.5), 3))
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(count * 2).fill(0.25), 2))
+
+    const result = makeSolidGeometry(geo)
+
+    expect(result.geometry.getAttribute('color')).toBeDefined()
+    expect(result.geometry.getAttribute('uv')).toBeDefined()
+    expect(result.geometry.index?.count).toBe(36)
+  })
+
+  it('does not classify geometry inside an open surface as removable', () => {
+    const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
+    const outerPositions = outer.getAttribute('position')
+    const inner = new THREE.BoxGeometry(2, 2, 2).toNonIndexed()
+    const positions: number[] = []
+    // Drop one outer triangle so the enclosing component is not watertight.
+    for (let i = 3; i < outerPositions.count; i++) {
+      positions.push(outerPositions.getX(i), outerPositions.getY(i), outerPositions.getZ(i))
+    }
+    const innerPositions = inner.getAttribute('position')
+    for (let i = 0; i < innerPositions.count; i++) {
+      positions.push(innerPositions.getX(i), innerPositions.getY(i), innerPositions.getZ(i))
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+
+    const result = makeSolidGeometry(geo)
+
+    expect(result.shellsRemoved).toBe(0)
   })
 })

@@ -4,7 +4,7 @@ import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { PLYExporter } from 'three/addons/exporters/PLYExporter.js'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { zipSync, strToU8 } from 'three/addons/libs/fflate.module.js'
-import { makeSolidGeometry } from './makeSolid'
+import { makeSolidGeometries } from './makeSolid'
 
 /**
  * Encode text to bytes for fflate. TextEncoder can come from another realm
@@ -34,21 +34,83 @@ export const EXPORT_FORMATS: { format: ExportFormat; label: string }[] = [
 export function collectExportMeshes(root: THREE.Object3D, options?: { makeSolid?: boolean }): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = []
   root.updateMatrixWorld(true)
+
+  const collect = (child: THREE.Mesh, matrixWorld: THREE.Matrix4, suffix = '') => {
+    if (child instanceof THREE.SkinnedMesh) {
+      throw new Error(`Cannot export skinned mesh "${child.name || 'unnamed'}": bake the current pose first`)
+    }
+    if (child.morphTargetInfluences?.some((influence) => influence !== 0)) {
+      throw new Error(`Cannot export morph-deformed mesh "${child.name || 'unnamed'}": bake the current shape first`)
+    }
+    const geometry = (child.geometry as THREE.BufferGeometry).clone()
+    geometry.applyMatrix4(matrixWorld)
+    if (matrixWorld.determinant() < 0) reverseWinding(geometry)
+    const mesh = new THREE.Mesh(geometry, child.material)
+    mesh.name = `${child.name}${suffix}`
+    meshes.push(mesh)
+  }
+
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh) || !child.geometry) return
-    let geometry = (child.geometry as THREE.BufferGeometry).clone()
-    geometry.applyMatrix4(child.matrixWorld)
-    if (options?.makeSolid) {
-      const solid = makeSolidGeometry(geometry)
-      geometry.dispose()
-      geometry = solid.geometry
+    if (child instanceof THREE.InstancedMesh) {
+      const instanceMatrix = new THREE.Matrix4()
+      for (let index = 0; index < child.count; index++) {
+        child.getMatrixAt(index, instanceMatrix)
+        collect(child, new THREE.Matrix4().multiplyMatrices(child.matrixWorld, instanceMatrix), `[${index}]`)
+      }
+      return
     }
-    const material = Array.isArray(child.material) ? child.material[0] : child.material
-    const mesh = new THREE.Mesh(geometry, material)
-    mesh.name = child.name
-    meshes.push(mesh)
+    collect(child, child.matrixWorld)
   })
+
+  if (options?.makeSolid && meshes.length > 0) {
+    const solid = makeSolidGeometries(meshes.map((mesh) => mesh.geometry))
+    const survivors: THREE.Mesh[] = []
+    meshes.forEach((mesh, index) => {
+      mesh.geometry.dispose()
+      const geometry = solid.geometries[index]
+      if (!geometry) return
+      mesh.geometry = geometry
+      survivors.push(mesh)
+    })
+    return survivors
+  }
   return meshes
+}
+
+function reverseWinding(geometry: THREE.BufferGeometry): void {
+  if (geometry.index) {
+    const index = geometry.index
+    for (let offset = 0; offset + 2 < index.count; offset += 3) {
+      const second = index.getX(offset + 1)
+      index.setX(offset + 1, index.getX(offset + 2))
+      index.setX(offset + 2, second)
+    }
+    index.needsUpdate = true
+    return
+  }
+  for (const attribute of Object.values(geometry.attributes)) {
+    for (let offset = 0; offset + 2 < attribute.count; offset += 3) {
+      for (let component = 0; component < attribute.itemSize; component++) {
+        const second = attribute.getComponent(offset + 1, component)
+        attribute.setComponent(offset + 1, component, attribute.getComponent(offset + 2, component))
+        attribute.setComponent(offset + 2, component, second)
+      }
+    }
+    attribute.needsUpdate = true
+  }
+  for (const attributes of Object.values(geometry.morphAttributes)) {
+    for (const attribute of attributes) {
+      for (let offset = 0; offset + 2 < attribute.count; offset += 3) {
+        for (let component = 0; component < attribute.itemSize; component++) {
+          const second = attribute.getComponent(offset + 1, component)
+          attribute.setComponent(offset + 1, component, attribute.getComponent(offset + 2, component))
+          attribute.setComponent(offset + 2, component, second)
+        }
+      }
+      attribute.needsUpdate = true
+    }
+  }
 }
 
 export function disposeExportMeshes(meshes: THREE.Mesh[]): void {
