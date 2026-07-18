@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.4 - 2026-07-19
+
+- Report mesh health in three states: Watertight, Sealed (closed volume with
+  non-manifold edges, which slicers handle), and Needs repair (open boundary
+  edges). Non-manifold edges inherited from the original skin are kept so the
+  visible surface never changes.
+- Document that Chromium browsers refuse top-level system folders (Documents,
+  Downloads, Desktop) in the folder picker; a subfolder works.
+
 ## 1.5.3 - 2026-07-19
 
 - Make solid now welds hairline cracks at a scale-relative tolerance and

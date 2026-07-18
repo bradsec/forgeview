@@ -26,6 +26,39 @@ describe('Sidebar mobile variant', () => {
   })
 })
 
+describe('Sidebar mesh health verdict', () => {
+  const details = (boundaryEdges: number, nonManifoldEdges: number, watertight: boolean) => ({
+    width: 1, height: 1, depth: 1, meshes: 1, modelUnitInMm: null,
+    vertices: 10, boundaryEdges, nonManifoldEdges, watertight,
+  })
+
+  beforeEach(() => {
+    useViewerStore.setState({
+      sidebarVisible: false, mobileDrawer: 'details',
+      fileName: 'model.stl', fileExtension: '.stl', fileSize: 10, triangleCount: 4,
+      isLoading: false, error: null, loadedModels: [], filePath: '/m/model.stl',
+    })
+  })
+
+  it('reports Watertight for a closed manifold mesh', () => {
+    useViewerStore.setState({ geometryDetails: details(0, 0, true) })
+    render(<Sidebar mobile />)
+    expect(screen.getByText('Watertight')).toBeTruthy()
+  })
+
+  it('reports Sealed when the volume is closed but edges are non-manifold', () => {
+    useViewerStore.setState({ geometryDetails: details(0, 12, false) })
+    render(<Sidebar mobile />)
+    expect(screen.getByText('Sealed')).toBeTruthy()
+  })
+
+  it('reports Needs repair when boundary edges leave the volume open', () => {
+    useViewerStore.setState({ geometryDetails: details(9, 0, false) })
+    render(<Sidebar mobile />)
+    expect(screen.getByText('Needs repair')).toBeTruthy()
+  })
+})
+
 describe('Sidebar desktop variant', () => {
   beforeEach(() => {
     useViewerStore.setState({ sidebarVisible: false })

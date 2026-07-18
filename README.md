@@ -38,6 +38,12 @@ loaded. Materials collapse to a single solid material. Draft, Standard, and
 Fine detection detail trade processing cost against how small an opening still
 counts as sealed. Undo restores the original geometry and materials.
 
+Mesh health in Details reports three states: Watertight (closed and manifold),
+Sealed (the volume is closed, but some edges are shared by more than two
+faces, which slicers handle), and Needs repair (open boundary edges remain).
+Non-manifold edges inherited from the original skin are kept deliberately,
+because rewriting them would change the visible surface.
+
 3MF export includes an explicit physical-unit selector and defaults to
 millimetres. STL, OBJ, and PLY do not encode physical units.
 
@@ -93,7 +99,9 @@ controls.
 
 Open Folder loads a local, read-only snapshot of the selected folder into the
 explorer and preview grid; Forge View does not upload those files. Re-pick the
-folder to refresh it. In browsers without the native directory picker (Firefox,
+folder to refresh it. Chromium browsers refuse to grant sites access to
+top-level system folders (Documents, Downloads, Desktop, the home folder) and
+show a "contains system files" message; pick a subfolder inside them instead. In browsers without the native directory picker (Firefox,
 Safari) an in-app dialog explains this before the browser shows its
 upload-style confirmation.
 
