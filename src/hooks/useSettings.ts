@@ -14,6 +14,26 @@ interface SettingsFile {
 
 const SETTINGS_PATH = 'settings.json'
 
+const VALID_PRESETS: QualityPreset[] = ['low', 'medium', 'high']
+
+/**
+ * Keep only known override keys with sane values. A hand-edited or corrupt
+ * settings.json must not push NaN/garbage into the renderer (pixelRatio,
+ * maxLights and gridDivisions feed WebGL calls directly).
+ */
+export function sanitizeOverrides(raw: unknown): PerformanceOverrides {
+  if (typeof raw !== 'object' || raw === null) return {}
+  const o = raw as Record<string, unknown>
+  const out: PerformanceOverrides = {}
+  if (typeof o.antialias === 'boolean') out.antialias = o.antialias
+  if (typeof o.pixelRatio === 'number' && o.pixelRatio >= 0.5 && o.pixelRatio <= 4) out.pixelRatio = o.pixelRatio
+  if (typeof o.toneMapping === 'boolean') out.toneMapping = o.toneMapping
+  if (typeof o.maxLights === 'number' && [2, 3, 4].includes(o.maxLights)) out.maxLights = o.maxLights
+  if (typeof o.damping === 'boolean') out.damping = o.damping
+  if (typeof o.gridDivisions === 'number' && [10, 20].includes(o.gridDivisions)) out.gridDivisions = o.gridDivisions
+  return out
+}
+
 async function getTauriFs() {
   if (!isTauri()) return null
   const [fs, path] = await Promise.all([
@@ -62,15 +82,16 @@ export function useSettingsPersistence() {
   useEffect(() => {
     loadSettings()
       .then((data) => {
-        if (data?.performance) {
+        if (data?.performance && VALID_PRESETS.includes(data.performance.preset)) {
           const store = useViewerStore.getState()
           store.setPerformancePreset(data.performance.preset)
           // Re-apply overrides after preset reset them
-          if (data.performance.overrides && Object.keys(data.performance.overrides).length > 0) {
-            useViewerStore.setState({ performanceOverrides: data.performance.overrides })
+          const overrides = sanitizeOverrides(data.performance.overrides)
+          if (Object.keys(overrides).length > 0) {
+            useViewerStore.setState({ performanceOverrides: overrides })
           }
         }
-        if (data?.theme) {
+        if (data?.theme === 'dark' || data?.theme === 'light') {
           useViewerStore.getState().setTheme(data.theme)
         }
       })
