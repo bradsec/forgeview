@@ -48,12 +48,14 @@ export async function listGridFiles(dir: string, recursive: boolean): Promise<Gr
   const walk = async (d: string, topLevel: boolean): Promise<void> => {
     const entries = await readDir(d)
     const fileEntries: Array<{ name: string; full: string; ext: string }> = []
+    const subWalks: Promise<void>[] = []
     for (const e of entries) {
       if (!e.name) continue
       const full = await join(d, e.name)
       if (e.isDirectory) {
         if (recursive) {
-          await walk(full, false)
+          // Walk subtrees concurrently — serial descent made deep folders slow
+          subWalks.push(walk(full, false))
         } else if (topLevel) {
           folders.push({ name: e.name, path: full })
         }
@@ -77,6 +79,7 @@ export async function listGridFiles(dir: string, recursive: boolean): Promise<Gr
       )
       files.push(...metadata.filter((file): file is GridFile => file !== null))
     }
+    await Promise.all(subWalks)
   }
 
   await walk(dir, true)
