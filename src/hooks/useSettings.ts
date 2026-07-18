@@ -49,7 +49,7 @@ async function loadSettings(): Promise<SettingsFile | null> {
 
   try {
     const configDir = await tauri.path.appConfigDir()
-    const filePath = `${configDir}${SETTINGS_PATH}`
+    const filePath = await tauri.path.join(configDir, SETTINGS_PATH)
     const contents = await tauri.fs.readTextFile(filePath)
     return JSON.parse(contents) as SettingsFile
   } catch {
@@ -64,7 +64,7 @@ async function saveSettings(data: SettingsFile): Promise<void> {
   try {
     const configDir = await tauri.path.appConfigDir()
     await tauri.fs.mkdir(configDir, { recursive: true })
-    const filePath = `${configDir}${SETTINGS_PATH}`
+    const filePath = await tauri.path.join(configDir, SETTINGS_PATH)
     await tauri.fs.writeTextFile(filePath, JSON.stringify(data, null, 2))
   } catch (err) {
     console.warn('Failed to save settings:', err)
@@ -80,19 +80,25 @@ export function useSettingsPersistence() {
 
   // Load settings on mount
   useEffect(() => {
+    const initial = useViewerStore.getState()
     loadSettings()
       .then((data) => {
         if (data?.performance && VALID_PRESETS.includes(data.performance.preset)) {
           const store = useViewerStore.getState()
-          store.setPerformancePreset(data.performance.preset)
-          // Re-apply overrides after preset reset them
-          const overrides = sanitizeOverrides(data.performance.overrides)
-          if (Object.keys(overrides).length > 0) {
-            useViewerStore.setState({ performanceOverrides: overrides })
+          if (
+            store.performancePreset === initial.performancePreset &&
+            store.performanceOverrides === initial.performanceOverrides
+          ) {
+            store.setPerformancePreset(data.performance.preset)
+            const overrides = sanitizeOverrides(data.performance.overrides)
+            if (Object.keys(overrides).length > 0) {
+              useViewerStore.setState({ performanceOverrides: overrides })
+            }
           }
         }
         if (data?.theme === 'dark' || data?.theme === 'light') {
-          useViewerStore.getState().setTheme(data.theme)
+          const store = useViewerStore.getState()
+          if (store.theme === initial.theme) store.setTheme(data.theme)
         }
       })
       .catch(() => {
