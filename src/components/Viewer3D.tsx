@@ -84,6 +84,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const antialiasRef = useRef(true) // matches initial renderer creation
   const animIdRef = useRef<number>(0)
   const animRef = useRef<CameraAnimationState>(createAnimationState())
+  // Current double-click listener and its element, so renderer swaps
+  // (Effect 7) and unmount can detach the live listener
+  const dblClickRef = useRef<{ el: HTMLElement; fn: (e: MouseEvent) => void } | null>(null)
   // Demand rendering: frames left to draw. The loop skips renderer.render when
   // 0 and no camera motion — keeps the GPU idle (software/weak GPUs stay
   // responsive). Bumped by controls changes, resizes, and any store change
@@ -236,6 +239,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       }
     }
     renderer.domElement.addEventListener('dblclick', onDblClick)
+    dblClickRef.current = { el: renderer.domElement, fn: onDblClick }
 
     // Store refs
     sceneRef.current = scene
@@ -269,7 +273,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       previewVersionRef.current++
       effectVersionRef.current++
       unsubscribeStore()
-      renderer.domElement.removeEventListener('dblclick', onDblClick)
+      if (dblClickRef.current) {
+        dblClickRef.current.el.removeEventListener('dblclick', dblClickRef.current.fn)
+        dblClickRef.current = null
+      }
       cancelAnimationFrame(animIdRef.current)
       // Effect 7 may have replaced the renderer/controls (antialias toggle);
       // dispose the live instances, not the originals captured above.
@@ -308,6 +315,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // previous run is detected as stale and disposed when it resolves
     const version = ++previewVersionRef.current
     if (!filePath || !fileExtension || !sceneRef.current || !cameraRef.current) {
+      // Clearing the preview must also remove a committed model from the
+      // scene — the viewer stays mounted when multi-model entries remain
+      if (modelGroupRef.current && sceneRef.current) {
+        disposeModel(modelGroupRef.current, sceneRef.current)
+        modelGroupRef.current = undefined
+      }
       // A load superseded by a clear skips its own setLoading(false)
       useViewerStore.getState().setLoading(false)
       return
@@ -533,7 +546,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       }
     }
 
-    // After all adds complete, fit camera to all multi-model objects
+    // After all adds complete, fit camera to all multi-model objects.
+    // Removal-only and metadata-only updates (triangle counts) must not
+    // re-fit — the user's camera position would jump for no reason.
+    if (addPromises.length === 0) return
     // Skip if effect version has changed (stale resolution from rapid loadedModels changes)
     Promise.all(addPromises).then(() => {
       if (effectVersionRef.current !== version) return
@@ -656,10 +672,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         controlsRef.current = controls
       }
 
-      // Re-attach double-click handler
+      // Re-attach double-click handler (detach the previous one first)
+      if (dblClickRef.current) {
+        dblClickRef.current.el.removeEventListener('dblclick', dblClickRef.current.fn)
+      }
       const raycaster = new THREE.Raycaster()
       const mouse = new THREE.Vector2()
-      newRenderer.domElement.addEventListener('dblclick', (e: MouseEvent) => {
+      const onDblClick = (e: MouseEvent) => {
         const targets: THREE.Object3D[] = []
         if (modelGroupRef.current) targets.push(modelGroupRef.current)
         for (const obj of modelMapRef.current.values()) targets.push(obj)
@@ -673,7 +692,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           controlsRef.current!.target.copy(hits[0].point)
           controlsRef.current!.update()
         }
-      })
+      }
+      newRenderer.domElement.addEventListener('dblclick', onDblClick)
+      dblClickRef.current = { el: newRenderer.domElement, fn: onDblClick }
 
       rendererRef.current = newRenderer
       antialiasRef.current = settings.antialias
