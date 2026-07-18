@@ -87,7 +87,10 @@ test('publishes the branded favicon, manifest and social preview metadata', asyn
   expect(manifestResponse.ok()).toBe(true)
   const manifest = await manifestResponse.json()
   expect(manifest.theme_color).toBe('#1b2027')
+  expect(manifest.start_url).toBe('./')
+  expect(manifest.scope).toBe('./')
   expect(manifest.icons).toHaveLength(2)
+  expect(manifest.icons.map((icon: { src: string }) => icon.src)).toEqual(['icon-192.png', 'icon-512.png'])
 })
 
 test('keeps the pre-app frame branded without exposing fallback copy', async ({ page }) => {

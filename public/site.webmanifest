@@ -2,20 +2,20 @@
   "name": "Forge View",
   "short_name": "Forge View",
   "description": "Browser and desktop 3D CAD file previewer.",
-  "start_url": "/forgeview/",
-  "scope": "/forgeview/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#151a22",
   "theme_color": "#1b2027",
   "icons": [
     {
-      "src": "/forgeview/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/forgeview/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
