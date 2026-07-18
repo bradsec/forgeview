@@ -1,4 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
+import packageJson from '../package.json'
+
+const APP_VERSION = packageJson.version
 
 const browserErrors = new WeakMap<Page, string[]>()
 
@@ -35,7 +38,7 @@ test('renders the redesigned application shell within the viewport', async ({ pa
   else {
     await expect(footer).toBeVisible()
     await expect(footer.getByRole('link', { name: 'github.com/bradsec/forgeview' })).toHaveAttribute('href', 'https://github.com/bradsec/forgeview')
-    await expect(footer).toContainText('v1.4.2')
+    await expect(footer).toContainText(`v${APP_VERSION}`)
   }
 })
 
@@ -60,8 +63,7 @@ test('opens Help and displays complete About information', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'About forgeview' })
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('.about-mark')).toHaveAttribute('src', /icon\.svg$/)
-  await expect(dialog).toContainText('Version 1.4.2')
-  await expect(dialog).toContainText('1.4.2')
+  await expect(dialog).toContainText(`Version ${APP_VERSION}`)
   await expect(dialog).toContainText('Created by Mark Bradley')
   await expect(dialog.getByRole('link', { name: 'View forgeview on GitHub' })).toHaveAttribute('href', 'https://github.com/bradsec/forgeview')
   await expect(dialog).toContainText('Found forgeview useful? Support the creator.')
