@@ -38,15 +38,19 @@ export function GridTile({ file, queue }: GridTileProps) {
     const observer = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting) || requested.current) return
       requested.current = true
-      q.request(file)
+      q.request(file, controller.signal)
         .then((entry) => {
           setStatus(entry.status)
           setDataUrl(entry.dataUrl)
         })
         .catch(() => setStatus('error'))
     })
+    const controller = new AbortController()
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      controller.abort()
+      observer.disconnect()
+    }
   }, [file, queue])
 
   const badge = file.extension.toUpperCase().replace('.', '')

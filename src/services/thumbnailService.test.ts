@@ -73,6 +73,24 @@ describe('createThumbnailQueue', () => {
     expect(maxInFlight).toBe(1)
   })
 
+  it('skips a queued request aborted before rendering starts', async () => {
+    let releaseFirst!: () => void
+    const render = vi.fn(async (f: GridFile) => {
+      if (f.path === '/first.stl') await new Promise<void>((resolve) => { releaseFirst = resolve })
+      return `data:${f.path}`
+    })
+    const q = createThumbnailQueue({ render, concurrency: 1 })
+    const first = q.request(file('/first.stl'))
+    const controller = new AbortController()
+    const second = q.request(file('/second.stl'), controller.signal)
+    controller.abort()
+    releaseFirst()
+
+    await first
+    expect(await second).toEqual({ status: 'error' })
+    expect(render).toHaveBeenCalledTimes(1)
+  })
+
   it('evicts the least recently used thumbnail when the cache is full', async () => {
     const q = createThumbnailQueue({
       maxEntries: 2,

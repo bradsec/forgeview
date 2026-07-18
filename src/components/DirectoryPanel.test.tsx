@@ -142,6 +142,18 @@ describe('DirectoryPanel', () => {
     fireEvent.keyDown(separator, { key: 'ArrowRight' })
     expect(separator.getAttribute('aria-valuenow')).toBe('234')
   })
+
+  it('removes active pointer resize listeners on unmount', () => {
+    useViewerStore.setState({ dirPath: '/models', dirTree: [] })
+    const remove = vi.spyOn(document, 'removeEventListener')
+    const { unmount } = render(<DirectoryPanel />)
+    fireEvent.mouseDown(screen.getByRole('separator', { name: 'Resize Explorer' }), { clientX: 100 })
+
+    unmount()
+
+    expect(remove.mock.calls.some(([type]) => type === 'mousemove')).toBe(true)
+    expect(remove.mock.calls.some(([type]) => type === 'mouseup')).toBe(true)
+  })
 })
 
 describe('DirectoryPanel mobile variant', () => {

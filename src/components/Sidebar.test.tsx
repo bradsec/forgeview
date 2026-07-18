@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Sidebar } from './Sidebar'
@@ -43,5 +43,17 @@ describe('Sidebar desktop variant', () => {
     expect(separator.getAttribute('aria-valuenow')).toBe('256')
     fireEvent.keyDown(separator, { key: 'ArrowLeft' })
     expect(separator.getAttribute('aria-valuenow')).toBe('266')
+  })
+
+  it('removes active pointer resize listeners on unmount', () => {
+    useViewerStore.setState({ sidebarVisible: true })
+    const remove = vi.spyOn(document, 'removeEventListener')
+    const { unmount } = render(<Sidebar />)
+    fireEvent.mouseDown(screen.getByRole('separator', { name: 'Resize Details' }), { clientX: 100 })
+
+    unmount()
+
+    expect(remove.mock.calls.some(([type]) => type === 'mousemove')).toBe(true)
+    expect(remove.mock.calls.some(([type]) => type === 'mouseup')).toBe(true)
   })
 })

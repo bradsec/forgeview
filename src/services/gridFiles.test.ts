@@ -64,4 +64,23 @@ describe('listGridFiles (recursive)', () => {
     expect(out.files.every((f) => f.size === 1024)).toBe(true)
     expect(out.files.every((f) => f.mtime === 1000)).toBe(true)
   })
+
+  it('bounds concurrent filesystem operations across subdirectories', async () => {
+    let active = 0
+    let maximum = 0
+    vi.mocked(readDir).mockImplementation(async (path) => {
+      if (path === '/models') {
+        return Array.from({ length: 40 }, (_, index) => dirEntry(`sub-${index}`, true)) as any
+      }
+      active++
+      maximum = Math.max(maximum, active)
+      await new Promise((resolve) => setTimeout(resolve, 1))
+      active--
+      return []
+    })
+
+    await listGridFiles('/models', true)
+
+    expect(maximum).toBeLessThanOrEqual(16)
+  })
 })

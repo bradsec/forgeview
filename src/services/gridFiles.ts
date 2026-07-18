@@ -5,6 +5,7 @@ import { extname } from '../utils/pathUtils'
 import { isBrowserPath, listBrowserDir, listBrowserDirRecursive } from './browserFs'
 
 const METADATA_CONCURRENCY = 16
+const FILESYSTEM_CONCURRENCY = 16
 
 export interface GridFile {
   name: string
@@ -44,9 +45,23 @@ export async function listGridFiles(dir: string, recursive: boolean): Promise<Gr
 
   const folders: GridFolder[] = []
   const files: GridFile[] = []
+  let activeOperations = 0
+  const waiters: Array<() => void> = []
+  const withFilesystemSlot = async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (activeOperations >= FILESYSTEM_CONCURRENCY) {
+      await new Promise<void>((resolve) => waiters.push(resolve))
+    }
+    activeOperations++
+    try {
+      return await operation()
+    } finally {
+      activeOperations--
+      waiters.shift()?.()
+    }
+  }
 
   const walk = async (d: string, topLevel: boolean): Promise<void> => {
-    const entries = await readDir(d)
+    const entries = await withFilesystemSlot(() => readDir(d))
     const fileEntries: Array<{ name: string; full: string; ext: string }> = []
     const subWalks: Promise<void>[] = []
     for (const e of entries) {
@@ -71,7 +86,7 @@ export async function listGridFiles(dir: string, recursive: boolean): Promise<Gr
       const metadata = await Promise.all(
         batch.map(async ({ name, full, ext }) => {
           try {
-            return await toGridFile(name, full, ext)
+            return await withFilesystemSlot(() => toGridFile(name, full, ext))
           } catch {
             return null
           }

@@ -207,6 +207,9 @@ export function DirectoryPanel({ mobile = false }: { mobile?: boolean } = {}) {
   const { expandDir, collapseDir } = useDirOpen()
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const isDragging = useRef(false)
+  const dragCleanupRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => () => dragCleanupRef.current?.(), [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -220,14 +223,18 @@ export function DirectoryPanel({ mobile = false }: { mobile?: boolean } = {}) {
       setWidth(newWidth)
     }
 
-    const onMouseUp = () => {
+    const cleanup = () => {
       isDragging.current = false
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseup', onMouseUp)
+      dragCleanupRef.current = null
     }
+    const onMouseUp = () => cleanup()
 
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
+    dragCleanupRef.current?.()
+    dragCleanupRef.current = cleanup
   }, [width])
 
   // Clamp width when window resizes so panel doesn't overflow

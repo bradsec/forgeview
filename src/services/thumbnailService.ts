@@ -15,7 +15,7 @@ export function cacheKey(f: GridFile): string {
 }
 
 export interface ThumbnailQueue {
-  request: (f: GridFile) => Promise<ThumbEntry>
+  request: (f: GridFile, signal?: AbortSignal) => Promise<ThumbEntry>
   get: (f: GridFile) => ThumbEntry | undefined
 }
 
@@ -33,12 +33,17 @@ export function createThumbnailQueue(opts: {
   const maxEntries = opts.maxEntries ?? 200
   const cache = new Map<string, ThumbEntry>()
   const inflight = new Map<string, Promise<ThumbEntry>>()
-  const pending: Array<{ file: GridFile; key: string; resolve: (e: ThumbEntry) => void }> = []
+  const pending: Array<{ file: GridFile; key: string; resolve: (e: ThumbEntry) => void; signal?: AbortSignal }> = []
   let active = 0
 
   const pump = () => {
     while (active < concurrency && pending.length > 0) {
       const job = pending.shift()!
+      if (job.signal?.aborted) {
+        inflight.delete(job.key)
+        job.resolve({ status: 'error' })
+        continue
+      }
       active++
       opts
         .render(job.file)
@@ -60,7 +65,7 @@ export function createThumbnailQueue(opts: {
     }
   }
 
-  const request = (f: GridFile): Promise<ThumbEntry> => {
+  const request = (f: GridFile, signal?: AbortSignal): Promise<ThumbEntry> => {
     const key = cacheKey(f)
     const cached = cache.get(key)
     if (cached) {
@@ -71,7 +76,7 @@ export function createThumbnailQueue(opts: {
     const existing = inflight.get(key)
     if (existing) return existing
     const p = new Promise<ThumbEntry>((resolve) => {
-      pending.push({ file: f, key, resolve })
+      pending.push({ file: f, key, resolve, signal })
     })
     inflight.set(key, p)
     pump()
