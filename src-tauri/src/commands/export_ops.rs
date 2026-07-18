@@ -1,6 +1,12 @@
+use std::fs::{File, OpenOptions};
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri_plugin_dialog::DialogExt;
 
 const MAX_EXPORT_SIZE: usize = 500 * 1024 * 1024;
+const MAX_TEMP_FILE_ATTEMPTS: usize = 100;
+static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Decode a percent-encoded UTF-8 string (the frontend sends the suggested
 /// filename through an ASCII-safe IPC header).
@@ -64,6 +70,63 @@ fn validate_export_size(size: usize, max_size: usize) -> Result<(), String> {
     Ok(())
 }
 
+fn create_unique_temp(destination: &Path) -> io::Result<(PathBuf, File)> {
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    let filename = destination
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("export");
+
+    for _ in 0..MAX_TEMP_FILE_ATTEMPTS {
+        let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let temp_path = parent.join(format!(
+            ".{filename}.forgeview-{}-{sequence}.tmp",
+            std::process::id()
+        ));
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path)
+        {
+            Ok(file) => return Ok((temp_path, file)),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "could not create a unique export temporary file",
+    ))
+}
+
+fn write_file_atomically(destination: &Path, bytes: &[u8]) -> io::Result<()> {
+    write_file_atomically_with(destination, bytes, || create_unique_temp(destination))
+}
+
+fn write_file_atomically_with<F>(destination: &Path, bytes: &[u8], create_temp: F) -> io::Result<()>
+where
+    F: FnOnce() -> io::Result<(PathBuf, File)>,
+{
+    let (temp_path, mut temp_file) = create_temp()?;
+    let write_result = temp_file
+        .write_all(bytes)
+        .and_then(|()| temp_file.sync_all());
+    drop(temp_file);
+
+    if let Err(error) = write_result {
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(error);
+    }
+
+    if let Err(error) = std::fs::rename(&temp_path, destination) {
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(error);
+    }
+
+    Ok(())
+}
+
 /// Open the native save dialog with the suggested filename and write the
 /// raw request body to the chosen location. Returns the saved path, or
 /// None when the user cancels. Doing the dialog on the Rust side means the
@@ -111,7 +174,7 @@ pub async fn export_model_file(
     let path = file_path.into_path().map_err(|e| e.to_string())?;
 
     let path_for_write = path.clone();
-    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path_for_write, &bytes))
+    tauri::async_runtime::spawn_blocking(move || write_file_atomically(&path_for_write, &bytes))
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())?;
@@ -122,6 +185,16 @@ pub async fn export_model_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn temp_base(name: &str) -> PathBuf {
+        let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "forge-view-export-test-{name}-{}-{sequence}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        dir
+    }
 
     #[test]
     fn percent_decode_roundtrips_utf8() {
@@ -166,5 +239,38 @@ mod tests {
         assert!(validate_export_size(5, 4)
             .unwrap_err()
             .starts_with("Export too large"));
+    }
+
+    #[test]
+    fn atomic_write_replaces_existing_file() {
+        let base = temp_base("replace");
+        let destination = base.join("model.stl");
+        std::fs::write(&destination, b"old model").unwrap();
+
+        write_file_atomically(&destination, b"new model").unwrap();
+
+        assert_eq!(std::fs::read(&destination).unwrap(), b"new model");
+        assert_eq!(std::fs::read_dir(&base).unwrap().count(), 1);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn atomic_write_preserves_existing_file_when_temp_setup_fails() {
+        let base = temp_base("setup-failure");
+        let destination = base.join("model.stl");
+        std::fs::write(&destination, b"old model").unwrap();
+
+        let error = write_file_atomically_with(&destination, b"new model", || {
+            Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "injected setup failure",
+            ))
+        })
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(std::fs::read(&destination).unwrap(), b"old model");
+        assert_eq!(std::fs::read_dir(&base).unwrap().count(), 1);
+        std::fs::remove_dir_all(base).unwrap();
     }
 }
