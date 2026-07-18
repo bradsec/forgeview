@@ -88,6 +88,11 @@ interface ViewerState {
   performancePreset: QualityPreset
   performanceOverrides: PerformanceOverrides
   settingsOpen: boolean
+  exportOpen: boolean
+  setExportOpen: (open: boolean) => void
+  /** Transient success note (e.g. export saved) shown in the status bar. */
+  notice: string | null
+  setNotice: (notice: string | null) => void
   theme: ThemeMode
   setTheme: (theme: ThemeMode) => void
   toggleTheme: () => void
@@ -156,6 +161,10 @@ export const useViewerStore = create<ViewerState>((set) => ({
   performancePreset: 'high' as QualityPreset,
   performanceOverrides: {} as PerformanceOverrides,
   settingsOpen: false,
+  exportOpen: false,
+  setExportOpen: (open) => set({ exportOpen: open }),
+  notice: null,
+  setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
   setTheme: (theme) => set({ theme }),
   toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),

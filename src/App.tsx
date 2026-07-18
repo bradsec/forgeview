@@ -9,6 +9,7 @@ import { SceneControls } from './components/SceneControls'
 import { SceneContextMenu } from './components/SceneContextMenu'
 import { PreviewGrid } from './components/PreviewGrid'
 import { SettingsModal } from './components/SettingsModal'
+import { ExportDialog } from './components/ExportDialog'
 import { MobileDrawer } from './components/MobileDrawer'
 import { StatusBar } from './components/StatusBar'
 import { useSettingsPersistence } from './hooks/useSettings'
@@ -104,6 +105,7 @@ export default function App() {
         <Sidebar mobile />
       </MobileDrawer>
       <SettingsModal />
+      <ExportDialog viewerRef={viewerRef} />
       <StatusBar />
     </div>
   )

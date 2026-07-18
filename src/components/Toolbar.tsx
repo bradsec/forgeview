@@ -177,6 +177,7 @@ export function Toolbar() {
   const viewMode = useViewerStore((state) => state.viewMode)
   const dirPath = useViewerStore((state) => state.dirPath)
   const fileName = useViewerStore((state) => state.fileName)
+  const hasModel = useViewerStore((state) => state.filePath !== null || state.loadedModels.length > 0)
   const mainView = useViewerStore((state) => state.mainView)
   const explorerVisible = useViewerStore((state) => state.explorerVisible)
   const sidebarVisible = useViewerStore((state) => state.sidebarVisible)
@@ -209,6 +210,17 @@ export function Toolbar() {
             <>
               <MenuItem onClick={() => { close(); void openFile() }}>Open file</MenuItem>
               <MenuItem onClick={() => { close(); void openFolder() }}>Open folder</MenuItem>
+              <div className="menu-separator" role="separator" />
+              <MenuItem
+                disabled={!hasModel}
+                onClick={() => {
+                  close()
+                  useViewerStore.getState().setMainView('3d')
+                  useViewerStore.getState().setExportOpen(true)
+                }}
+              >
+                Export model as…
+              </MenuItem>
             </>
           )}
         </Menu>
