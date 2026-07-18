@@ -61,6 +61,10 @@ interface Viewer3DProps {
   viewMode: 'solid' | 'wireframe' | 'points'
 }
 
+export function modelLoadKey(models: Array<{ id: string; path: string; extension: string }>): string {
+  return models.map(({ id, path, extension }) => `${id}\u0000${path}\u0000${extension}`).join('\u0001')
+}
+
 export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   function Viewer3D({ filePath, fileExtension, viewMode }, ref) {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -74,8 +78,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const modelMapRef = useRef<Map<string, THREE.Object3D>>(new Map())
   // Track in-flight model loads to prevent duplicate loading from effect re-runs
   const loadingIdsRef = useRef<Set<string>>(new Set())
-  // Version counter for multi-model effect to detect stale promise resolutions
-  const effectVersionRef = useRef(0)
   // Version counter for the single-model preview effect (Effect 2) so a
   // resolution from a superseded or cleared load can be detected and disposed
   const previewVersionRef = useRef(0)
@@ -271,7 +273,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     return () => {
       previewVersionRef.current++
-      effectVersionRef.current++
       unsubscribeStore()
       if (dblClickRef.current) {
         dblClickRef.current.el.removeEventListener('dblclick', dblClickRef.current.fn)
@@ -298,6 +299,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       modelGroupRef.current = undefined
       modelMapRef.current.clear()
       loadingIdsRef.current.clear()
+      useViewerStore.getState().setPendingModelLoads(0)
       gridRef.current = undefined
       lightsRef.current = []
       sceneRef.current = undefined
@@ -338,6 +340,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
     modelMapRef.current.clear()
     loadingIdsRef.current.clear()
+    useViewerStore.getState().setPendingModelLoads(0)
     clearModels()
 
     // Dispose previous preview model if any
@@ -475,10 +478,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // to add/remove models without touching the preview path
   const theme = useViewerStore((s) => s.theme)
   const loadedModels = useViewerStore((s) => s.loadedModels)
+  const loadKey = modelLoadKey(loadedModels)
   useEffect(() => {
     if (!sceneRef.current || !cameraRef.current || !controlsRef.current) return
 
-    const version = ++effectVersionRef.current
     const scene = sceneRef.current
     const camera = cameraRef.current
 
@@ -502,6 +505,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     for (const model of loadedModels) {
       if (!currentIds.has(model.id) && !loadingIdsRef.current.has(model.id)) {
         loadingIdsRef.current.add(model.id)
+        useViewerStore.getState().setPendingModelLoads(loadingIdsRef.current.size)
         const promise = loadModel(model.path, model.extension, scene, camera, { center: false })
           .then((obj) => {
             // The model may have been removed (or the scene cleared by the
@@ -510,7 +514,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
             const stillLoaded = useViewerStore
               .getState()
               .loadedModels.some((m) => m.id === model.id)
-            if (effectVersionRef.current !== version || !stillLoaded) {
+            if (sceneRef.current !== scene || !stillLoaded) {
               disposeModel(obj, scene)
               return
             }
@@ -541,6 +545,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           })
           .finally(() => {
             loadingIdsRef.current.delete(model.id)
+            useViewerStore.getState().setPendingModelLoads(loadingIdsRef.current.size)
           })
         addPromises.push(promise)
       }
@@ -550,9 +555,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // Removal-only and metadata-only updates (triangle counts) must not
     // re-fit — the user's camera position would jump for no reason.
     if (addPromises.length === 0) return
-    // Skip if effect version has changed (stale resolution from rapid loadedModels changes)
     Promise.all(addPromises).then(() => {
-      if (effectVersionRef.current !== version) return
+      if (sceneRef.current !== scene || loadingIdsRef.current.size > 0) return
       const allObjects = [...modelMapRef.current.values()]
       if (allObjects.length > 0 && cameraRef.current && controlsRef.current) {
         fitAllModels(allObjects, cameraRef.current, controlsRef.current)
@@ -584,7 +588,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         }
       }
     })
-  }, [loadedModels])
+  }, [loadKey])
 
   // Effect 6: Projection mode toggle — swap between perspective and orthographic
   const projectionMode = useViewerStore((s) => s.projectionMode)

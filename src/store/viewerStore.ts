@@ -57,6 +57,7 @@ interface ViewerState {
 
   // Multi-model state
   loadedModels: LoadedModel[]
+  pendingModelLoads: number
   activeFilePath: string | null
   dirPath: string | null
   dirFiles: DirFileEntry[]
@@ -111,6 +112,7 @@ interface ViewerState {
   setDirTree: (path: string, tree: DirTreeEntry[]) => void
   updateTreeNode: (fullPath: string, updates: Partial<DirTreeEntry>) => void
   updateModelTriangles: (id: string, count: number) => void
+  setPendingModelLoads: (count: number) => void
 }
 
 function updateNodeInTree(
@@ -150,6 +152,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   // Multi-model initial state
   loadedModels: [],
+  pendingModelLoads: 0,
   activeFilePath: null,
   dirPath: null,
   dirFiles: [],
@@ -201,7 +204,15 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   // Multi-model actions
   addModel: (model) =>
-    set((state) => ({ loadedModels: [...state.loadedModels, model] })),
+    set((state) => ({
+      loadedModels: [...state.loadedModels, model],
+      filePath: null,
+      fileName: null,
+      fileExtension: null,
+      fileSize: null,
+      fileBuffer: null,
+      triangleCount: null,
+    })),
   removeModel: (id) =>
     set((state) => ({ loadedModels: state.loadedModels.filter((m) => m.id !== id) })),
   clearModels: () => set({ loadedModels: [] }),
@@ -220,4 +231,5 @@ export const useViewerStore = create<ViewerState>((set) => ({
         m.id === id ? { ...m, triangleCount: count } : m
       ),
     })),
+  setPendingModelLoads: (count) => set({ pendingModelLoads: Math.max(0, count) }),
 }))

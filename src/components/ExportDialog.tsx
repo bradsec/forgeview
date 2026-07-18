@@ -22,6 +22,7 @@ function exportFileName(sourceName: string | null, format: ExportFormat): string
 export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const exportOpen = useViewerStore((s) => s.exportOpen)
   const fileName = useViewerStore((s) => s.fileName)
+  const pendingModelLoads = useViewerStore((s) => s.pendingModelLoads)
   const [format, setFormat] = useState<ExportFormat>('.stl')
   const [makeSolid, setMakeSolid] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -69,14 +70,19 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const runExport = async () => {
     const scene = viewerRef.current?.getScene()
     const store = useViewerStore.getState()
+    if (store.pendingModelLoads > 0) {
+      store.setError('Wait for all scene models to finish loading before exporting')
+      return
+    }
     if (!scene) {
       store.setError('Export needs an open 3D view')
       return
     }
     setBusy(true)
     store.setError(null)
-    const meshes = collectExportMeshes(scene, { makeSolid })
+    let meshes: ReturnType<typeof collectExportMeshes> = []
     try {
+      meshes = collectExportMeshes(scene, { makeSolid })
       const bytes = await exportMeshes(meshes, format)
       const target = exportFileName(fileName, format)
       const saved = await saveExportedFile(bytes, target)
@@ -166,10 +172,10 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
             <button
               type="button"
               onClick={() => void runExport()}
-              disabled={busy}
+              disabled={busy || pendingModelLoads > 0}
               className="px-4 py-1.5 bg-[var(--accent-button)] hover:bg-[var(--accent-button-hover)] text-[var(--text-on-accent)] text-sm rounded transition-colors disabled:opacity-60"
             >
-              {busy ? 'Exporting…' : 'Export'}
+              {busy ? 'Exporting…' : pendingModelLoads > 0 ? 'Loading models…' : 'Export'}
             </button>
           </div>
         </div>

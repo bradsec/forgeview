@@ -6,7 +6,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 import * as THREE from 'three'
-import { Viewer3D, disposeViewerResources, perspectiveCameraFrom } from './Viewer3D'
+import { Viewer3D, disposeViewerResources, modelLoadKey, perspectiveCameraFrom } from './Viewer3D'
 import { useViewerStore } from '../store/viewerStore'
 
 // jsdom has no WebGL: canvas.getContext('webgl2'/'webgl') returns null, so
@@ -74,5 +74,21 @@ describe('perspectiveCameraFrom', () => {
     expect(result.near).toBe(0.005)
     expect(result.far).toBe(2_000_000)
     expect(result.aspect).toBeCloseTo(16 / 9)
+  })
+})
+
+describe('modelLoadKey', () => {
+  it('does not invalidate scene loading when triangle metadata changes', () => {
+    const before = [{ id: 'a', path: '/a.stl', extension: '.stl', triangleCount: 0 }]
+    const after = [{ ...before[0], triangleCount: 12 }]
+
+    expect(modelLoadKey(after)).toBe(modelLoadKey(before))
+  })
+
+  it('changes when the set of models to load changes', () => {
+    const before = [{ id: 'a', path: '/a.stl', extension: '.stl' }]
+    const after = [...before, { id: 'b', path: '/b.stl', extension: '.stl' }]
+
+    expect(modelLoadKey(after)).not.toBe(modelLoadKey(before))
   })
 })

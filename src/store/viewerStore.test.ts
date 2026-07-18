@@ -16,6 +16,7 @@ describe('viewerStore', () => {
       recentFiles: [],
       // New multi-model fields
       loadedModels: [],
+      pendingModelLoads: 0,
       activeFilePath: null,
       dirPath: null,
       dirFiles: [],
@@ -135,6 +136,27 @@ describe('viewerStore', () => {
     expect(models).toHaveLength(2)
     expect(models[0]).toEqual(model1)
     expect(models[1]).toEqual(model2)
+  })
+
+  it('addModel() clears a retained preview before building an assembly', () => {
+    useViewerStore.setState({
+      filePath: '/path/preview.stl',
+      fileName: 'preview.stl',
+      fileExtension: '.stl',
+      fileSize: 100,
+      fileBuffer: new ArrayBuffer(1),
+      triangleCount: 2,
+    })
+    useViewerStore.getState().addModel({
+      id: 'assembly', path: '/path/assembly.stl', name: 'assembly.stl',
+      extension: '.stl', sizeBytes: 200, triangleCount: 0,
+    })
+
+    const state = useViewerStore.getState()
+    expect(state.filePath).toBeNull()
+    expect(state.fileBuffer).toBeNull()
+    expect(state.triangleCount).toBeNull()
+    expect(state.loadedModels).toHaveLength(1)
   })
 
   it('removeModel() removes only the entry with matching id', () => {
