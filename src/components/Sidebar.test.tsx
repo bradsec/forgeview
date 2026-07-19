@@ -46,10 +46,10 @@ describe('Sidebar mesh health verdict', () => {
     expect(screen.getByText('Watertight')).toBeTruthy()
   })
 
-  it('reports Sealed when the volume is closed but edges are non-manifold', () => {
+  it('reports OK when the volume is closed but edges are non-manifold', () => {
     useViewerStore.setState({ geometryDetails: details(0, 12, false) })
     render(<Sidebar mobile />)
-    expect(screen.getByText('Sealed')).toBeTruthy()
+    expect(screen.getByText('OK')).toBeTruthy()
   })
 
   it('reports Needs repair when boundary edges leave the volume open', () => {

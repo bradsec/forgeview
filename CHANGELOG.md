@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.6 - 2026-07-19
+
+- Guarantee closed volumes after solid fill: any boundary edge that loop
+  walking and rim snapping cannot close is fanned to its boundary component's
+  centroid, which always supplies the missing twin edge.
+- Rename the closed-but-non-manifold mesh health verdict from Sealed to OK.
+
 ## 1.5.5 - 2026-07-19
 
 - Seal the last open edges after solid fill: boundary loops now chain through

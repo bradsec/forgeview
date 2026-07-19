@@ -269,6 +269,55 @@ function capBoundaryLoops(mesh: SolidMesh): void {
 }
 
 /**
+ * Last-resort closure: fan every remaining boundary edge to the centroid of
+ * its connected component of boundary edges. Unlike loop walking this cannot
+ * fail on tangled or pinched chains — each open edge u→v receives its missing
+ * twin from the fan triangle (v, u, centroid), and the new centroid spokes
+ * pair up wherever a vertex has one incoming and one outgoing boundary edge.
+ */
+function capRemainingBoundary(mesh: SolidMesh): void {
+  const boundary = boundaryEdgeList(mesh)
+  if (boundary.length === 0) return
+  const pos = mesh.vertexPosition
+  const component = new Map<number, number>()
+  const find = (id: number): number => {
+    let root = id
+    while (component.get(root) !== root) root = component.get(root)!
+    while (component.get(id) !== root) {
+      const next = component.get(id)!
+      component.set(id, root)
+      id = next
+    }
+    return root
+  }
+  for (const [u, v] of boundary) {
+    if (!component.has(u)) component.set(u, u)
+    if (!component.has(v)) component.set(v, v)
+    component.set(find(u), find(v))
+  }
+  const centroids = new Map<number, { sum: [number, number, number]; count: number; id: number }>()
+  for (const [u, v] of boundary) {
+    const root = find(u)
+    let entry = centroids.get(root)
+    if (!entry) {
+      entry = { sum: [0, 0, 0], count: 0, id: -1 }
+      centroids.set(root, entry)
+    }
+    for (const vertex of [u, v]) {
+      for (let axis = 0; axis < 3; axis++) entry.sum[axis] += pos[vertex * 3 + axis]
+      entry.count++
+    }
+  }
+  for (const entry of centroids.values()) {
+    entry.id = pos.length / 3
+    pos.push(entry.sum[0] / entry.count, entry.sum[1] / entry.count, entry.sum[2] / entry.count)
+  }
+  for (const [u, v] of boundary) {
+    mesh.faces.push(v, u, centroids.get(find(u))!.id)
+  }
+}
+
+/**
  * Merge boundary vertices that sit within `tolerance` of each other and remap
  * faces onto the survivors. Only rim vertices of open edges move, so the
  * visible surface stays put while crack rims wider than the base weld snap
@@ -339,6 +388,7 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
     snapBoundaryVertices(mesh, quantum * factor)
     capBoundaryLoops(mesh)
   }
+  capRemainingBoundary(mesh)
 
   const result = new Float32Array(mesh.faces.length * 3)
   let out = 0

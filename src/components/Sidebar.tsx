@@ -195,7 +195,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
           <dl className="mt-3 grid grid-cols-2 gap-3">
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Vertices</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.vertices.toLocaleString()}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Meshes</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.meshes.toLocaleString()}</dd></div>
-            <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Mesh health</dt><dd className="text-sm">{geometryDetails.watertight ? 'Watertight' : geometryDetails.boundaryEdges === 0 ? 'Sealed' : 'Needs repair'}</dd></div>
+            <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Mesh health</dt><dd className="text-sm">{geometryDetails.watertight ? 'Watertight' : geometryDetails.boundaryEdges === 0 ? 'OK' : 'Needs repair'}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Boundary edges</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.boundaryEdges.toLocaleString()}</dd></div>
             <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Non-manifold</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.nonManifoldEdges.toLocaleString()}</dd></div>
           </dl>

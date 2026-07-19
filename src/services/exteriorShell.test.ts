@@ -137,6 +137,20 @@ describe('finalizeSolid', () => {
     expect(health.watertight).toBe(true)
   })
 
+  it('closes tangled figure-8 boundaries that loop walking cannot chain', () => {
+    // 3x3 quad plate with two diagonal quads removed around the shared center
+    // vertex: the hole boundary forms a figure-8 through that vertex, and the
+    // outer rim is a separate loop. Every boundary edge must end up closed.
+    const soup: number[] = []
+    const at = (i: number, j: number) => [i * 100, j * 100, 0]
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      if ((i === 0 && j === 0) || (i === 1 && j === 1)) continue
+      soup.push(...quad(at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)))
+    }
+    const health = analyzeSoup(finalizeSolid(new Float32Array(soup)))
+    expect(health.boundaryEdges).toBe(0)
+  })
+
   it('removes duplicate double-wall faces that break manifoldness', () => {
     const soup = sphereSoup(24, 10)
     const doubled = new Float32Array(soup.length + 9)

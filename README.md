@@ -39,7 +39,7 @@ Fine detection detail trade processing cost against how small an opening still
 counts as sealed. Undo restores the original geometry and materials.
 
 Mesh health in Details reports three states: Watertight (closed and manifold),
-Sealed (the volume is closed, but some edges are shared by more than two
+OK (the volume is closed, but some edges are shared by more than two
 faces, which slicers handle), and Needs repair (open boundary edges remain).
 Non-manifold edges inherited from the original skin are kept deliberately,
 because rewriting them would change the visible surface.
