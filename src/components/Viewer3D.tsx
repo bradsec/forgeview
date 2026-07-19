@@ -241,10 +241,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const originals = meshes.map((mesh) => mesh.geometry)
       const originalMaterial = meshes[0].material
       meshes.forEach((mesh, index) => { mesh.geometry = result.geometries[index] })
-      // The filled solid is one STL-style geometry without uv/color attributes;
-      // the source material (possibly textured) would render it broken.
+      // The filled solid is one STL-style geometry; source materials (possibly
+      // textured) would render it broken. Baked vertex colors, when present,
+      // carry the original surface look under a white base color.
+      const hasBakedColors = result.geometries[0].hasAttribute('color')
       const solidMaterial = new THREE.MeshStandardMaterial({
-        color: getTheme(useViewerStore.getState().theme).modelColor,
+        color: hasBakedColors ? 0xffffff : getTheme(useViewerStore.getState().theme).modelColor,
+        vertexColors: hasBakedColors,
         roughness: 0.85,
         metalness: 0,
       })

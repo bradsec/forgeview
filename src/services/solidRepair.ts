@@ -1,5 +1,11 @@
 import * as THREE from 'three'
 import { analyzeGeometry, type MeshHealth } from './makeSolid'
+import { bakeCornerColors } from './bakeVertexColors'
+
+/** sRGB byte → linear float, precomputed once. */
+const SRGB_TO_LINEAR = Float32Array.from({ length: 256 }, (_, byte) =>
+  new THREE.Color().setRGB(byte / 255, 0, 0, THREE.SRGBColorSpace).r
+)
 
 export interface SolidRepairStats {
   before: MeshHealth
@@ -62,6 +68,7 @@ export function repairGeometriesInWorker(
 ): Promise<SolidRepairResult> {
   if (meshes.length === 0) return Promise.reject(new Error('The scene has no mesh geometry to repair'))
   const before = sumHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
+  const colors = bakeCornerColors(meshes)
   const positions = combinedPositions(meshes)
   const worker = new Worker(new URL('./solidRepair.worker.ts', import.meta.url), { type: 'module' })
   const id = Date.now()
@@ -94,12 +101,20 @@ export function repairGeometriesInWorker(
       }
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.BufferAttribute(sealed, 3))
+      if (event.data.colors) {
+        const bytes = new Uint8Array(event.data.colors)
+        const linear = new Float32Array(bytes.length)
+        for (let i = 0; i < bytes.length; i++) linear[i] = SRGB_TO_LINEAR[bytes[i]]
+        geometry.setAttribute('color', new THREE.BufferAttribute(linear, 3))
+      }
       geometry.computeVertexNormals()
       const after = analyzeGeometry(geometry)
       const geometries = [geometry, ...meshes.slice(1).map(() => new THREE.BufferGeometry())]
       onProgress(100, 'Solid fill complete')
       resolve({ geometries, stats: { before, after, meshes: meshes.length, resolution: event.data.resolution } })
     }
-    worker.postMessage({ id, positions: positions.buffer, resolution }, [positions.buffer])
+    const transfer: ArrayBuffer[] = [positions.buffer as ArrayBuffer]
+    if (colors) transfer.push(colors.buffer as ArrayBuffer)
+    worker.postMessage({ id, positions: positions.buffer, colors: colors?.buffer ?? null, resolution }, transfer)
   })
 }

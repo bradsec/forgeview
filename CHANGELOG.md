@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0 - 2026-07-19
+
+- Bake base-color textures, material colors, and existing vertex colors into
+  per-vertex colors during Make solid, so textured GLTF surfaces keep their
+  look when materials collapse to one. Colors survive welding and sealing,
+  render in the viewer, and export in GLB and PLY (STL cannot carry color).
+  Shape-defining texture effects (alpha cutouts, displacement) are not baked.
+
 ## 1.5.6 - 2026-07-19
 
 - Guarantee closed volumes after solid fill: any boundary edge that loop

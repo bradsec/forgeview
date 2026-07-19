@@ -34,7 +34,11 @@ Edit > Make solid fills the scene into one STL-style solid. Internal geometry
 that is not part of the outside surface, enclosed cavities and parts hidden
 inside other parts, is deleted, touching parts join under one skin, and
 triangle and vertex counts drop while the outer appearance stays exactly as
-loaded. Materials collapse to a single solid material. Draft, Standard, and
+loaded. Materials collapse to a single solid material, with base-color textures,
+material colors, and existing vertex colors baked into per-vertex colors so
+textured surfaces keep their look (GLB and PLY exports carry the colors; STL
+cannot). Shape-defining texture effects such as alpha cutouts and displacement
+maps are not baked. Draft, Standard, and
 Fine detection detail trade processing cost against how small an opening still
 counts as sealed. Undo restores the original geometry and materials.
 
