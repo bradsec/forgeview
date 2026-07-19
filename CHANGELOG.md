@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.2 - 2026-07-19
+
+- Remove the misleading mesh-health verdict from Details while retaining the
+  factual boundary and non-manifold edge counts.
+- Rename the Make solid action from Repair model to Apply and align its progress
+  and completion messages with the operation.
+
 ## 1.6.1 - 2026-07-19
 
 - Keep everything visible from outside: Make solid now also renders the model

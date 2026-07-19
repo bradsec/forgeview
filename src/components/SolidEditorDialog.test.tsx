@@ -21,14 +21,14 @@ describe('SolidEditorDialog', () => {
     })
     const viewerRef = { current: { makeSolid } as unknown as Viewer3DHandle }
     render(<SolidEditorDialog viewerRef={viewerRef} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Repair model' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     expect(makeSolid).toHaveBeenCalledWith(128, expect.any(Function), expect.any(AbortSignal))
     expect(await screen.findByText('Solid fill complete')).toBeTruthy()
     expect(screen.getByText('Interior removed, exterior kept')).toBeTruthy()
     expect(screen.getByText('100 → 40')).toBeTruthy()
     expect(screen.getByText('3 → 1')).toBeTruthy()
-    expect(useViewerStore.getState().notice).toContain('repair applied')
+    expect(useViewerStore.getState().notice).toContain('Make solid applied')
   })
 
   it('reports a watertight result when the kept surface is closed', async () => {
@@ -43,7 +43,7 @@ describe('SolidEditorDialog', () => {
     })
     const viewerRef = { current: { makeSolid } as unknown as Viewer3DHandle }
     render(<SolidEditorDialog viewerRef={viewerRef} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Repair model' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     expect(await screen.findByText('Watertight solid')).toBeTruthy()
     expect(screen.getByText('24 → 12')).toBeTruthy()

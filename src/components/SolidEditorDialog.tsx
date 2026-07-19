@@ -39,7 +39,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
         setPhase(nextPhase)
       }, controller.signal)
       setStats(result)
-      useViewerStore.getState().setNotice('Model repair applied. Export will use the repaired geometry.')
+      useViewerStore.getState().setNotice('Make solid applied. Export will use the updated geometry.')
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         useViewerStore.getState().setError(error instanceof Error ? error.message : String(error))
@@ -83,7 +83,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
         </div>
         <div className="p-4 border-t border-[var(--border)] flex justify-end gap-2">
           <button type="button" onClick={close} className="px-4 py-1.5 rounded bg-[var(--bg-button)]">{busy ? 'Cancel' : 'Close'}</button>
-          {!stats && <button type="button" disabled={busy} onClick={() => void run()} className="px-4 py-1.5 rounded bg-[var(--accent-button)] text-white disabled:opacity-50">{busy ? 'Repairing…' : 'Repair model'}</button>}
+          {!stats && <button type="button" disabled={busy} onClick={() => void run()} className="px-4 py-1.5 rounded bg-[var(--accent-button)] text-white disabled:opacity-50">{busy ? 'Applying…' : 'Apply'}</button>}
         </div>
       </section>
     </div>

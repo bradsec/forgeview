@@ -154,7 +154,7 @@ test('exports the open model as binary STL via download', async ({ page, isMobil
   expect(bytes.readUInt32LE(80)).toBe(2)
 })
 
-test('repairs the open model from the Edit menu with visible progress', async ({ page, isMobile }) => {
+test('makes the open model solid from the Edit menu with visible progress', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Edit flow verified on desktop')
   await dropStl(page, 'repairme.stl', OPEN_BOX_STL)
   await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
@@ -163,7 +163,7 @@ test('repairs the open model from the Edit menu with visible progress', async ({
   await page.getByRole('menuitem', { name: 'Make solid…' }).click()
   const dialog = page.getByRole('dialog', { name: 'Make solid' })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Repair model' }).click()
+  await dialog.getByRole('button', { name: 'Apply' }).click()
   await expect(dialog.getByText('Solid fill complete')).toBeVisible()
   await expect(dialog.getByText('Watertight solid')).toBeVisible()
 })

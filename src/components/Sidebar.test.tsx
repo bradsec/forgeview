@@ -26,11 +26,11 @@ describe('Sidebar mobile variant', () => {
   })
 })
 
-describe('Sidebar mesh health verdict', () => {
-  const details = (boundaryEdges: number, nonManifoldEdges: number, watertight: boolean) => ({
+describe('Sidebar geometry details', () => {
+  const details = {
     width: 1, height: 1, depth: 1, meshes: 1, modelUnitInMm: null,
-    vertices: 10, boundaryEdges, nonManifoldEdges, watertight,
-  })
+    vertices: 10, boundaryEdges: 9, nonManifoldEdges: 2, watertight: false,
+  }
 
   beforeEach(() => {
     useViewerStore.setState({
@@ -40,22 +40,13 @@ describe('Sidebar mesh health verdict', () => {
     })
   })
 
-  it('reports Watertight for a closed manifold mesh', () => {
-    useViewerStore.setState({ geometryDetails: details(0, 0, true) })
+  it('shows factual edge counts without a mesh health verdict', () => {
+    useViewerStore.setState({ geometryDetails: details })
     render(<Sidebar mobile />)
-    expect(screen.getByText('Watertight')).toBeTruthy()
-  })
-
-  it('reports OK when the volume is closed but edges are non-manifold', () => {
-    useViewerStore.setState({ geometryDetails: details(0, 12, false) })
-    render(<Sidebar mobile />)
-    expect(screen.getByText('OK')).toBeTruthy()
-  })
-
-  it('reports Needs repair when boundary edges leave the volume open', () => {
-    useViewerStore.setState({ geometryDetails: details(9, 0, false) })
-    render(<Sidebar mobile />)
-    expect(screen.getByText('Needs repair')).toBeTruthy()
+    expect(screen.getByText('Boundary edges')).toBeTruthy()
+    expect(screen.getByText('Non-manifold')).toBeTruthy()
+    expect(screen.queryByText('Mesh health')).toBeNull()
+    expect(screen.queryByText('Needs repair')).toBeNull()
   })
 })
 

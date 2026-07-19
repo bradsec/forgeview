@@ -13,9 +13,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
 - Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
 - Export the scene as STL, 3MF, OBJ, PLY, or GLB (File > Export model as)
-- Edit models in place with worker-backed Make solid processing, live progress, mesh-health results, and one-level undo
+- Edit models in place with worker-backed Make solid processing, live progress, and one-level undo
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
-- Details include vertices, mesh count, and watertightness indicators
+- Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right Details panel, and bottom camera navigation
 - In-app format help, About information, and repository/version status footer
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
@@ -38,11 +38,9 @@ loaded. Materials collapse to a single solid material. Draft, Standard, and
 Fine detection detail trade processing cost against how small an opening still
 counts as sealed. Undo restores the original geometry and materials.
 
-Mesh health in Details reports three states: Watertight (closed and manifold),
-OK (the volume is closed, but some edges are shared by more than two
-faces, which slicers handle), and Needs repair (open boundary edges remain).
-Non-manifold edges inherited from the original skin are kept deliberately,
-because rewriting them would change the visible surface.
+Details reports boundary and non-manifold edge counts without interpreting them
+as model damage. Non-manifold edges inherited from the original skin are kept
+deliberately, because rewriting them would change the visible surface.
 
 3MF export includes an explicit physical-unit selector and defaults to
 millimetres. STL, OBJ, and PLY do not encode physical units.
