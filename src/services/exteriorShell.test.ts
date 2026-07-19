@@ -100,15 +100,15 @@ describe('finalizeSolid', () => {
     // that finalization drops as degenerate.
     const soup = sphereSoup(24, 10)
     const sealed = finalizeSolid(soup)
-    expect(sealed.positions.length).toBeLessThanOrEqual(soup.length)
-    expect(analyzeSoup(sealed.positions).watertight).toBe(true)
+    expect(sealed.length).toBeLessThanOrEqual(soup.length)
+    expect(analyzeSoup(sealed).watertight).toBe(true)
   })
 
   it('caps an open box into a watertight solid', () => {
     const soup = openBoxSoup()
     const before = analyzeSoup(soup)
     expect(before.boundaryEdges).toBe(4)
-    const health = analyzeSoup(finalizeSolid(soup).positions)
+    const health = analyzeSoup(finalizeSolid(soup))
     expect(health.boundaryEdges).toBe(0)
     expect(health.watertight).toBe(true)
   })
@@ -119,7 +119,7 @@ describe('finalizeSolid', () => {
     const soup = openBoxSoup()
     const scaled = new Float32Array(soup.length)
     for (let i = 0; i < soup.length; i++) scaled[i] = soup[i] * 1000 + (i % 7 === 0 ? 1e-4 : 0)
-    const health = analyzeSoup(finalizeSolid(scaled).positions)
+    const health = analyzeSoup(finalizeSolid(scaled))
     expect(health.boundaryEdges).toBe(0)
     expect(health.watertight).toBe(true)
   })
@@ -132,7 +132,7 @@ describe('finalizeSolid', () => {
     const scaled = new Float32Array(soup.length)
     for (let i = 0; i < soup.length; i++) scaled[i] = soup[i] * 1000
     for (let i = 18; i < 36; i += 3) scaled[i + 2] += 0.3
-    const health = analyzeSoup(finalizeSolid(scaled).positions)
+    const health = analyzeSoup(finalizeSolid(scaled))
     expect(health.boundaryEdges).toBe(0)
     expect(health.watertight).toBe(true)
   })
@@ -147,21 +147,8 @@ describe('finalizeSolid', () => {
       if ((i === 0 && j === 0) || (i === 1 && j === 1)) continue
       soup.push(...quad(at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)))
     }
-    const health = analyzeSoup(finalizeSolid(new Float32Array(soup)).positions)
+    const health = analyzeSoup(finalizeSolid(new Float32Array(soup)))
     expect(health.boundaryEdges).toBe(0)
-  })
-
-  it('carries baked corner colors through welding and gives caps averaged colors', () => {
-    const soup = openBoxSoup()
-    const colors = new Uint8Array(soup.length)
-    for (let i = 0; i < colors.length; i += 3) { colors[i] = 200; colors[i + 1] = 50; colors[i + 2] = 10 }
-    const sealed = finalizeSolid(soup, colors)
-    expect(sealed.colors).not.toBeNull()
-    expect(sealed.colors!.length).toBe(sealed.positions.length)
-    // Kept skin corners keep their color; the cap centroid averages to the same.
-    expect(Array.from(sealed.colors!.subarray(0, 3))).toEqual([200, 50, 10])
-    expect(Array.from(sealed.colors!.subarray(sealed.colors!.length - 3))).toEqual([200, 50, 10])
-    expect(analyzeSoup(sealed.positions).watertight).toBe(true)
   })
 
   it('removes duplicate double-wall faces that break manifoldness', () => {
@@ -170,7 +157,7 @@ describe('finalizeSolid', () => {
     doubled.set(soup)
     doubled.set(soup.subarray(0, 9), soup.length)
     expect(analyzeSoup(doubled).watertight).toBe(false)
-    const health = analyzeSoup(finalizeSolid(doubled).positions)
+    const health = analyzeSoup(finalizeSolid(doubled))
     expect(health.duplicateFaces).toBe(0)
     expect(health.watertight).toBe(true)
   })
@@ -192,7 +179,7 @@ describe('finalizeSolid', () => {
     }
     const before = analyzeSoup(filtered)
     expect(before.boundaryEdges).toBeGreaterThan(0)
-    const health = analyzeSoup(finalizeSolid(filtered).positions)
+    const health = analyzeSoup(finalizeSolid(filtered))
     expect(health.boundaryEdges).toBe(0)
   })
 })

@@ -1,12 +1,19 @@
 # Changelog
 
-## 1.6.0 - 2026-07-19
+## 1.6.1 - 2026-07-19
 
-- Bake base-color textures, material colors, and existing vertex colors into
-  per-vertex colors during Make solid, so textured GLTF surfaces keep their
-  look when materials collapse to one. Colors survive welding and sealing,
-  render in the viewer, and export in GLB and PLY (STL cannot carry color).
-  Shape-defining texture effects (alpha cutouts, displacement) are not baked.
+- Keep everything visible from outside: Make solid now also renders the model
+  from 42 surrounding directions on the GPU and preserves every triangle seen
+  in any view, protecting detail behind gaps narrower than a detection voxel
+  (such as trigger-guard slots) that the air-flood alone misclassified.
+- Revert vertex-color baking from 1.6.0: the filled solid is plain gray again.
+- Iterate the final boundary closure so fan spokes at pinched vertices are
+  themselves sealed.
+
+## 1.6.0 - 2026-07-19 (reverted)
+
+- Baked textures and colors into per-vertex colors during Make solid.
+  Reverted in 1.6.1: the solid result should be plain gray.
 
 ## 1.5.6 - 2026-07-19
 

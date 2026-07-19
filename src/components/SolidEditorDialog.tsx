@@ -55,7 +55,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
       <section role="dialog" aria-modal="true" aria-labelledby="solid-editor-title" className="w-full max-w-lg rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] shadow-xl">
         <div className="p-5 border-b border-[var(--border)]">
           <h2 id="solid-editor-title" className="text-base font-semibold text-[var(--text-bright)]">Make solid</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">Fills the model into one STL-style solid: internal geometry that is not part of the outside surface, including enclosed cavities and parts hidden inside other parts, is deleted, and touching parts join under one skin. The outer appearance is preserved exactly; materials collapse to one, with textures and colors baked into per-vertex colors.</p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Fills the model into one STL-style solid: internal geometry that is not part of the outside surface, including enclosed cavities and parts hidden inside other parts, is deleted, and touching parts join under one skin. The outer appearance is preserved exactly; materials collapse to one.</p>
         </div>
         <div className="p-5">
           {!busy && !stats && (

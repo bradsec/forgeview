@@ -164,24 +164,6 @@ interface SolidMesh {
   vertexPosition: number[]
   /** vertex-id triples, winding preserved from the source soup. */
   faces: number[]
-  /** rgb bytes per vertex id (baked texture/material colors), or null. */
-  vertexColor: number[] | null
-}
-
-/** Append a new vertex that averages the given ids' positions and colors. */
-function pushAverageVertex(mesh: SolidMesh, ids: number[]): number {
-  const position = [0, 0, 0]
-  const color = [0, 0, 0]
-  for (const id of ids) {
-    for (let axis = 0; axis < 3; axis++) {
-      position[axis] += mesh.vertexPosition[id * 3 + axis]
-      if (mesh.vertexColor) color[axis] += mesh.vertexColor[id * 3 + axis]
-    }
-  }
-  const newId = mesh.vertexPosition.length / 3
-  for (let axis = 0; axis < 3; axis++) mesh.vertexPosition.push(position[axis] / ids.length)
-  if (mesh.vertexColor) for (let axis = 0; axis < 3; axis++) mesh.vertexColor.push(Math.round(color[axis] / ids.length))
-  return newId
 }
 
 function buildDirectedEdges(mesh: SolidMesh): Map<number, number> {
@@ -275,7 +257,11 @@ function capBoundaryLoops(mesh: SolidMesh): void {
       for (const edge of walked) consumed.delete(edge)
       continue
     }
-    const centroidId = pushAverageVertex(mesh, loop)
+    const centroid = [0, 0, 0]
+    for (const id of loop) for (let axis = 0; axis < 3; axis++) centroid[axis] += pos[id * 3 + axis]
+    for (let axis = 0; axis < 3; axis++) centroid[axis] /= loop.length
+    const centroidId = pos.length / 3
+    pos.push(centroid[0], centroid[1], centroid[2])
     for (let i = 0; i < loop.length; i++) {
       mesh.faces.push(loop[(i + 1) % loop.length], loop[i], centroidId)
     }
@@ -292,6 +278,7 @@ function capBoundaryLoops(mesh: SolidMesh): void {
 function capRemainingBoundary(mesh: SolidMesh): void {
   const boundary = boundaryEdgeList(mesh)
   if (boundary.length === 0) return
+  const pos = mesh.vertexPosition
   const component = new Map<number, number>()
   const find = (id: number): number => {
     let root = id
@@ -308,17 +295,25 @@ function capRemainingBoundary(mesh: SolidMesh): void {
     if (!component.has(v)) component.set(v, v)
     component.set(find(u), find(v))
   }
-  const members = new Map<number, number[]>()
+  const centroids = new Map<number, { sum: [number, number, number]; count: number; id: number }>()
   for (const [u, v] of boundary) {
     const root = find(u)
-    const list = members.get(root)
-    if (list) list.push(u, v)
-    else members.set(root, [u, v])
+    let entry = centroids.get(root)
+    if (!entry) {
+      entry = { sum: [0, 0, 0], count: 0, id: -1 }
+      centroids.set(root, entry)
+    }
+    for (const vertex of [u, v]) {
+      for (let axis = 0; axis < 3; axis++) entry.sum[axis] += pos[vertex * 3 + axis]
+      entry.count++
+    }
   }
-  const centroidIds = new Map<number, number>()
-  for (const [root, ids] of members) centroidIds.set(root, pushAverageVertex(mesh, ids))
+  for (const entry of centroids.values()) {
+    entry.id = pos.length / 3
+    pos.push(entry.sum[0] / entry.count, entry.sum[1] / entry.count, entry.sum[2] / entry.count)
+  }
   for (const [u, v] of boundary) {
-    mesh.faces.push(v, u, centroidIds.get(find(u))!)
+    mesh.faces.push(v, u, centroids.get(find(u))!.id)
   }
 }
 
@@ -359,17 +354,10 @@ function snapBoundaryVertices(mesh: SolidMesh, tolerance: number): void {
  *    the filled volume, skin holes become flat caps.
  * 4. While open edges remain, snap boundary rim vertices together at a
  *    growing (still sub-visible) tolerance and cap again.
- *
- * `colors`, when given, holds one rgb byte triple per soup corner (baked
- * texture/material colors); they follow the welded vertices and caps average
- * their loop's colors.
  */
-export function finalizeSolid(
-  positions: Float32Array,
-  colors: Uint8Array | null = null
-): { positions: Float32Array; colors: Uint8Array | null } {
+export function finalizeSolid(positions: Float32Array): Float32Array {
   const triangles = Math.floor(positions.length / 9)
-  if (triangles === 0) return { positions, colors }
+  if (triangles === 0) return positions
 
   const bounds = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]
   for (let i = 0; i < positions.length; i += 3) for (let axis = 0; axis < 3; axis++) {
@@ -380,7 +368,7 @@ export function finalizeSolid(
   const quantum = Math.max(diagonal * 1e-5, 1e-9)
 
   const vertexIds = new Map<string, number>()
-  const mesh: SolidMesh = { vertexPosition: [], faces: [], vertexColor: colors ? [] : null }
+  const mesh: SolidMesh = { vertexPosition: [], faces: [] }
   for (let corner = 0; corner < triangles * 3; corner++) {
     const offset = corner * 3
     const key = `${Math.round(positions[offset] / quantum)},${Math.round(positions[offset + 1] / quantum)},${Math.round(positions[offset + 2] / quantum)}`
@@ -389,7 +377,6 @@ export function finalizeSolid(
       id = vertexIds.size
       vertexIds.set(key, id)
       mesh.vertexPosition.push(positions[offset], positions[offset + 1], positions[offset + 2])
-      if (colors && mesh.vertexColor) mesh.vertexColor.push(colors[offset], colors[offset + 1], colors[offset + 2])
     }
     mesh.faces.push(id)
   }
@@ -401,20 +388,22 @@ export function finalizeSolid(
     snapBoundaryVertices(mesh, quantum * factor)
     capBoundaryLoops(mesh)
   }
-  capRemainingBoundary(mesh)
+  // Fan spokes at pinched vertices can themselves stay single-sided, so the
+  // fallback iterates while it keeps making progress.
+  let previousOpen = Infinity
+  for (let round = 0; round < 4; round++) {
+    const open = boundaryEdgeList(mesh).length
+    if (open === 0 || open >= previousOpen) break
+    previousOpen = open
+    capRemainingBoundary(mesh)
+  }
 
   const result = new Float32Array(mesh.faces.length * 3)
-  const resultColors = mesh.vertexColor ? new Uint8Array(mesh.faces.length * 3) : null
   let out = 0
   for (const id of mesh.faces) {
-    if (resultColors && mesh.vertexColor) {
-      resultColors[out] = mesh.vertexColor[id * 3]
-      resultColors[out + 1] = mesh.vertexColor[id * 3 + 1]
-      resultColors[out + 2] = mesh.vertexColor[id * 3 + 2]
-    }
     result[out++] = mesh.vertexPosition[id * 3]
     result[out++] = mesh.vertexPosition[id * 3 + 1]
     result[out++] = mesh.vertexPosition[id * 3 + 2]
   }
-  return { positions: result, colors: resultColors }
+  return result
 }

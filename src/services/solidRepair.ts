@@ -1,11 +1,6 @@
 import * as THREE from 'three'
 import { analyzeGeometry, type MeshHealth } from './makeSolid'
-import { bakeCornerColors } from './bakeVertexColors'
-
-/** sRGB byte → linear float, precomputed once. */
-const SRGB_TO_LINEAR = Float32Array.from({ length: 256 }, (_, byte) =>
-  new THREE.Color().setRGB(byte / 255, 0, 0, THREE.SRGBColorSpace).r
-)
+import { visibleTriangleFlags } from './visibleTriangles'
 
 export interface SolidRepairStats {
   before: MeshHealth
@@ -68,11 +63,16 @@ export function repairGeometriesInWorker(
 ): Promise<SolidRepairResult> {
   if (meshes.length === 0) return Promise.reject(new Error('The scene has no mesh geometry to repair'))
   const before = sumHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
-  const colors = bakeCornerColors(meshes)
+  onProgress(1, 'Combining scene as triangle soup')
   const positions = combinedPositions(meshes)
+  // GPU visibility protects surfaces behind gaps narrower than a detection
+  // voxel; without WebGL the voxel classification stands alone.
+  onProgress(2, 'Checking outside visibility')
+  const visible = visibleTriangleFlags(positions, (fraction) =>
+    onProgress(2 + Math.round(fraction * 3), 'Checking outside visibility')
+  )
   const worker = new Worker(new URL('./solidRepair.worker.ts', import.meta.url), { type: 'module' })
   const id = Date.now()
-  onProgress(2, 'Combining scene as triangle soup')
   return new Promise((resolve, reject) => {
     const cleanup = () => {
       worker.terminate()
@@ -101,12 +101,6 @@ export function repairGeometriesInWorker(
       }
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.BufferAttribute(sealed, 3))
-      if (event.data.colors) {
-        const bytes = new Uint8Array(event.data.colors)
-        const linear = new Float32Array(bytes.length)
-        for (let i = 0; i < bytes.length; i++) linear[i] = SRGB_TO_LINEAR[bytes[i]]
-        geometry.setAttribute('color', new THREE.BufferAttribute(linear, 3))
-      }
       geometry.computeVertexNormals()
       const after = analyzeGeometry(geometry)
       const geometries = [geometry, ...meshes.slice(1).map(() => new THREE.BufferGeometry())]
@@ -114,7 +108,7 @@ export function repairGeometriesInWorker(
       resolve({ geometries, stats: { before, after, meshes: meshes.length, resolution: event.data.resolution } })
     }
     const transfer: ArrayBuffer[] = [positions.buffer as ArrayBuffer]
-    if (colors) transfer.push(colors.buffer as ArrayBuffer)
-    worker.postMessage({ id, positions: positions.buffer, colors: colors?.buffer ?? null, resolution }, transfer)
+    if (visible) transfer.push(visible.buffer as ArrayBuffer)
+    worker.postMessage({ id, positions: positions.buffer, visible: visible?.buffer ?? null, resolution }, transfer)
   })
 }
