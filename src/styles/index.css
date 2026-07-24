@@ -360,23 +360,6 @@ button:not(:disabled) {
   font-size: 12px;
 }
 
-.about-support-link {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  font-weight: 650;
-}
-
-.about-support-link:hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent-hover);
-}
-
 .about-dialog button {
   display: block;
   min-width: 72px;

@@ -319,8 +319,7 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
             <p>Supports STL, 3MF, OBJ, GLTF, GLB, PLY and DAE model files.</p>
             <div className="about-links">
               <a className="about-repo-link" href="https://github.com/bradsec/forgeview" target="_blank" rel="noreferrer">View forgeview on GitHub</a>
-              <p className="about-support-copy">Found forgeview useful? Support the creator.</p>
-              <a className="about-support-link" href="https://buymeacoffee.com/markbradley" target="_blank" rel="noreferrer">Buy me a coffee</a>
+              <p className="about-support-copy">If you find this useful, please consider starring the repository. It helps others discover the project.</p>
             </div>
             <button type="button" onClick={() => setAboutOpen(false)} autoFocus>Close</button>
           </section>
