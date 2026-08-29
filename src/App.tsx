@@ -49,7 +49,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
       <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || solidEditorOpen}>
-        <Toolbar onUndoEdit={() => viewerRef.current?.undoEdit()} />
+        <Toolbar />
         <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
         <DirectoryPanel />
@@ -102,14 +102,14 @@ export default function App() {
             </div>
           )}
         </main>
-        <Sidebar />
+        <Sidebar onUndoEdit={() => viewerRef.current?.undoEdit()} />
         </div>
       </div>
       <MobileDrawer side="left" open={mobileDrawer === 'explorer'} onClose={() => setMobileDrawer('none')}>
         <DirectoryPanel mobile />
       </MobileDrawer>
       <MobileDrawer side="right" open={mobileDrawer === 'details'} onClose={() => setMobileDrawer('none')}>
-        <Sidebar mobile />
+        <Sidebar mobile onUndoEdit={() => viewerRef.current?.undoEdit()} />
       </MobileDrawer>
       <SettingsModal />
       <ExportDialog viewerRef={viewerRef} />

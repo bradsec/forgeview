@@ -11,21 +11,33 @@ beforeEach(() => {
   useViewerStore.setState({
     viewMode: 'solid', dirPath: '/m', mainView: 'grid',
     explorerVisible: true, sidebarVisible: true, theme: 'dark', mobileDrawer: 'none',
+    rightPanelTab: 'details',
   })
   vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
 })
 
 describe('Toolbar application menus', () => {
-  it('opens model editing tools and invokes undo from the Edit menu', async () => {
-    const undo = vi.fn()
-    useViewerStore.setState({ filePath: '/m/model.stl', canUndoEdit: true, solidEditorOpen: false })
-    render(<Toolbar onUndoEdit={undo} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    await userEvent.click(within(screen.getByTestId('toolbar-edit-menu')).getByRole('menuitem', { name: 'Make solid…' }))
-    expect(useViewerStore.getState().solidEditorOpen).toBe(true)
-    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    await userEvent.click(within(screen.getByTestId('toolbar-edit-menu')).getByRole('menuitem', { name: 'Undo last model edit' }))
-    expect(undo).toHaveBeenCalledOnce()
+  it('has no Edit menu', () => {
+    render(<Toolbar />)
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+  })
+
+  it('Prepare button opens the Prepare tab on a wide viewport', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }))
+    useViewerStore.setState({ filePath: '/m/model.stl', sidebarVisible: false, rightPanelTab: 'details' })
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare' }))
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    expect(useViewerStore.getState().sidebarVisible).toBe(true)
+  })
+
+  it('Prepare button opens the details drawer on a narrow viewport', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    useViewerStore.setState({ filePath: '/m/model.stl', mobileDrawer: 'none', rightPanelTab: 'details' })
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare' }))
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    expect(useViewerStore.getState().mobileDrawer).toBe('details')
   })
   it('opens and closes the File menu after choosing Open file', async () => {
     render(<Toolbar />)
