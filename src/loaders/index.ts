@@ -29,6 +29,35 @@ const THREE_MF_UNIT_MM: Record<string, number> = {
   meter: 1000,
 }
 
+// A 3MF is a zip. Reject archives that would inflate to an implausible size
+// before any decompression runs, so a small crafted file cannot exhaust memory
+// here or inside ThreeMFLoader's own unzip. Sizes come from the zip directory
+// (no inflation); an entry that hides its size in a trailing data descriptor
+// (originalSize 0 with a non-trivial payload) is treated as untrustworthy.
+const MAX_INFLATED_ARCHIVE_BYTES = 1024 * 1024 * 1024
+const MAX_ARCHIVE_INFLATION_RATIO = 250
+
+export function assertArchiveWithinBudget(buffer: ArrayBuffer): void {
+  let inflated = 0
+  let compressed = 0
+  unzipSync(new Uint8Array(buffer), {
+    filter: (file) => {
+      inflated += file.originalSize
+      compressed += file.size
+      if (file.originalSize === 0 && file.size > 1024 * 1024) {
+        throw new Error('3MF archive entry does not declare its size and was rejected')
+      }
+      if (inflated > MAX_INFLATED_ARCHIVE_BYTES) {
+        throw new Error('3MF archive expands to over 1 GB and was rejected')
+      }
+      return false
+    },
+  })
+  if (compressed > 0 && inflated / compressed > MAX_ARCHIVE_INFLATION_RATIO) {
+    throw new Error('3MF archive has an implausible compression ratio and was rejected')
+  }
+}
+
 function threeMFUnitScale(buffer: ArrayBuffer): number {
   const archive = unzipSync(new Uint8Array(buffer))
   const model = Object.entries(archive).find(([path]) => path.toLowerCase().endsWith('.model'))?.[1]
@@ -121,6 +150,7 @@ export async function parseModelBuffer(buffer: ArrayBuffer, ext: string): Promis
       break
     }
     case '.3mf': {
+      assertArchiveWithinBudget(buffer)
       object = new ThreeMFLoader().parse(buffer) as THREE.Group
       object.userData.modelUnitInMm = threeMFUnitScale(buffer)
       break

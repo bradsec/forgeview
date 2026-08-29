@@ -7,6 +7,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 import {
+  assertArchiveWithinBudget,
   getLoaderForExtension,
   countTriangles,
   applyViewMode,
@@ -441,6 +442,24 @@ endsolid test
 
   it('rejects unsupported extensions', async () => {
     await expect(parseModelBuffer(stlBuffer(), '.xyz')).rejects.toThrow('Unsupported format: .xyz')
+  })
+
+  it('rejects a 3MF decompression bomb before the loader inflates it', async () => {
+    const { zipSync, strToU8 } = await import('three/addons/libs/fflate.module.js')
+    // strToU8 in jsdom returns a cross-realm Uint8Array that fflate's zipSync
+    // mis-serialises; re-wrap in this realm's Uint8Array (see exporters.ts).
+    const payload = new Uint8Array(strToU8('x'.repeat(500_000)))
+    const bomb = zipSync({ '3D/3dmodel.model': payload }, { level: 9 })
+    const buffer = bomb.buffer.slice(bomb.byteOffset, bomb.byteOffset + bomb.byteLength) as ArrayBuffer
+    expect(() => assertArchiveWithinBudget(buffer)).toThrow(/compression ratio|expands to over/)
+  })
+
+  it('accepts a normal 3MF archive', async () => {
+    const { zipSync, strToU8 } = await import('three/addons/libs/fflate.module.js')
+    const payload = new Uint8Array(strToU8('<model unit="millimeter"></model>'))
+    const ok = zipSync({ '3D/3dmodel.model': payload })
+    const buffer = ok.buffer.slice(ok.byteOffset, ok.byteOffset + ok.byteLength) as ArrayBuffer
+    expect(() => assertArchiveWithinBudget(buffer)).not.toThrow()
   })
 
   it('loadModelFromBuffer adds the parsed model to the scene', async () => {
