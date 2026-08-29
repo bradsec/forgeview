@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.4 - 2026-07-25
+
+- Replace the donation prompt in the footer with a repository star request.
+
+## 1.6.3 - 2026-07-23
+
+- Upgrade to TypeScript 7 (native compiler) for faster builds.
+
 ## 1.6.2 - 2026-07-19
 
 - Remove the misleading mesh-health verdict from Details while retaining the
