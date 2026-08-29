@@ -80,6 +80,13 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
               <div><dt className="text-[var(--text-muted)]">Result</dt><dd>{stats.after.watertight ? 'Watertight solid' : 'Interior removed, exterior kept'}</dd></div>
             </dl>
           )}
+          {stats && !stats.gpuAssisted && (
+            <p className="mt-4 text-sm text-[var(--text-warning,#b45309)]">
+              WebGL was unavailable, so only the voxel scan ran. Recessed surfaces behind narrow
+              gaps may have been trimmed. Enable hardware acceleration and undo, then re-apply, if
+              the result has holes.
+            </p>
+          )}
         </div>
         <div className="p-4 border-t border-[var(--border)] flex justify-end gap-2">
           <button type="button" onClick={close} className="px-4 py-1.5 rounded bg-[var(--bg-button)]">{busy ? 'Cancel' : 'Close'}</button>
