@@ -37,3 +37,7 @@ GEMINI.md
 
 # Test coverage output
 coverage/
+
+# Local model fixtures for manual/e2e testing (large, not for the repo)
+test.stl
+*.local.stl
