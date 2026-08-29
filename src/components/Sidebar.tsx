@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { ModelList } from './ModelList'
+import { PreparePanel } from './prepare/PreparePanel'
 
 const MIN_WIDTH = 140
 const MAX_WIDTH = 500
@@ -16,7 +17,7 @@ function formatBytes(bytes: number): string {
  * Right-side panel showing scene models and file metadata.
  * Resizable via left-edge drag handle. Closable via header button.
  */
-export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
+export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUndoEdit?: () => void } = {}) {
   const fileName = useViewerStore((s) => s.fileName)
   const fileExtension = useViewerStore((s) => s.fileExtension)
   const fileSize = useViewerStore((s) => s.fileSize)
@@ -25,6 +26,7 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
   const isLoading = useViewerStore((s) => s.isLoading)
   const error = useViewerStore((s) => s.error)
   const sidebarVisible = useViewerStore((s) => (mobile ? true : s.sidebarVisible))
+  const rightPanelTab = useViewerStore((s) => s.rightPanelTab)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const isDragging = useRef(false)
   const dragCleanupRef = useRef<(() => void) | null>(null)
@@ -114,6 +116,27 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
         </div>
       )}
 
+      <div role="tablist" aria-label="Right panel" className="flex border-b border-[var(--border)] px-2 pt-2 gap-1">
+        {(['details', 'prepare'] as const).map((tab) => (
+          <button
+            key={tab}
+            role="tab"
+            type="button"
+            aria-selected={rightPanelTab === tab}
+            onClick={() => useViewerStore.getState().setRightPanelTab(tab)}
+            className={`px-3 py-1.5 text-sm rounded-t ${
+              rightPanelTab === tab
+                ? 'bg-[var(--bg-app)] text-[var(--text-bright)]'
+                : 'text-[var(--text-label)]'
+            }`}
+          >
+            {tab === 'details' ? 'Details' : 'Prepare'}
+          </button>
+        ))}
+      </div>
+
+      {rightPanelTab === 'details' ? (
+        <>
       {/* Scene Models section */}
       <div className="flex flex-col">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -201,6 +224,12 @@ export function Sidebar({ mobile = false }: { mobile?: boolean } = {}) {
         </>
       )}
       </div>
+        </>
+      ) : (
+        <div className="p-4 flex-1 overflow-y-auto">
+          <PreparePanel onUndoEdit={onUndoEdit} />
+        </div>
+      )}
     </aside>
   )
 }

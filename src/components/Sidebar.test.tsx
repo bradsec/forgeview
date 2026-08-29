@@ -81,3 +81,35 @@ describe('Sidebar desktop variant', () => {
     expect(remove.mock.calls.some(([type]) => type === 'mouseup')).toBe(true)
   })
 })
+
+describe('Sidebar tabs', () => {
+  beforeEach(() => {
+    useViewerStore.setState({
+      sidebarVisible: true, mobileDrawer: 'none', rightPanelTab: 'details',
+      fileName: 'model.stl', fileExtension: '.stl', fileSize: 10, triangleCount: 4,
+      isLoading: false, error: null, loadedModels: [], filePath: '/m/model.stl',
+      geometryDetails: null, canUndoEdit: false,
+    })
+  })
+
+  it('shows the Details body by default', () => {
+    render(<Sidebar />)
+    expect(screen.getByText('File Info')).toBeTruthy()
+    expect(screen.queryByTestId('prepare-empty')).toBeNull()
+  })
+
+  it('switches to the Prepare body when the Prepare tab is clicked', async () => {
+    render(<Sidebar />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    expect(screen.getByTestId('prepare-empty')).toBeTruthy()
+    expect(screen.queryByText('File Info')).toBeNull()
+  })
+
+  it('marks the active tab with aria-selected', async () => {
+    render(<Sidebar />)
+    expect(screen.getByRole('tab', { name: 'Details' }).getAttribute('aria-selected')).toBe('true')
+    await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
+    expect(screen.getByRole('tab', { name: 'Prepare' }).getAttribute('aria-selected')).toBe('true')
+  })
+})
