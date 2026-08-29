@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Make solid now seals every open edge left on the outer surface, so the result
+  has no holes even on models the classification barely trims. Boundary loops
+  are triangulated by ear clipping instead of a centroid fan, and a terminal
+  fan-and-weld pass closes any tangled remainder.
+- Make solid keeps recessed but visible detail more reliably: the reachable
+  margin is a fixed fraction of the model size instead of a fixed voxel count
+  (so the Fine preset no longer trims more than Draft), the GPU visibility pass
+  renders at 2048 and is pinned to a linear id buffer, and when WebGL is
+  unavailable the fill widens its margin and the dialog says the result may
+  have trimmed recessed detail.
+- The Make solid result line distinguishes a strictly watertight solid, a
+  sealed solid with no open edges, and a result that still has open edges.
+- 3MF files that would inflate to an implausible size are rejected before the
+  loader decompresses them.
+- Remove the unused export-time shell fill that had diverged from the Make
+  solid pipeline.
+
 ## 1.6.4 - 2026-07-25
 
 - Replace the donation prompt in the footer with a repository star request.

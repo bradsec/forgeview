@@ -32,16 +32,20 @@ skinned poses and active morph deformation into static geometry before export.
 
 Edit > Make solid fills the scene into one STL-style solid. Internal geometry
 that is not part of the outside surface, enclosed cavities and parts hidden
-inside other parts, is deleted, touching parts join under one skin, and
-triangle and vertex counts drop while the outer appearance stays exactly as
-loaded. Materials collapse to a single solid material. Draft, Standard, and
-Fine detection detail trade processing cost against how finely interior
-geometry is separated from the outside surface. Undo restores the original
-geometry and materials.
+inside other parts, is deleted, touching parts join under one skin, and every
+open edge left on the outer surface is sealed, so the result has no holes.
+The kept exterior triangles are unchanged, so the outer appearance stays
+exactly as loaded and triangle and vertex counts drop. Materials collapse to a
+single solid material. Draft, Standard, and Fine detection detail trade
+processing cost against how finely interior geometry is separated from the
+outside surface. Undo restores the original geometry and materials.
 
-Details reports boundary and non-manifold edge counts without interpreting them
-as model damage. Non-manifold edges inherited from the original skin are kept
-deliberately, because rewriting them would change the visible surface.
+The result is a sealed shell, hollow inside; slicers and CAD tools treat a
+closed surface as a solid body. Details reports boundary and non-manifold edge
+counts without interpreting them as model damage. Non-manifold edges inherited
+from the original skin are kept deliberately, because rewriting them would
+change the visible surface, so a sealed result can still report a non-zero
+non-manifold count.
 
 3MF export includes an explicit physical-unit selector and defaults to
 millimetres. STL, OBJ, and PLY do not encode physical units.
