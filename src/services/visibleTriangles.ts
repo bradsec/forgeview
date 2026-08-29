@@ -42,6 +42,13 @@ export function visibleTriangleFlags(
   // 2048 so triangles a hair under a pixel at 1024 still register in at least
   // one view; sub-pixel detail otherwise falls through to the voxel flood.
   const target = new THREE.WebGLRenderTarget(2048, 2048)
+  // The color attribute carries packed triangle ids, not a visible color:
+  // pin the target to a linear color space and nearest filtering so the bytes
+  // read back exactly as written, regardless of the renderer's output space or
+  // any future change to the three.js render-target defaults.
+  target.texture.colorSpace = THREE.NoColorSpace
+  target.texture.minFilter = THREE.NearestFilter
+  target.texture.magFilter = THREE.NearestFilter
   let material: THREE.MeshBasicMaterial | null = null
   try {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
