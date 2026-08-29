@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js'
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js'
-import { unzipSync, strFromU8 } from 'three/addons/libs/fflate.module.js'
+import { unzipSync, strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'three/addons/libs/fflate.module.js'
 import * as THREE from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { invoke } from '@tauri-apps/api/core'
@@ -29,33 +29,49 @@ const THREE_MF_UNIT_MM: Record<string, number> = {
   meter: 1000,
 }
 
-// A 3MF is a zip. Reject archives that would inflate to an implausible size
-// before any decompression runs, so a small crafted file cannot exhaust memory
-// here or inside ThreeMFLoader's own unzip. Sizes come from the zip directory
-// (no inflation); an entry that hides its size in a trailing data descriptor
-// (originalSize 0 with a non-trivial payload) is treated as untrustworthy.
-const MAX_INFLATED_ARCHIVE_BYTES = 1024 * 1024 * 1024
+// A 3MF is a zip. Bound its decompressed size before ThreeMFLoader's own unzip
+// so a small crafted file cannot exhaust memory. Two checks: the zip directory
+// (fast, no inflation) rejects the obvious cases, then a streaming inflate with
+// a hard running-total ceiling catches an entry whose header under-reports its
+// real size.
+const MAX_INFLATED_ARCHIVE_BYTES = 512 * 1024 * 1024
 const MAX_ARCHIVE_INFLATION_RATIO = 250
 
 export function assertArchiveWithinBudget(buffer: ArrayBuffer): void {
-  let inflated = 0
+  const bytes = new Uint8Array(buffer)
+  let declaredInflated = 0
   let compressed = 0
-  unzipSync(new Uint8Array(buffer), {
+  unzipSync(bytes, {
     filter: (file) => {
-      inflated += file.originalSize
+      declaredInflated += file.originalSize
       compressed += file.size
-      if (file.originalSize === 0 && file.size > 1024 * 1024) {
-        throw new Error('3MF archive entry does not declare its size and was rejected')
-      }
-      if (inflated > MAX_INFLATED_ARCHIVE_BYTES) {
-        throw new Error('3MF archive expands to over 1 GB and was rejected')
+      if (declaredInflated > MAX_INFLATED_ARCHIVE_BYTES) {
+        throw new Error('3MF archive expands to over the supported size and was rejected')
       }
       return false
     },
   })
-  if (compressed > 0 && inflated / compressed > MAX_ARCHIVE_INFLATION_RATIO) {
+  if (compressed > 0 && declaredInflated / compressed > MAX_ARCHIVE_INFLATION_RATIO) {
     throw new Error('3MF archive has an implausible compression ratio and was rejected')
   }
+
+  // Authoritative pass: inflate incrementally and abort the moment the actual
+  // output exceeds the budget, before it is all resident.
+  let actualInflated = 0
+  const unzip = new Unzip()
+  unzip.register(UnzipInflate)
+  unzip.register(UnzipPassThrough)
+  unzip.onfile = (file) => {
+    file.ondata = (err, chunk) => {
+      if (err) throw err
+      actualInflated += chunk.length
+      if (actualInflated > MAX_INFLATED_ARCHIVE_BYTES) {
+        throw new Error('3MF archive expands to over the supported size and was rejected')
+      }
+    }
+    file.start()
+  }
+  unzip.push(bytes, true)
 }
 
 function threeMFUnitScale(buffer: ArrayBuffer): number {
