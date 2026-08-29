@@ -35,8 +35,9 @@ that is not part of the outside surface, enclosed cavities and parts hidden
 inside other parts, is deleted, touching parts join under one skin, and
 triangle and vertex counts drop while the outer appearance stays exactly as
 loaded. Materials collapse to a single solid material. Draft, Standard, and
-Fine detection detail trade processing cost against how small an opening still
-counts as sealed. Undo restores the original geometry and materials.
+Fine detection detail trade processing cost against how finely interior
+geometry is separated from the outside surface. Undo restores the original
+geometry and materials.
 
 Details reports boundary and non-manifold edge counts without interpreting them
 as model damage. Non-manifold edges inherited from the original skin are kept
@@ -132,7 +133,6 @@ cd src-tauri && cargo test     # backend unit tests
 
 - `src/` React + Three.js frontend (components, loaders, hooks, store, themes)
 - `src-tauri/` Rust backend (file IO commands, app setup)
-- `CLAUDE.md` architecture and conventions reference
 
 ## Acknowledgements
 

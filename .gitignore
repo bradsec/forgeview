@@ -26,7 +26,14 @@ Thumbs.db
 playwright-report/
 test-results/
 
-# Agent session skills/notes
+# Agent session skills/notes and coding-agent instruction files
 .claude/
 .agents/
 .codex-plugins/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.cursorrules
+
+# Test coverage output
+coverage/
