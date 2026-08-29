@@ -7,6 +7,9 @@ export interface SolidRepairStats {
   after: MeshHealth
   meshes: number
   resolution: number
+  /** False when WebGL was unavailable and only the voxel air-flood ran, which
+   * trims recessed surfaces behind gaps narrower than a detection voxel. */
+  gpuAssisted: boolean
 }
 
 export interface SolidRepairResult {
@@ -105,7 +108,10 @@ export function repairGeometriesInWorker(
       const after = analyzeGeometry(geometry)
       const geometries = [geometry, ...meshes.slice(1).map(() => new THREE.BufferGeometry())]
       onProgress(100, 'Solid fill complete')
-      resolve({ geometries, stats: { before, after, meshes: meshes.length, resolution: event.data.resolution } })
+      resolve({
+        geometries,
+        stats: { before, after, meshes: meshes.length, resolution: event.data.resolution, gpuAssisted: visible !== null },
+      })
     }
     const transfer: ArrayBuffer[] = [positions.buffer as ArrayBuffer]
     if (visible) transfer.push(visible.buffer as ArrayBuffer)

@@ -16,8 +16,11 @@ scope.onmessage = (event: MessageEvent<RepairRequest>) => {
   const { id, resolution } = event.data
   const positions = new Float32Array(event.data.positions)
   const visible = event.data.visible ? new Uint8Array(event.data.visible) : null
-  const flags = exteriorTriangleFlags(positions, resolution, (percent, phase) =>
-    scope.postMessage({ id, type: 'progress', percent, phase })
+  const flags = exteriorTriangleFlags(
+    positions,
+    resolution,
+    (percent, phase) => scope.postMessage({ id, type: 'progress', percent, phase }),
+    visible !== null
   )
   // A triangle survives if the voxel flood can reach it from outside air OR
   // the GPU actually saw it from some direction; visibility rescues detail

@@ -63,6 +63,34 @@ describe('exteriorTriangleFlags', () => {
     expect(innerKept).toBe(0)
   })
 
+  it('keeps every triangle of a closed surface even without the GPU pass', () => {
+    const soup = sphereSoup(32, 10)
+    const flags = exteriorTriangleFlags(soup, 128, undefined, false)
+    expect(Array.from(flags).every((flag) => flag === 1)).toBe(true)
+  })
+
+  it('is at least as conservative without the GPU pass as with it', () => {
+    const left = sphereSoup(40, 10)
+    const right = new Float32Array(left)
+    for (let i = 0; i < right.length; i += 3) right[i] += 8
+    const soup = concat(left, right)
+    const withGpu = Array.from(exteriorTriangleFlags(soup, 128, undefined, true)).filter((f) => f === 1).length
+    const withoutGpu = Array.from(exteriorTriangleFlags(soup, 128, undefined, false)).filter((f) => f === 1).length
+    expect(withoutGpu).toBeGreaterThanOrEqual(withGpu)
+  })
+
+  it('does not delete more recessed detail as the grid gets finer', () => {
+    // Two overlapping spheres: the fraction of the skin kept must not drop
+    // when the detection grid is refined (a fixed-voxel dilation would).
+    const left = sphereSoup(40, 10)
+    const right = new Float32Array(left)
+    for (let i = 0; i < right.length; i += 3) right[i] += 8
+    const soup = concat(left, right)
+    const coarse = Array.from(exteriorTriangleFlags(soup, 96)).filter((f) => f === 1).length
+    const fine = Array.from(exteriorTriangleFlags(soup, 160)).filter((f) => f === 1).length
+    expect(fine).toBeGreaterThanOrEqual(coarse * 0.98)
+  })
+
   it('keeps both skins of overlapping parts only where they face outside air', () => {
     // Two overlapping spheres: the lens-shaped caps buried inside the other
     // sphere are interior and must be dropped; everything else survives.

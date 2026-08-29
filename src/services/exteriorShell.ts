@@ -83,7 +83,8 @@ function sampleTriangle(
 export function exteriorTriangleFlags(
   positions: Float32Array,
   resolution: number,
-  progress: (percent: number, phase: string) => void = () => {}
+  progress: (percent: number, phase: string) => void = () => {},
+  gpuAssisted = true
 ): Uint8Array {
   const triangles = Math.floor(positions.length / 9)
   const flags = new Uint8Array(triangles)
@@ -131,13 +132,21 @@ export function exteriorTriangleFlags(
   }
 
   // A surface voxel near outside air is visible; spread outside-ness onto the
-  // surface so triangle classification is a single lookup. Two dilation steps
-  // give a safety margin: detail recessed just behind the outermost surface
-  // voxels (grooves, creases, panel gaps) stays kept instead of being treated
-  // as interior.
+  // surface so triangle classification is a single lookup. The dilation is a
+  // safety margin so detail recessed just behind the outermost surface voxels
+  // (grooves, creases, panel gaps) stays kept instead of being treated as
+  // interior. Its reach is a fixed fraction of the model span, not a fixed
+  // voxel count, so a finer detection grid does not silently trim more
+  // recessed detail than a coarse one. Without the GPU visibility pass to
+  // rescue narrow-gap surfaces, widen the margin further.
+  const spanVoxels = resolution - 6
+  const dilationPasses = Math.max(
+    2,
+    Math.round((gpuAssisted ? 0.0165 : 0.045) * spanVoxels)
+  )
   progress(60, 'Marking reachable surface')
   let reachable = outside
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < dilationPasses; pass++) {
     const grown = new Uint8Array(reachable)
     for (let z = 0; z < size; z++) for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
       const index = index3(x, y, z, size)
@@ -391,7 +400,7 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
   // Fan spokes at pinched vertices can themselves stay single-sided, so the
   // fallback iterates while it keeps making progress.
   let previousOpen = Infinity
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 64; round++) {
     const open = boundaryEdgeList(mesh).length
     if (open === 0 || open >= previousOpen) break
     previousOpen = open

@@ -39,7 +39,9 @@ export function visibleTriangleFlags(
   }
   const flags = new Uint8Array(triangles)
   const geometry = new THREE.BufferGeometry()
-  const target = new THREE.WebGLRenderTarget(1024, 1024)
+  // 2048 so triangles a hair under a pixel at 1024 still register in at least
+  // one view; sub-pixel detail otherwise falls through to the voxel flood.
+  const target = new THREE.WebGLRenderTarget(2048, 2048)
   let material: THREE.MeshBasicMaterial | null = null
   try {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
