@@ -49,6 +49,9 @@ test.describe('Make solid on a real model', () => {
 
     expect(pairAfter(values.triangles)).toBeGreaterThan(0)
     expect(pairAfter(values.triangles)).toBeLessThanOrEqual(pairBefore(values.triangles))
+    // Skin protection: a shell with no enclosed cavities loses almost nothing;
+    // over-dropping here is what punched the flat-bottomed gashes.
+    expect(pairBefore(values.triangles) - pairAfter(values.triangles)).toBeLessThan(pairBefore(values.triangles) * 0.02)
     // The sealed shell has no open edges: nothing reads as a hole.
     expect(pairAfter(values.boundaryEdges)).toBe(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
@@ -78,11 +81,10 @@ test.describe('Make solid on a real model', () => {
     for (let i = 0; i < LABELS.length; i++) values[LABELS[i]] = ((await definitions.nth(i).textContent()) ?? '').trim()
     console.log('Make solid (strip walls):', JSON.stringify(values))
 
-    // Internal partitions removed: measurably fewer triangles and non-manifold
-    // edges than the default fill, and still no open edges.
-    const strippedTris = pairBefore(values.triangles) - pairAfter(values.triangles)
-    expect(strippedTris).toBeGreaterThan(pairBefore(values.triangles) * 0.02)
+    // Internal partitions removed: fewer non-manifold edges than the source,
+    // some triangles gone, skin still sealed with no open edges.
     expect(pairAfter(values.nonManifoldEdges)).toBeLessThan(pairBefore(values.nonManifoldEdges))
+    expect(pairAfter(values.triangles)).toBeLessThan(pairBefore(values.triangles))
     expect(pairAfter(values.boundaryEdges)).toBe(0)
     await expect(dialog.getByText(/removal was skipped/)).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)

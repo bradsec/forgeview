@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { exteriorTriangleFlags, finalizeSolid } from './exteriorShell'
+import { exteriorTriangleFlags, finalizeSolid, protectConnectedSkin } from './exteriorShell'
 
 interface RepairRequest {
   id: number
@@ -31,9 +31,17 @@ scope.onmessage = (event: MessageEvent<RepairRequest>) => {
   // the GPU actually saw it from some direction; visibility rescues detail
   // behind gaps narrower than a detection voxel. In strip mode the flood only
   // marks the outermost skin, so anything deeper must be GPU-visible to survive.
-  let kept = 0
   for (let triangle = 0; triangle < flags.length; triangle++) {
     if (visible && visible[triangle]) flags[triangle] = 1
+  }
+  // Never tear the skin: regrow any dropped triangle that is part of the same
+  // surface sheet as a kept one (shares a manifold edge). Without this the
+  // flood punches slits where thin walls meet the skin, which cap into
+  // flat-bottomed gashes.
+  scope.postMessage({ id, type: 'progress', percent: 95, phase: 'Protecting the outer skin' })
+  protectConnectedSkin(positions, flags)
+  let kept = 0
+  for (let triangle = 0; triangle < flags.length; triangle++) {
     if (flags[triangle]) kept++
   }
   const filtered = new Float32Array(kept * 9)

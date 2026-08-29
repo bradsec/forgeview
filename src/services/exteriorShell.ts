@@ -175,6 +175,86 @@ export function exteriorTriangleFlags(
   return flags
 }
 
+/**
+ * Keep the exterior skin whole. The voxel flood decides keep/drop per triangle
+ * with no regard for connectivity, so it can drop a triangle that is part of
+ * the same surface sheet as its kept neighbours (a thin wall, a fold), which
+ * tears a slit in the skin that later shows as a flat-bottomed gash after
+ * capping. Regrow any dropped triangle that shares a manifold edge (exactly two
+ * incident triangles) with a kept one, since a shared manifold edge means they
+ * are literally the same sheet. Internal partitions meet the skin at
+ * non-manifold edges and stay dropped; fully detached interior shells share no
+ * edge with the skin and stay dropped. `flags` is mutated in place.
+ */
+export function protectConnectedSkin(positions: Float32Array, flags: Uint8Array): void {
+  const triangles = flags.length
+  if (triangles === 0) return
+
+  const bounds = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]
+  for (let i = 0; i < positions.length; i += 3) for (let axis = 0; axis < 3; axis++) {
+    bounds[axis] = Math.min(bounds[axis], positions[i + axis])
+    bounds[axis + 3] = Math.max(bounds[axis + 3], positions[i + axis])
+  }
+  const diagonal = Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
+  const quantum = Math.max(diagonal * 1e-6, 1e-9)
+
+  const vertexIds = new Map<string, number>()
+  const cornerId = new Int32Array(triangles * 3)
+  for (let corner = 0; corner < triangles * 3; corner++) {
+    const o = corner * 3
+    const key = `${Math.round(positions[o] / quantum)},${Math.round(positions[o + 1] / quantum)},${Math.round(positions[o + 2] / quantum)}`
+    let id = vertexIds.get(key)
+    if (id === undefined) {
+      id = vertexIds.size
+      vertexIds.set(key, id)
+    }
+    cornerId[corner] = id
+  }
+
+  const stride = vertexIds.size + 1
+  const edgeTris = new Map<number, number[]>()
+  const edgesOf = (triangle: number): [number, number, number] => {
+    const a = cornerId[triangle * 3]
+    const b = cornerId[triangle * 3 + 1]
+    const c = cornerId[triangle * 3 + 2]
+    return [
+      a < b ? a * stride + b : b * stride + a,
+      b < c ? b * stride + c : c * stride + b,
+      c < a ? c * stride + a : a * stride + c,
+    ]
+  }
+  for (let triangle = 0; triangle < triangles; triangle++) {
+    for (const edge of edgesOf(triangle)) {
+      const list = edgeTris.get(edge)
+      if (list) list.push(triangle)
+      else edgeTris.set(edge, [triangle])
+    }
+  }
+
+  // BFS keep-ness across manifold edges into dropped triangles.
+  const queue: number[] = []
+  for (let triangle = 0; triangle < triangles; triangle++) {
+    if (!flags[triangle]) continue
+    for (const edge of edgesOf(triangle)) {
+      const list = edgeTris.get(edge)!
+      if (list.length !== 2) continue
+      const other = list[0] === triangle ? list[1] : list[0]
+      if (!flags[other]) queue.push(other)
+    }
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const triangle = queue[head]
+    if (flags[triangle]) continue
+    flags[triangle] = 1
+    for (const edge of edgesOf(triangle)) {
+      const list = edgeTris.get(edge)!
+      if (list.length !== 2) continue
+      const other = list[0] === triangle ? list[1] : list[0]
+      if (!flags[other]) queue.push(other)
+    }
+  }
+}
+
 interface SolidMesh {
   /** xyz per vertex id; cap centroids are appended as new ids. */
   vertexPosition: number[]

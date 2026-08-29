@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { exteriorTriangleFlags, finalizeSolid } from './exteriorShell'
+import { exteriorTriangleFlags, finalizeSolid, protectConnectedSkin } from './exteriorShell'
 import { analyzeGeometry } from './meshHealth'
 
 function analyzeSoup(soup: Float32Array) {
@@ -116,6 +116,44 @@ describe('exteriorTriangleFlags', () => {
     const total = flags.length
     expect(kept).toBeLessThan(total)
     expect(kept).toBeGreaterThan(total * 0.6)
+  })
+})
+
+describe('protectConnectedSkin', () => {
+  // Triangle soup, 9 floats per triangle.
+  const tri = (a: number[], b: number[], c: number[]) => [...a, ...b, ...c]
+
+  it('regrows a dropped triangle that shares a manifold edge with a kept one', () => {
+    // A flat quad split into two triangles across the shared diagonal.
+    const soup = new Float32Array([
+      ...tri([0, 0, 0], [1, 0, 0], [1, 1, 0]),
+      ...tri([0, 0, 0], [1, 1, 0], [0, 1, 0]),
+    ])
+    const flags = new Uint8Array([1, 0])
+    protectConnectedSkin(soup, flags)
+    expect(Array.from(flags)).toEqual([1, 1])
+  })
+
+  it('does not cross a non-manifold edge (3 triangles on one edge)', () => {
+    // Two kept triangles and one dropped triangle all share the edge (0,0,0)-(1,0,0).
+    const soup = new Float32Array([
+      ...tri([0, 0, 0], [1, 0, 0], [0, 1, 0]),
+      ...tri([0, 0, 0], [1, 0, 0], [0, -1, 0]),
+      ...tri([0, 0, 0], [1, 0, 0], [0, 0, 1]), // the internal partition
+    ])
+    const flags = new Uint8Array([1, 1, 0])
+    protectConnectedSkin(soup, flags)
+    expect(flags[2]).toBe(0)
+  })
+
+  it('leaves a detached dropped triangle dropped', () => {
+    const soup = new Float32Array([
+      ...tri([0, 0, 0], [1, 0, 0], [1, 1, 0]),
+      ...tri([9, 9, 9], [9, 10, 9], [10, 9, 9]),
+    ])
+    const flags = new Uint8Array([1, 0])
+    protectConnectedSkin(soup, flags)
+    expect(flags[1]).toBe(0)
   })
 })
 
