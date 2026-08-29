@@ -47,6 +47,12 @@ from the original skin are kept deliberately, because rewriting them would
 change the visible surface, so a sealed result can still report a non-zero
 non-manifold count.
 
+Remove internal walls (optional) additionally deletes internal partitions and
+doubled surfaces by keeping only triangles that are actually seen from outside
+in the GPU visibility pass or sit on the outermost skin. It needs WebGL and can
+trim deep recesses that face away from every sampled view, so it is off by
+default.
+
 3MF export includes an explicit physical-unit selector and defaults to
 millimetres. STL, OBJ, and PLY do not encode physical units.
 

@@ -14,8 +14,15 @@
   have trimmed recessed detail.
 - The Make solid result line distinguishes a strictly watertight solid, a
   sealed solid with no open edges, and a result that still has open edges.
-- 3MF files that would inflate to an implausible size are rejected before the
-  loader decompresses them.
+- Make solid has an optional "Remove internal walls": with WebGL available it
+  keeps only triangles seen from outside or on the outermost skin, deleting
+  internal partitions and doubled surfaces. Off by default; it can trim deep
+  recesses that face away from every sampled view.
+- 3MF files are bounded before decompression by both the zip directory and a
+  streaming inflate with a hard size ceiling, so an entry that under-reports
+  its size cannot exhaust memory.
+- Native file reads re-check the opened handle, not the path, closing a
+  symlink-swap window.
 - Remove the unused export-time shell fill that had diverged from the Make
   solid pipeline.
 
