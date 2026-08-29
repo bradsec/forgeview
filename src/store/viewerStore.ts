@@ -13,6 +13,8 @@ export interface GeometryDetails {
   meshes: number
   boundaryEdges: number
   nonManifoldEdges: number
+  degenerateFaces: number
+  duplicateFaces: number
   watertight: boolean
   modelUnitInMm: number | null
 }
@@ -66,6 +68,7 @@ interface ViewerState {
   projectionMode: 'perspective' | 'orthographic'
   mainView: 'grid' | '3d'
   mobileDrawer: 'none' | 'explorer' | 'details'
+  rightPanelTab: 'details' | 'prepare'
   gridScope: 'current' | 'recursive'
   gridFolder: string | null
   /** File ordering in the preview grid. Name sorts ascending; size and
@@ -91,6 +94,7 @@ interface ViewerState {
   setProjectionMode: (mode: 'perspective' | 'orthographic') => void
   setMainView: (v: 'grid' | '3d') => void
   setMobileDrawer: (d: 'none' | 'explorer' | 'details') => void
+  setRightPanelTab: (tab: 'details' | 'prepare') => void
   setGridScope: (s: 'current' | 'recursive') => void
   setGridFolder: (path: string | null) => void
   setGridSort: (s: 'name' | 'size' | 'mtime') => void
@@ -173,6 +177,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   projectionMode: 'perspective' as const,
   mainView: 'grid' as const,
   mobileDrawer: 'none' as const,
+  rightPanelTab: 'details' as const,
   gridScope: 'current' as const,
   gridFolder: null,
   gridSort: 'name' as const,
@@ -226,6 +231,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setProjectionMode: (mode) => set({ projectionMode: mode }),
   setMainView: (v) => set({ mainView: v }),
   setMobileDrawer: (d) => set({ mobileDrawer: d }),
+  setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
   setGridScope: (s) => set({ gridScope: s }),
   setGridFolder: (path) => set({ gridFolder: path }),
   setGridSort: (s) => set({ gridSort: s }),

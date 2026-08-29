@@ -277,6 +277,34 @@ describe('viewerStore', () => {
   })
 })
 
+describe('rightPanelTab', () => {
+  beforeEach(() => {
+    useViewerStore.setState({ rightPanelTab: 'details' })
+  })
+
+  it('defaults to details', () => {
+    expect(useViewerStore.getState().rightPanelTab).toBe('details')
+  })
+
+  it('setRightPanelTab switches the active tab', () => {
+    useViewerStore.getState().setRightPanelTab('prepare')
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    useViewerStore.getState().setRightPanelTab('details')
+    expect(useViewerStore.getState().rightPanelTab).toBe('details')
+  })
+
+  it('GeometryDetails carries degenerate and duplicate face counts', () => {
+    useViewerStore.getState().setGeometryDetails({
+      width: 1, height: 1, depth: 1, vertices: 3, meshes: 1,
+      boundaryEdges: 3, nonManifoldEdges: 0, degenerateFaces: 2, duplicateFaces: 1,
+      watertight: false, modelUnitInMm: null,
+    })
+    const details = useViewerStore.getState().geometryDetails
+    expect(details?.degenerateFaces).toBe(2)
+    expect(details?.duplicateFaces).toBe(1)
+  })
+})
+
 describe('setFileFromBuffer (browser files)', () => {
   beforeEach(() => {
     useViewerStore.setState({
