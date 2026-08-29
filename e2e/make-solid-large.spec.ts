@@ -55,6 +55,15 @@ test.describe('Make solid on a real model', () => {
     // The sealed shell has no open edges: nothing reads as a hole.
     expect(pairAfter(values.boundaryEdges)).toBe(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
+
+    // The viewport's WebGL context must survive the visibility pass (a second
+    // context here used to evict it and blank the view).
+    const contextLost = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas')
+      const gl = canvas?.getContext('webgl2') ?? canvas?.getContext('webgl')
+      return gl ? gl.isContextLost() : true
+    })
+    expect(contextLost).toBe(false)
   })
 
   test('remove internal walls drops the non-manifold count', async ({ page, isMobile }) => {

@@ -66,17 +66,21 @@ export function repairGeometriesInWorker(
   resolution: number,
   onProgress: (percent: number, phase: string) => void,
   signal?: AbortSignal,
-  options?: { stripInternalWalls?: boolean }
+  options?: { stripInternalWalls?: boolean; renderer?: THREE.WebGLRenderer | null }
 ): Promise<SolidRepairResult> {
   if (meshes.length === 0) return Promise.reject(new Error('The scene has no mesh geometry to repair'))
   const before = sumHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
   onProgress(1, 'Combining scene as triangle soup')
   const positions = combinedPositions(meshes)
   // GPU visibility protects surfaces behind gaps narrower than a detection
-  // voxel; without WebGL the voxel classification stands alone.
+  // voxel; it runs on the viewer's own renderer so it never evicts the
+  // viewport's WebGL context. Without a renderer the voxel classification
+  // stands alone.
   onProgress(2, 'Checking outside visibility')
-  const visible = visibleTriangleFlags(positions, (fraction) =>
-    onProgress(2 + Math.round(fraction * 3), 'Checking outside visibility')
+  const visible = visibleTriangleFlags(
+    positions,
+    (fraction) => onProgress(2 + Math.round(fraction * 3), 'Checking outside visibility'),
+    options?.renderer
   )
   const worker = new Worker(new URL('./solidRepair.worker.ts', import.meta.url), { type: 'module' })
   const id = Date.now()

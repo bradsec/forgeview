@@ -17,10 +17,10 @@ describe('viewDirections', () => {
 })
 
 describe('visibleTriangleFlags', () => {
-  it('returns null without WebGL instead of throwing', () => {
-    // jsdom has no WebGL context; the classification must fall back cleanly.
+  it('returns null when no renderer is supplied (never creates its own context)', () => {
     const soup = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0])
     expect(visibleTriangleFlags(soup)).toBeNull()
+    expect(visibleTriangleFlags(soup, () => {}, null)).toBeNull()
   })
 
   it('handles an empty soup', () => {

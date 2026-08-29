@@ -94,6 +94,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // Current double-click listener and its element, so renderer swaps
   // (Effect 7) and unmount can detach the live listener
   const dblClickRef = useRef<{ el: HTMLElement; fn: (e: MouseEvent) => void } | null>(null)
+  const contextRef = useRef<{ el: HTMLCanvasElement; lost: (e: Event) => void; restored: () => void } | null>(null)
   // Demand rendering: frames left to draw. The loop skips renderer.render when
   // 0 and no camera motion — keeps the GPU idle (software/weak GPUs stay
   // responsive). Bumped by controls changes, resizes, and any store change
@@ -231,7 +232,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const withGeometry = (list: THREE.Mesh[]) =>
         list.filter((mesh) => ((mesh.geometry as THREE.BufferGeometry).getAttribute('position')?.count ?? 0) > 0)
       const meshes = withGeometry(modelMeshes())
-      const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal, options)
+      const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal, {
+        ...options,
+        renderer: rendererRef.current ?? null,
+      })
       const currentMeshes = withGeometry(modelMeshes())
       if (currentMeshes.length !== meshes.length || meshes.some((mesh, index) => mesh !== currentMeshes[index])) {
         result.geometries.forEach((geometry) => geometry.dispose())
@@ -266,6 +270,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       updateTriangleDetails()
       updateGeometryDetails()
       invalidate()
+      // The visibility pass and the long worker run can leave the RAF loop
+      // throttled (backgrounded tab, mobile). Paint once now so the solid
+      // shows without waiting for the next scheduled frame.
+      if (rendererRef.current && sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current)
+      }
       return result.stats
     },
     undoEdit: () => {
@@ -384,6 +394,17 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     renderer.domElement.addEventListener('dblclick', onDblClick)
     dblClickRef.current = { el: renderer.domElement, fn: onDblClick }
 
+    // WebGL context loss (GPU reset, memory pressure, another context evicted
+    // this one) leaves the canvas blank. preventDefault on the loss event is
+    // what lets the browser fire 'restored'; without it the context stays dead,
+    // which is why mobile never recovered. three re-uploads GPU resources
+    // lazily on the next render after restore.
+    const onContextLost = (e: Event) => { e.preventDefault(); framesToRenderRef.current = 0 }
+    const onContextRestored = () => { refreshSceneEnvironment(); invalidate() }
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost, false)
+    renderer.domElement.addEventListener('webglcontextrestored', onContextRestored, false)
+    contextRef.current = { el: renderer.domElement, lost: onContextLost, restored: onContextRestored }
+
     // Store refs
     sceneRef.current = scene
     rendererRef.current = renderer
@@ -418,6 +439,11 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       if (dblClickRef.current) {
         dblClickRef.current.el.removeEventListener('dblclick', dblClickRef.current.fn)
         dblClickRef.current = null
+      }
+      if (contextRef.current) {
+        contextRef.current.el.removeEventListener('webglcontextlost', contextRef.current.lost)
+        contextRef.current.el.removeEventListener('webglcontextrestored', contextRef.current.restored)
+        contextRef.current = null
       }
       cancelAnimationFrame(animIdRef.current)
       // Effect 7 may have replaced the renderer/controls (antialias toggle);
@@ -852,6 +878,17 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       }
       newRenderer.domElement.addEventListener('dblclick', onDblClick)
       dblClickRef.current = { el: newRenderer.domElement, fn: onDblClick }
+
+      // Move the context-loss handlers to the replacement canvas.
+      if (contextRef.current) {
+        contextRef.current.el.removeEventListener('webglcontextlost', contextRef.current.lost)
+        contextRef.current.el.removeEventListener('webglcontextrestored', contextRef.current.restored)
+        const lost = (e: Event) => { e.preventDefault(); framesToRenderRef.current = 0 }
+        const restored = () => { refreshSceneEnvironment(); invalidate() }
+        newRenderer.domElement.addEventListener('webglcontextlost', lost, false)
+        newRenderer.domElement.addEventListener('webglcontextrestored', restored, false)
+        contextRef.current = { el: newRenderer.domElement, lost, restored }
+      }
 
       rendererRef.current = newRenderer
       antialiasRef.current = settings.antialias
