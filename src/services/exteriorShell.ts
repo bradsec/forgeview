@@ -461,6 +461,65 @@ function capRemainingBoundary(mesh: SolidMesh): void {
 }
 
 /**
+ * Terminal closure. Collapse each connected component of remaining boundary
+ * edges whose extent is under `maxSpan` to a single point: every edge in it
+ * becomes degenerate and dedupeFaces drops it, so the tangled opening is
+ * stitched shut. Only open-edge rim vertices move, and only across sub-`maxSpan`
+ * distances, so the visible surface holds. Returns whether anything welded.
+ */
+function weldBoundaryComponents(mesh: SolidMesh, maxSpan: number): boolean {
+  const boundary = boundaryEdgeList(mesh)
+  if (boundary.length === 0) return false
+  const pos = mesh.vertexPosition
+  const parent = new Map<number, number>()
+  const root = (id: number): number => {
+    let r = id
+    while (parent.get(r) !== r) r = parent.get(r)!
+    while (parent.get(id) !== r) {
+      const next = parent.get(id)!
+      parent.set(id, r)
+      id = next
+    }
+    return r
+  }
+  for (const [u, v] of boundary) {
+    if (!parent.has(u)) parent.set(u, u)
+    if (!parent.has(v)) parent.set(v, v)
+    parent.set(root(u), root(v))
+  }
+  const members = new Map<number, number[]>()
+  for (const id of parent.keys()) {
+    const r = root(id)
+    const list = members.get(r)
+    if (list) list.push(id)
+    else members.set(r, [id])
+  }
+  const remap = new Map<number, number>()
+  for (const ids of members.values()) {
+    const lo = [Infinity, Infinity, Infinity]
+    const hi = [-Infinity, -Infinity, -Infinity]
+    const sum = [0, 0, 0]
+    for (const id of ids) for (let axis = 0; axis < 3; axis++) {
+      const value = pos[id * 3 + axis]
+      lo[axis] = Math.min(lo[axis], value)
+      hi[axis] = Math.max(hi[axis], value)
+      sum[axis] += value
+    }
+    if (Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) > maxSpan) continue
+    const keep = ids[0]
+    for (let axis = 0; axis < 3; axis++) pos[keep * 3 + axis] = sum[axis] / ids.length
+    for (const id of ids) if (id !== keep) remap.set(id, keep)
+  }
+  if (remap.size === 0) return false
+  for (let i = 0; i < mesh.faces.length; i++) {
+    const mapped = remap.get(mesh.faces[i])
+    if (mapped !== undefined) mesh.faces[i] = mapped
+  }
+  dedupeFaces(mesh)
+  return true
+}
+
+/**
  * Merge boundary vertices that sit within `tolerance` of each other and remap
  * faces onto the survivors. Only rim vertices of open edges move, so the
  * visible surface stays put while crack rims wider than the base weld snap
@@ -526,19 +585,26 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
 
   dedupeFaces(mesh)
   capBoundaryLoops(mesh)
-  for (const factor of [20, 100]) {
+  for (const factor of [20, 100, 500, 2500]) {
     if (boundaryEdgeList(mesh).length === 0) break
     snapBoundaryVertices(mesh, quantum * factor)
     capBoundaryLoops(mesh)
   }
-  // Fan spokes at pinched vertices can themselves stay single-sided, so the
-  // fallback iterates while it keeps making progress.
-  let previousOpen = Infinity
-  for (let round = 0; round < 64; round++) {
-    const open = boundaryEdgeList(mesh).length
-    if (open === 0 || open >= previousOpen) break
-    previousOpen = open
+  // Terminal closure: alternately fan any residual boundary and weld the small
+  // tangled components that fan spokes leave single-sided, until nothing is
+  // open. Both steps only touch open-edge rim vertices, so the visible surface
+  // holds. Widen the weld if fan+weld alone stops converging.
+  let open = boundaryEdgeList(mesh).length
+  for (let round = 0; round < 40 && open > 0; round++) {
     capRemainingBoundary(mesh)
+    weldBoundaryComponents(mesh, diagonal * 0.02)
+    dedupeFaces(mesh)
+    const next = boundaryEdgeList(mesh).length
+    if (next > 0 && next >= open && round > 3) {
+      weldBoundaryComponents(mesh, diagonal * 0.1)
+      dedupeFaces(mesh)
+    }
+    open = boundaryEdgeList(mesh).length
   }
 
   const result = new Float32Array(mesh.faces.length * 3)

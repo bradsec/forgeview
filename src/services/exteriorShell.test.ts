@@ -213,6 +213,22 @@ describe('finalizeSolid', () => {
     expect(health.boundaryEdges).toBe(0)
   })
 
+  it('drives boundary edges to zero on a sphere with a large irregular hole', () => {
+    // Remove a jagged band of triangles so the opening is neither planar nor a
+    // simple loop; terminal closure must still leave no open edge.
+    const full = sphereSoup(40, 10)
+    const keep: number[] = []
+    for (let t = 0; t < full.length / 9; t++) {
+      const y = (full[t * 9 + 1] + full[t * 9 + 4] + full[t * 9 + 7]) / 3
+      const x = (full[t * 9] + full[t * 9 + 3] + full[t * 9 + 6]) / 3
+      if (y > 2 && y < 7 && x > 0 && (t % 3 !== 0)) continue // punch a ragged hole
+      keep.push(...full.slice(t * 9, t * 9 + 9))
+    }
+    const soup = new Float32Array(keep)
+    expect(analyzeSoup(soup).boundaryEdges).toBeGreaterThan(10)
+    expect(analyzeSoup(finalizeSolid(soup)).boundaryEdges).toBe(0)
+  })
+
   it('removes duplicate double-wall faces that break manifoldness', () => {
     const soup = sphereSoup(24, 10)
     const doubled = new Float32Array(soup.length + 9)

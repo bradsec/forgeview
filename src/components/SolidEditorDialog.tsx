@@ -77,7 +77,13 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
               <div><dt className="text-[var(--text-muted)]">Non-manifold edges</dt><dd>{stats.before.nonManifoldEdges.toLocaleString()} → {stats.after.nonManifoldEdges.toLocaleString()}</dd></div>
               <div><dt className="text-[var(--text-muted)]">Source meshes</dt><dd>{stats.meshes.toLocaleString()} → 1</dd></div>
               <div><dt className="text-[var(--text-muted)]">Detection grid</dt><dd>{stats.resolution}³</dd></div>
-              <div><dt className="text-[var(--text-muted)]">Result</dt><dd>{stats.after.watertight ? 'Watertight solid' : 'Interior removed, exterior kept'}</dd></div>
+              <div><dt className="text-[var(--text-muted)]">Result</dt><dd>{
+                stats.after.watertight
+                  ? 'Watertight solid'
+                  : stats.after.boundaryEdges === 0
+                    ? 'Sealed solid, no open edges'
+                    : `Interior removed, ${stats.after.boundaryEdges.toLocaleString()} open edge${stats.after.boundaryEdges === 1 ? '' : 's'} left`
+              }</dd></div>
             </dl>
           )}
           {stats && !stats.gpuAssisted && (

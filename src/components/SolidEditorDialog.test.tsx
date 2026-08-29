@@ -26,7 +26,7 @@ describe('SolidEditorDialog', () => {
 
     expect(makeSolid).toHaveBeenCalledWith(128, expect.any(Function), expect.any(AbortSignal))
     expect(await screen.findByText('Solid fill complete')).toBeTruthy()
-    expect(screen.getByText('Interior removed, exterior kept')).toBeTruthy()
+    expect(screen.getByText('Interior removed, 4 open edges left')).toBeTruthy()
     expect(screen.getByText('100 → 40')).toBeTruthy()
     expect(screen.getByText('3 → 1')).toBeTruthy()
     expect(useViewerStore.getState().notice).toContain('Make solid applied')
@@ -49,6 +49,23 @@ describe('SolidEditorDialog', () => {
 
     expect(await screen.findByText('Watertight solid')).toBeTruthy()
     expect(screen.getByText('24 → 12')).toBeTruthy()
+  })
+
+  it('reports a sealed (no open edges) result that is not strictly watertight', async () => {
+    const makeSolid = vi.fn(async (_r: number, onProgress: (p: number, s: string) => void) => {
+      onProgress(100, 'Solid fill complete')
+      return {
+        before: { triangles: 100, vertices: 60, boundaryEdges: 20, nonManifoldEdges: 8, duplicateFaces: 0, degenerateFaces: 0, watertight: false },
+        after: { triangles: 96, vertices: 58, boundaryEdges: 0, nonManifoldEdges: 7, duplicateFaces: 0, degenerateFaces: 0, watertight: false },
+        meshes: 1,
+        resolution: 128,
+        gpuAssisted: true,
+      }
+    })
+    const viewerRef = { current: { makeSolid } as unknown as Viewer3DHandle }
+    render(<SolidEditorDialog viewerRef={viewerRef} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(await screen.findByText('Sealed solid, no open edges')).toBeTruthy()
   })
 
   it('warns when the solid fill ran without GPU visibility', async () => {
