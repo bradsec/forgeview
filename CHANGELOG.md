@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.0 - 2026-08-29
 
 - Make solid now seals every open edge left on the outer surface, so the result
   has no holes even on models the classification barely trims. Boundary loops
