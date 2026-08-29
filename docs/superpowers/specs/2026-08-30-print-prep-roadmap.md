@@ -133,8 +133,38 @@ Matches existing setup:
 - Undo stays single-level (`undoRef`) for SP-1. The multi-step undo stack is
   built in SP-2 when several repair ops exist to stack.
 
-Full SP-1 spec: see `2026-08-30-sp1-prepare-panel-design.md` (written after the
-in-chat design review).
+Full SP-1 spec: see `2026-08-30-sp1-prepare-panel-design.md`.
+Plan: `../plans/2026-08-30-sp1-prepare-panel.md`.
+
+### SP-1 status: implemented on branch `worktree-sp1-prepare-panel`
+
+Commits 758e137..3e39177 (7 task commits + 1 final-review fix commit). Unit
+suite 251 pass, `tsc` clean, `build` clean, `e2e/prepare-panel.spec.ts` green.
+
+Carry-forward into SP-2 (deferred from SP-1 reviews, do not lose):
+
+- **Watertight-row Fix loop.** A seal that leaves inherited non-manifold edges
+  keeps the `watertight` row at "Fix needed" with a live Fix that reopens the
+  tool that just ran. SP-2 owns the repair pipeline: annotate the row or
+  suppress the Fix affordance once a seal has run.
+- **Empty-state gating.** SP-1 renders the `prepare-empty` card placeholder
+  when `geometryDetails === null`; `RepairSection` stays mounted so Undo is
+  always reachable. Revisit if SP-2 changes when `geometryDetails` goes null.
+- **`--text-warning` token undefined.** The card's `warn` state styling falls
+  back to a hardcoded colour; no check emits `warn` yet. Define the token in
+  both themes when a check first needs it.
+- **Fix button renders on any `fixId`** even with no registered handler
+  (only `seal` exists now). Guard with the handler map when SP-2 adds fix ids.
+- **Double `<Sidebar>` mount.** `App.tsx` mounts `<Sidebar>` + `<Sidebar mobile>`
+  permanently, so `PreparePanel` / `prepChecks` run twice per render and the
+  tab strip's static `id`s (`right-tab-*`, `right-tabpanel-*`) can collide when
+  both instances render tab markup at once (viewport-resize edge; keyboard tab
+  focus may target the hidden instance, though switching still works via the
+  store). Negligible today; gate future prep sections that do real work in
+  render (BVH, raycasts, worker kickoff) on visibility, and give the tab
+  markup instance-unique ids (`useId`) or render one Sidebar.
+- Stale doc comment `src/components/Sidebar.tsx` "Closable via header button"
+  (close moved to the tab strip).
 
 ## Sources
 
