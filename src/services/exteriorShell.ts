@@ -215,12 +215,153 @@ function boundaryEdgeList(mesh: SolidMesh): Array<[number, number]> {
 }
 
 /**
- * Cap boundary-edge loops with centroid fans. Chains follow the most
- * geometrically continuous outgoing edge at junction vertices (a figure-8
- * then splits into two clean loops instead of one broken walk), and a walk
- * that cannot close releases its edges for later walks. Cap winding follows
- * the surrounding surface: boundary direction u->v means the missing twin is
- * v->u, which the fan triangle (v, u, centroid) supplies.
+ * Fan a closed ring of vertex ids to their centroid, reversed so each
+ * perimeter edge ring[i]->ring[i+1] gets its missing twin ring[i+1]->ring[i].
+ * Guarantees closure for any ring; used as the fallback when ear clipping
+ * cannot resolve a tangled or non-planar loop.
+ */
+function centroidFan(mesh: SolidMesh, ring: number[]): void {
+  const pos = mesh.vertexPosition
+  const m = ring.length
+  if (m < 3) return
+  const centroid = [0, 0, 0]
+  for (const id of ring) for (let axis = 0; axis < 3; axis++) centroid[axis] += pos[id * 3 + axis]
+  const centroidId = pos.length / 3
+  pos.push(centroid[0] / m, centroid[1] / m, centroid[2] / m)
+  for (let i = 0; i < m; i++) mesh.faces.push(ring[(i + 1) % m], ring[i], centroidId)
+}
+
+/**
+ * Triangulate one closed boundary ring and append the cap faces. The ring is
+ * walked in boundary-edge direction, so every perimeter edge loop[i]->loop[i+1]
+ * needs its missing twin loop[i+1]->loop[i]; each cap triangle is emitted in
+ * reversed vertex order so its perimeter edges supply exactly those twins.
+ *
+ * Ear clipping in the ring's best-fit plane keeps caps flat against the
+ * surrounding surface instead of tenting to an off-surface centroid, which is
+ * what made large concave junction openings look like jagged webs. Whatever
+ * ear clipping cannot resolve (non-planar, self-overlapping, or tangled
+ * remainders) is closed by {@link centroidFan}, so the ring always ends closed.
+ */
+function fillLoop(mesh: SolidMesh, loop: number[]): void {
+  const pos = mesh.vertexPosition
+  const n = loop.length
+  if (n < 3) return
+  if (n === 3) {
+    mesh.faces.push(loop[2], loop[1], loop[0])
+    return
+  }
+
+  // Newell normal of the ring.
+  let nx = 0
+  let ny = 0
+  let nz = 0
+  for (let i = 0; i < n; i++) {
+    const a = loop[i]
+    const b = loop[(i + 1) % n]
+    nx += (pos[a * 3 + 1] - pos[b * 3 + 1]) * (pos[a * 3 + 2] + pos[b * 3 + 2])
+    ny += (pos[a * 3 + 2] - pos[b * 3 + 2]) * (pos[a * 3] + pos[b * 3])
+    nz += (pos[a * 3] - pos[b * 3]) * (pos[a * 3 + 1] + pos[b * 3 + 1])
+  }
+  const nlen = Math.hypot(nx, ny, nz)
+  if (nlen === 0) {
+    centroidFan(mesh, loop)
+    return
+  }
+  nx /= nlen
+  ny /= nlen
+  nz /= nlen
+  // Plane basis: u from the axis least aligned with the normal, v = n x u.
+  const ax = Math.abs(nx)
+  const ay = Math.abs(ny)
+  const az = Math.abs(nz)
+  let ux = 0
+  let uy = 0
+  let uz = 0
+  if (ax <= ay && ax <= az) ux = 1
+  else if (ay <= az) uy = 1
+  else uz = 1
+  const dot = ux * nx + uy * ny + uz * nz
+  ux -= dot * nx
+  uy -= dot * ny
+  uz -= dot * nz
+  const ulen = Math.hypot(ux, uy, uz) || 1
+  ux /= ulen
+  uy /= ulen
+  uz /= ulen
+  const vx = ny * uz - nz * uy
+  const vy = nz * ux - nx * uz
+  const vz = nx * uy - ny * ux
+  const px: number[] = new Array(n)
+  const py: number[] = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const id = loop[i]
+    px[i] = pos[id * 3] * ux + pos[id * 3 + 1] * uy + pos[id * 3 + 2] * uz
+    py[i] = pos[id * 3] * vx + pos[id * 3 + 1] * vy + pos[id * 3 + 2] * vz
+  }
+  let signedArea = 0
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n
+    signedArea += px[i] * py[j] - px[j] * py[i]
+  }
+  if (signedArea <= 0) {
+    // Ring winds the other way in this basis, or is self-overlapping: the
+    // ear-clip convexity test would be inverted. Fan instead.
+    centroidFan(mesh, loop)
+    return
+  }
+
+  const idx: number[] = Array.from({ length: n }, (_, i) => i)
+  const isConvex = (a: number, b: number, c: number) =>
+    (px[b] - px[a]) * (py[c] - py[a]) - (py[b] - py[a]) * (px[c] - px[a]) > 0
+  const inside = (a: number, b: number, c: number, p: number) => {
+    const d1 = (px[a] - px[p]) * (py[b] - py[p]) - (px[b] - px[p]) * (py[a] - py[p])
+    const d2 = (px[b] - px[p]) * (py[c] - py[p]) - (px[c] - px[p]) * (py[b] - py[p])
+    const d3 = (px[c] - px[p]) * (py[a] - py[p]) - (px[a] - px[p]) * (py[c] - py[p])
+    const hasNeg = d1 < 0 || d2 < 0 || d3 < 0
+    const hasPos = d1 > 0 || d2 > 0 || d3 > 0
+    return !(hasNeg && hasPos)
+  }
+  let guard = idx.length * idx.length + 8
+  while (idx.length > 3 && guard-- > 0) {
+    let clipped = false
+    for (let i = 0; i < idx.length; i++) {
+      const a = idx[(i - 1 + idx.length) % idx.length]
+      const b = idx[i]
+      const c = idx[(i + 1) % idx.length]
+      if (!isConvex(a, b, c)) continue
+      let blocked = false
+      for (let k = 0; k < idx.length; k++) {
+        const p = idx[k]
+        if (p === a || p === b || p === c) continue
+        if (inside(a, b, c, p)) {
+          blocked = true
+          break
+        }
+      }
+      if (blocked) continue
+      mesh.faces.push(loop[c], loop[b], loop[a])
+      idx.splice(i, 1)
+      clipped = true
+      break
+    }
+    if (!clipped) break
+  }
+  if (idx.length === 3) {
+    mesh.faces.push(loop[idx[2]], loop[idx[1]], loop[idx[0]])
+  } else if (idx.length > 3) {
+    // Ear clipping stalled on a tangled remainder: close it with a fan. The
+    // chord ear clipping left between the resolved part and this remainder is
+    // shared, so both orientations of it are present and the ring stays closed.
+    centroidFan(mesh, idx.map((i) => loop[i]))
+  }
+}
+
+/**
+ * Cap boundary-edge loops. Chains follow the most geometrically continuous
+ * outgoing edge at junction vertices (a figure-8 then splits into two clean
+ * loops instead of one broken walk), and a walk that cannot close releases its
+ * edges for later walks. Each closed ring is triangulated by {@link fillLoop}.
  */
 function capBoundaryLoops(mesh: SolidMesh): void {
   const boundary = boundaryEdgeList(mesh)
@@ -266,14 +407,7 @@ function capBoundaryLoops(mesh: SolidMesh): void {
       for (const edge of walked) consumed.delete(edge)
       continue
     }
-    const centroid = [0, 0, 0]
-    for (const id of loop) for (let axis = 0; axis < 3; axis++) centroid[axis] += pos[id * 3 + axis]
-    for (let axis = 0; axis < 3; axis++) centroid[axis] /= loop.length
-    const centroidId = pos.length / 3
-    pos.push(centroid[0], centroid[1], centroid[2])
-    for (let i = 0; i < loop.length; i++) {
-      mesh.faces.push(loop[(i + 1) % loop.length], loop[i], centroidId)
-    }
+    fillLoop(mesh, loop)
   }
 }
 

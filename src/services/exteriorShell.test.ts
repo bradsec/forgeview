@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { exteriorTriangleFlags, finalizeSolid } from './exteriorShell'
-import { analyzeGeometry } from './makeSolid'
+import { analyzeGeometry } from './meshHealth'
 
 function analyzeSoup(soup: Float32Array) {
   const geometry = new THREE.BufferGeometry()
@@ -136,9 +136,43 @@ describe('finalizeSolid', () => {
     const soup = openBoxSoup()
     const before = analyzeSoup(soup)
     expect(before.boundaryEdges).toBe(4)
-    const health = analyzeSoup(finalizeSolid(soup))
+    const sealed = finalizeSolid(soup)
+    const health = analyzeSoup(sealed)
     expect(health.boundaryEdges).toBe(0)
     expect(health.watertight).toBe(true)
+    // Ear clipping the square opening adds exactly two triangles and no new
+    // vertex (a centroid fan would add one).
+    expect(sealed.length / 9).toBe(soup.length / 9 + 2)
+    expect(health.vertices).toBe(8)
+  })
+
+  it('closes a non-planar boundary loop', () => {
+    // Two triangles sharing a diagonal, outer edges forming a saddle quad that
+    // lies in no single plane: the Newell/ear-clip path must still seal it.
+    const soup = new Float32Array([
+      0, 0, 0, 2, 0, 1, 2, 2, 0,
+      0, 0, 0, 2, 2, 0, 0, 2, 1,
+    ])
+    expect(analyzeSoup(soup).boundaryEdges).toBe(4)
+    expect(analyzeSoup(finalizeSolid(soup)).boundaryEdges).toBe(0)
+  })
+
+  it('closes a concave opening with an ear-clip cap', () => {
+    // Concave pentagon (vertex D pulled toward the centre) meshed as a fan
+    // from an interior point, so the only boundary is the concave rim. A plain
+    // centroid fan would leave slivers; ear clipping must still seal it.
+    const A = [0, 0, 0]
+    const B = [4, 0, 0]
+    const C = [4, 4, 0]
+    const D = [2, 1.4, 0]
+    const E = [0, 4, 0]
+    const G = [2, 1.9, 0] // interior point, collinear with no edge
+    const tri = (p: number[], q: number[]) => [...G, ...p, ...q]
+    const soup = new Float32Array([
+      ...tri(A, B), ...tri(B, C), ...tri(C, D), ...tri(D, E), ...tri(E, A),
+    ])
+    expect(analyzeSoup(soup).boundaryEdges).toBe(5)
+    expect(analyzeSoup(finalizeSolid(soup)).boundaryEdges).toBe(0)
   })
 
   it('welds crack gaps relative to model scale', () => {
