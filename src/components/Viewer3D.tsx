@@ -15,7 +15,7 @@ import {
 } from '../utils/cameraActions'
 import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
-import { analyzeGeometry } from '../services/makeSolid'
+import { analyzeGeometry } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
 
 export interface Viewer3DHandle {

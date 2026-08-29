@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { analyzeGeometry, type MeshHealth } from './makeSolid'
+import { analyzeGeometry, type MeshHealth } from './meshHealth'
 import { visibleTriangleFlags } from './visibleTriangles'
 
 export interface SolidRepairStats {

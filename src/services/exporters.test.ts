@@ -213,39 +213,4 @@ describe('exportMeshes', () => {
     expect(colors.sort((a, b) => a - b)).toEqual([0x0000ff, 0xff0000])
   })
 
-  it('applies make solid before export', async () => {
-    const scene = new THREE.Scene()
-    const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
-    const inner = new THREE.BoxGeometry(4, 4, 4).toNonIndexed()
-    const positions = new Float32Array(
-      outer.getAttribute('position').count * 3 + inner.getAttribute('position').count * 3
-    )
-    positions.set(outer.getAttribute('position').array as Float32Array, 0)
-    positions.set(inner.getAttribute('position').array as Float32Array, outer.getAttribute('position').count * 3)
-    const merged = new THREE.BufferGeometry()
-    merged.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    scene.add(new THREE.Mesh(merged, new THREE.MeshStandardMaterial()))
-
-    const solidMeshes = collectExportMeshes(scene, { makeSolid: true })
-    const bytes = exportSTL(solidMeshes)
-    // Cavity removed: 12 triangles remain instead of 24
-    expect(bytes.byteLength).toBe(84 + 12 * 50)
-  })
-
-  it('removes an enclosed shell stored in a separate mesh and preserves colors', () => {
-    const scene = new THREE.Scene()
-    const outer = new THREE.BoxGeometry(10, 10, 10).toNonIndexed()
-    const inner = new THREE.BoxGeometry(4, 4, 4).toNonIndexed()
-    outer.setAttribute('color', new THREE.Float32BufferAttribute(new Array(outer.getAttribute('position').count * 3).fill(0.75), 3))
-    scene.add(
-      new THREE.Mesh(outer, new THREE.MeshStandardMaterial({ vertexColors: true })),
-      new THREE.Mesh(inner, new THREE.MeshStandardMaterial())
-    )
-
-    const solidMeshes = collectExportMeshes(scene, { makeSolid: true })
-
-    expect(solidMeshes).toHaveLength(1)
-    expect(solidMeshes[0].geometry.getAttribute('color')).toBeDefined()
-    expect(solidMeshes[0].geometry.index?.count).toBe(36)
-  })
 })

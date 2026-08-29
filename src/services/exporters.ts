@@ -4,7 +4,6 @@ import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { PLYExporter } from 'three/addons/exporters/PLYExporter.js'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { zipSync, strToU8 } from 'three/addons/libs/fflate.module.js'
-import { makeSolidGeometries } from './makeSolid'
 import type { ExportFormat, ThreeMFUnit } from './exportFormats'
 export { EXPORT_FORMATS } from './exportFormats'
 export type { ExportFormat, ThreeMFUnit } from './exportFormats'
@@ -24,7 +23,7 @@ function encodeText(text: string): Uint8Array {
  * geometry. Helpers (grid lines, points-mode companions) are not meshes and
  * drop out naturally; meshes hidden by points view mode are still exported.
  */
-export function collectExportMeshes(root: THREE.Object3D, options?: { makeSolid?: boolean }): THREE.Mesh[] {
+export function collectExportMeshes(root: THREE.Object3D): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = []
   root.updateMatrixWorld(true)
 
@@ -60,18 +59,6 @@ export function collectExportMeshes(root: THREE.Object3D, options?: { makeSolid?
     collect(child, child.matrixWorld)
   })
 
-  if (options?.makeSolid && meshes.length > 0) {
-    const solid = makeSolidGeometries(meshes.map((mesh) => mesh.geometry))
-    const survivors: THREE.Mesh[] = []
-    meshes.forEach((mesh, index) => {
-      mesh.geometry.dispose()
-      const geometry = solid.geometries[index]
-      if (!geometry) return
-      mesh.geometry = geometry
-      survivors.push(mesh)
-    })
-    return survivors
-  }
   return meshes
 }
 
