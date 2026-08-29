@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Prepare panel replaces the Edit menu: a tabbed right sidebar with a
+  print-readiness score card and the Make solid / undo actions.
+
 ## 1.7.2 - 2026-08-29
 
 - Fix the viewport going blank during and after Make solid, and not recovering

@@ -34,8 +34,8 @@ test.describe('Make solid on a real model', () => {
     test.setTimeout(360_000)
 
     await dropModel(page)
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Make solid…' }).click()
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Make solid…' }).click()
     const dialog = page.getByRole('dialog', { name: 'Make solid' })
     await expect(dialog).toBeVisible()
     await dialog.getByLabel('Interior detection detail').selectOption('96')
@@ -71,8 +71,8 @@ test.describe('Make solid on a real model', () => {
     test.setTimeout(360_000)
 
     await dropModel(page)
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Make solid…' }).click()
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Make solid…' }).click()
     const dialog = page.getByRole('dialog', { name: 'Make solid' })
     await expect(dialog).toBeVisible()
 
