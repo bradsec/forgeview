@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.1 - 2026-08-29
+
+- Fix Make solid punching flat-bottomed gashes into the surface. The voxel
+  classification could drop a triangle that is part of the same surface sheet
+  as its kept neighbours (a thin wall or a fold), tearing a slit that then
+  capped into a visible gash. Make solid now regrows any dropped triangle that
+  shares a manifold edge with a kept one, so a shell with no enclosed cavities
+  keeps its skin intact and only its real openings are sealed. Internal
+  partitions, which meet the skin at non-manifold edges, and fully detached
+  interior shells are still removed.
+
 ## 1.7.0 - 2026-08-29
 
 - Make solid now seals every open edge left on the outer surface, so the result
