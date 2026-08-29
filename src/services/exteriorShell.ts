@@ -84,7 +84,14 @@ export function exteriorTriangleFlags(
   positions: Float32Array,
   resolution: number,
   progress: (percent: number, phase: string) => void = () => {},
-  gpuAssisted = true
+  gpuAssisted = true,
+  /**
+   * Override the reachable-surface dilation, in voxel steps. Strip-internal-walls
+   * mode passes 1 (mark only skin voxels directly on outside air) so that walls
+   * one voxel behind the skin classify as interior; the GPU visibility pass then
+   * rescues anything genuinely seen from outside.
+   */
+  dilationOverride?: number
 ): Uint8Array {
   const triangles = Math.floor(positions.length / 9)
   const flags = new Uint8Array(triangles)
@@ -140,7 +147,7 @@ export function exteriorTriangleFlags(
   // recessed detail than a coarse one. Without the GPU visibility pass to
   // rescue narrow-gap surfaces, widen the margin further.
   const spanVoxels = resolution - 6
-  const dilationPasses = Math.max(
+  const dilationPasses = dilationOverride ?? Math.max(
     2,
     Math.round((gpuAssisted ? 0.0165 : 0.045) * spanVoxels)
   )
@@ -601,7 +608,7 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
     dedupeFaces(mesh)
     const next = boundaryEdgeList(mesh).length
     if (next > 0 && next >= open && round > 3) {
-      weldBoundaryComponents(mesh, diagonal * 0.1)
+      weldBoundaryComponents(mesh, diagonal * 0.04)
       dedupeFaces(mesh)
     }
     open = boundaryEdgeList(mesh).length

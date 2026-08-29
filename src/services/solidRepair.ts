@@ -10,6 +10,9 @@ export interface SolidRepairStats {
   /** False when WebGL was unavailable and only the voxel air-flood ran, which
    * trims recessed surfaces behind gaps narrower than a detection voxel. */
   gpuAssisted: boolean
+  /** True when internal-wall removal was requested and actually ran. Requested
+   * but false means WebGL was unavailable, so it was skipped. */
+  strippedWalls: boolean
 }
 
 export interface SolidRepairResult {
@@ -62,7 +65,8 @@ export function repairGeometriesInWorker(
   meshes: THREE.Mesh[],
   resolution: number,
   onProgress: (percent: number, phase: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { stripInternalWalls?: boolean }
 ): Promise<SolidRepairResult> {
   if (meshes.length === 0) return Promise.reject(new Error('The scene has no mesh geometry to repair'))
   const before = sumHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
@@ -110,11 +114,27 @@ export function repairGeometriesInWorker(
       onProgress(100, 'Solid fill complete')
       resolve({
         geometries,
-        stats: { before, after, meshes: meshes.length, resolution: event.data.resolution, gpuAssisted: visible !== null },
+        stats: {
+          before,
+          after,
+          meshes: meshes.length,
+          resolution: event.data.resolution,
+          gpuAssisted: visible !== null,
+          strippedWalls: event.data.strippedWalls === true,
+        },
       })
     }
     const transfer: ArrayBuffer[] = [positions.buffer as ArrayBuffer]
     if (visible) transfer.push(visible.buffer as ArrayBuffer)
-    worker.postMessage({ id, positions: positions.buffer, visible: visible?.buffer ?? null, resolution }, transfer)
+    worker.postMessage(
+      {
+        id,
+        positions: positions.buffer,
+        visible: visible?.buffer ?? null,
+        resolution,
+        stripInternalWalls: options?.stripInternalWalls === true,
+      },
+      transfer
+    )
   })
 }

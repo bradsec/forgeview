@@ -3,6 +3,16 @@ import type { Viewer3DHandle } from './Viewer3D'
 import type { SolidRepairStats } from '../services/solidRepair'
 import { useViewerStore } from '../store/viewerStore'
 
+/** Internal-wall removal needs the GPU visibility pass to tell walls from deep
+ * recesses; without WebGL2 the option is offered but has no effect. */
+function hasWebGL2(): boolean {
+  try {
+    return !!document.createElement('canvas').getContext('webgl2')
+  } catch {
+    return false
+  }
+}
+
 export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Viewer3DHandle | null> }) {
   const open = useViewerStore((state) => state.solidEditorOpen)
   const [progress, setProgress] = useState(0)
@@ -10,7 +20,9 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
   const [stats, setStats] = useState<SolidRepairStats | null>(null)
   const [busy, setBusy] = useState(false)
   const [resolution, setResolution] = useState(128)
+  const [stripWalls, setStripWalls] = useState(false)
   const controllerRef = useRef<AbortController | null>(null)
+  const webgl2 = hasWebGL2()
 
   useEffect(() => {
     if (open) return
@@ -19,6 +31,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
     setPhase('Ready to analyse the model')
     setStats(null)
     setBusy(false)
+    setStripWalls(false)
   }, [open])
 
   if (!open) return null
@@ -37,7 +50,7 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
       const result = await viewer.makeSolid(resolution, (percent, nextPhase) => {
         setProgress(percent)
         setPhase(nextPhase)
-      }, controller.signal)
+      }, controller.signal, { stripInternalWalls: stripWalls && webgl2 })
       setStats(result)
       useViewerStore.getState().setNotice('Make solid applied. Export will use the updated geometry.')
     } catch (error) {
@@ -59,13 +72,26 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
         </div>
         <div className="p-5">
           {!busy && !stats && (
-            <label className="block text-sm mb-4">Interior detection detail
-              <select value={resolution} onChange={(event) => setResolution(Number(event.target.value))} className="block w-full mt-1 rounded border border-[var(--border-input)] bg-[var(--bg-button)] px-2 py-1.5">
-                <option value={96}>Draft, faster</option>
-                <option value={128}>Standard</option>
-                <option value={160}>Fine, more memory</option>
-              </select>
-            </label>
+            <>
+              <label className="block text-sm mb-4">Interior detection detail
+                <select value={resolution} onChange={(event) => setResolution(Number(event.target.value))} className="block w-full mt-1 rounded border border-[var(--border-input)] bg-[var(--bg-button)] px-2 py-1.5">
+                  <option value={96}>Draft, faster</option>
+                  <option value={128}>Standard</option>
+                  <option value={160}>Fine, more memory</option>
+                </select>
+              </label>
+              <label className="flex items-start gap-2 text-sm mb-4">
+                <input type="checkbox" className="mt-0.5" checked={stripWalls && webgl2} disabled={!webgl2} onChange={(event) => setStripWalls(event.target.checked)} />
+                <span>
+                  Remove internal walls
+                  <span className="block text-[var(--text-muted)]">
+                    {webgl2
+                      ? 'Also delete internal partitions and doubled surfaces the model does not need. May trim deep recesses that face away from every view.'
+                      : 'Needs WebGL, which is unavailable here.'}
+                  </span>
+                </span>
+              </label>
+            </>
           )}
           <div className="flex justify-between text-sm"><span>{phase}</span><span className="tabular-nums">{progress}%</span></div>
           <progress className="w-full mt-2" value={progress} max={100}>{progress}%</progress>
@@ -91,6 +117,11 @@ export function SolidEditorDialog({ viewerRef }: { viewerRef: React.RefObject<Vi
               WebGL was unavailable, so only the voxel scan ran. Recessed surfaces behind narrow
               gaps may have been trimmed. Enable hardware acceleration and undo, then re-apply, if
               the result has holes.
+            </p>
+          )}
+          {stats && stripWalls && !stats.strippedWalls && (
+            <p className="mt-4 text-sm text-[var(--text-warning,#b45309)]">
+              Internal-wall removal was skipped because WebGL was unavailable.
             </p>
           )}
         </div>

@@ -91,6 +91,20 @@ describe('exteriorTriangleFlags', () => {
     expect(fine).toBeGreaterThanOrEqual(coarse * 0.98)
   })
 
+  it('strip mode (dilationOverride 1) keeps the skin but trims more than the default', () => {
+    const sphere = sphereSoup(32, 10)
+    const skinKept = Array.from(exteriorTriangleFlags(sphere, 128, undefined, true, 1)).filter((f) => f === 1).length
+    expect(skinKept).toBe(sphere.length / 9) // a closed skin still survives minimal dilation
+
+    const left = sphereSoup(40, 10)
+    const right = new Float32Array(left)
+    for (let i = 0; i < right.length; i += 3) right[i] += 8
+    const soup = concat(left, right)
+    const normal = Array.from(exteriorTriangleFlags(soup, 128)).filter((f) => f === 1).length
+    const stripped = Array.from(exteriorTriangleFlags(soup, 128, undefined, true, 1)).filter((f) => f === 1).length
+    expect(stripped).toBeLessThan(normal)
+  })
+
   it('keeps both skins of overlapping parts only where they face outside air', () => {
     // Two overlapping spheres: the lens-shaped caps buried inside the other
     // sphere are interior and must be dropped; everything else survives.

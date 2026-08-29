@@ -28,7 +28,7 @@ export interface Viewer3DHandle {
   orbitBy: (deltaTheta: number, deltaPhi: number) => void
   getCamera: () => THREE.PerspectiveCamera | THREE.OrthographicCamera | undefined
   getScene: () => THREE.Scene | undefined
-  makeSolid: (resolution: number, onProgress: (percent: number, phase: string) => void, signal?: AbortSignal) => Promise<SolidRepairStats>
+  makeSolid: (resolution: number, onProgress: (percent: number, phase: string) => void, signal?: AbortSignal, options?: { stripInternalWalls?: boolean }) => Promise<SolidRepairStats>
   getModelDimensions: () => THREE.Vector3 | null
   undoEdit: () => void
 }
@@ -225,13 +225,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       for (const root of roots) box.expandByObject(root)
       return box.getSize(new THREE.Vector3())
     },
-    makeSolid: async (resolution, onProgress, signal) => {
+    makeSolid: async (resolution, onProgress, signal, options) => {
       // Placeholder geometries from an earlier solid fill hold no triangles
       // and would crash the soup combination on a second run.
       const withGeometry = (list: THREE.Mesh[]) =>
         list.filter((mesh) => ((mesh.geometry as THREE.BufferGeometry).getAttribute('position')?.count ?? 0) > 0)
       const meshes = withGeometry(modelMeshes())
-      const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal)
+      const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal, options)
       const currentMeshes = withGeometry(modelMeshes())
       if (currentMeshes.length !== meshes.length || meshes.some((mesh, index) => mesh !== currentMeshes[index])) {
         result.geometries.forEach((geometry) => geometry.dispose())
