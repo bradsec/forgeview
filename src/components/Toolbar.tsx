@@ -252,6 +252,7 @@ export function Toolbar() {
               <div className="menu-separator" role="separator" />
               <MenuItem disabled={!dirPath} onClick={() => { close(); togglePanel('explorer') }} selected={Boolean(dirPath && explorerVisible)}>Explorer</MenuItem>
               <MenuItem onClick={() => { close(); togglePanel('details') }} selected={sidebarVisible}>Details</MenuItem>
+              <MenuItem onClick={() => { close(); openPrepare() }} selected={sidebarVisible && rightPanelTab === 'prepare'}>Prepare</MenuItem>
               <div className="menu-separator" role="separator" />
               <MenuItem onClick={() => { close(); useViewerStore.getState().toggleTheme() }}>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</MenuItem>
               <MenuItem onClick={() => { close(); useViewerStore.getState().setSettingsOpen(true) }}>Settings</MenuItem>
@@ -299,12 +300,12 @@ export function Toolbar() {
         </button>
         <button
           type="button"
-          aria-pressed={sidebarVisible}
+          aria-pressed={sidebarVisible && rightPanelTab === 'details'}
           onClick={() => {
             useViewerStore.getState().setRightPanelTab('details')
             useViewerStore.getState().setSidebarVisible(!sidebarVisible || rightPanelTab === 'prepare')
           }}
-          className={`toolbar-action ${sidebarVisible ? 'is-active' : ''}`}
+          className={`toolbar-action ${sidebarVisible && rightPanelTab === 'details' ? 'is-active' : ''}`}
         >
           Details
         </button>

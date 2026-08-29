@@ -20,11 +20,18 @@ function countRow(
   id: string,
   label: string,
   count: number,
-  noun: string
+  singular: string,
+  plural: string
 ): PrepCheck {
   return count === 0
-    ? { id, label, state: 'pass', detail: `0 ${noun}` }
-    : { id, label, state: 'fail', detail: `${count} ${noun}`, fixId: 'seal' }
+    ? { id, label, state: 'pass', detail: `0 ${plural}` }
+    : {
+        id,
+        label,
+        state: 'fail',
+        detail: `${count} ${count === 1 ? singular : plural}`,
+        fixId: 'seal',
+      }
 }
 
 /** Ordered print-readiness rows derived from mesh health. Rows whose analysis
@@ -45,10 +52,10 @@ export function prepChecks(details: GeometryDetails | null): PrepCheck[] {
     details.watertight
       ? { id: 'watertight', label: 'Watertight', state: 'pass', detail: 'Sealed' }
       : { id: 'watertight', label: 'Watertight', state: 'fail', detail: 'Not watertight', fixId: 'seal' },
-    countRow('nonManifold', 'Manifold edges', details.nonManifoldEdges, 'non-manifold edges'),
-    countRow('boundary', 'Open edges', details.boundaryEdges, 'open edges'),
-    countRow('degenerate', 'Degenerate faces', details.degenerateFaces, 'degenerate faces'),
-    countRow('duplicate', 'Duplicate faces', details.duplicateFaces, 'duplicate faces'),
+    countRow('nonManifold', 'Manifold edges', details.nonManifoldEdges, 'non-manifold edge', 'non-manifold edges'),
+    countRow('boundary', 'Open edges', details.boundaryEdges, 'open edge', 'open edges'),
+    countRow('degenerate', 'Degenerate faces', details.degenerateFaces, 'degenerate face', 'degenerate faces'),
+    countRow('duplicate', 'Duplicate faces', details.duplicateFaces, 'duplicate face', 'duplicate faces'),
     ...ANALYSIS_ROWS.map((row) => ({
       ...row,
       state: 'unavailable' as const,

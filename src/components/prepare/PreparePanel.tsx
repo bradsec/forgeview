@@ -10,20 +10,18 @@ const FIX_HANDLERS: Record<string, () => void> = {
 export function PreparePanel({ onUndoEdit }: { onUndoEdit?: () => void }) {
   const details = useViewerStore((s) => s.geometryDetails)
 
-  if (!details) {
-    return (
-      <p data-testid="prepare-empty" className="text-sm text-[var(--text-muted)]">
-        Open a model to run checks.
-      </p>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-6">
-      <ReadinessCard
-        checks={prepChecks(details)}
-        onFix={(fixId) => FIX_HANDLERS[fixId]?.()}
-      />
+      {details ? (
+        <ReadinessCard
+          checks={prepChecks(details)}
+          onFix={(fixId) => FIX_HANDLERS[fixId]?.()}
+        />
+      ) : (
+        <p data-testid="prepare-empty" className="text-sm text-[var(--text-muted)]">
+          Open a model to run checks.
+        </p>
+      )}
       <RepairSection onUndoEdit={onUndoEdit} />
     </div>
   )

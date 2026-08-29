@@ -21,7 +21,7 @@ describe('ReadinessCard', () => {
     const onFix = vi.fn()
     render(<ReadinessCard checks={checks} onFix={onFix} />)
     const rows = screen.getByTestId('check-watertight')
-    await userEvent.click(within(rows).getByRole('button', { name: 'Fix' }))
+    await userEvent.click(within(rows).getByRole('button', { name: 'Fix Watertight' }))
     expect(onFix).toHaveBeenCalledWith('seal')
     expect(within(screen.getByTestId('check-thickness')).queryByRole('button', { name: 'Fix' })).toBeNull()
   })

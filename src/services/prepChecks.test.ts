@@ -53,7 +53,7 @@ describe('prepChecks', () => {
     expect(byId.boundary.detail).toBe('6 open edges')
     expect(byId.nonManifold.detail).toBe('3 non-manifold edges')
     expect(byId.degenerate.detail).toBe('2 degenerate faces')
-    expect(byId.duplicate.detail).toBe('1 duplicate faces')
+    expect(byId.duplicate.detail).toBe('1 duplicate face')
     for (const id of ['boundary', 'nonManifold', 'degenerate', 'duplicate']) {
       expect(byId[id].state).toBe('fail')
       expect(byId[id].fixId).toBe('seal')

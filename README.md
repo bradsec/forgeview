@@ -16,7 +16,7 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Prepare panel (right sidebar) with a print-readiness score card and worker-backed Make solid processing, live progress, and one-level undo
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
-- Compact app menu, left Explorer, right Details panel, and bottom camera navigation
+- Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation
 - In-app format help, About information, and repository/version status footer
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
 - Solid, wireframe, and points view modes

@@ -30,7 +30,7 @@ test.describe('Make solid on a real model', () => {
   test.slow()
 
   test('fills the model without leaving it empty', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'Edit flow verified on desktop')
+    test.skip(isMobile, 'Prepare flow verified on desktop')
     test.setTimeout(360_000)
 
     await dropModel(page)
@@ -67,7 +67,7 @@ test.describe('Make solid on a real model', () => {
   })
 
   test('remove internal walls drops the non-manifold count', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'Edit flow verified on desktop')
+    test.skip(isMobile, 'Prepare flow verified on desktop')
     test.setTimeout(360_000)
 
     await dropModel(page)

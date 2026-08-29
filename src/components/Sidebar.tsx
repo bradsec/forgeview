@@ -81,6 +81,20 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
       ? useViewerStore.getState().setMobileDrawer('none')
       : useViewerStore.getState().setSidebarVisible(false)
 
+  const onTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const order = ['details', 'prepare'] as const
+    const current = order.indexOf(rightPanelTab)
+    let next: (typeof order)[number] | undefined
+    if (event.key === 'ArrowRight') next = order[(current + 1) % order.length]
+    else if (event.key === 'ArrowLeft') next = order[(current - 1 + order.length) % order.length]
+    else if (event.key === 'Home') next = order[0]
+    else if (event.key === 'End') next = order[order.length - 1]
+    if (!next) return
+    event.preventDefault()
+    useViewerStore.getState().setRightPanelTab(next)
+    document.getElementById(`right-tab-${next}`)?.focus()
+  }
+
   return (
     <aside
       className={
@@ -116,117 +130,139 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
         </div>
       )}
 
-      <div role="tablist" aria-label="Right panel" className="flex border-b border-[var(--border)] px-2 pt-2 gap-1">
-        {(['details', 'prepare'] as const).map((tab) => (
-          <button
-            key={tab}
-            role="tab"
-            type="button"
-            aria-selected={rightPanelTab === tab}
-            onClick={() => useViewerStore.getState().setRightPanelTab(tab)}
-            className={`px-3 py-1.5 text-sm rounded-t ${
-              rightPanelTab === tab
-                ? 'bg-[var(--bg-app)] text-[var(--text-bright)]'
-                : 'text-[var(--text-label)]'
-            }`}
-          >
-            {tab === 'details' ? 'Details' : 'Prepare'}
-          </button>
-        ))}
+      <div className="flex items-center border-b border-[var(--border)] px-2 pt-2">
+        <div
+          role="tablist"
+          aria-label="Right panel"
+          onKeyDown={onTabKeyDown}
+          className="flex gap-1"
+        >
+          {(['details', 'prepare'] as const).map((tab) => (
+            <button
+              key={tab}
+              id={`right-tab-${tab}`}
+              role="tab"
+              type="button"
+              aria-selected={rightPanelTab === tab}
+              aria-controls={`right-tabpanel-${tab}`}
+              tabIndex={rightPanelTab === tab ? 0 : -1}
+              onClick={() => useViewerStore.getState().setRightPanelTab(tab)}
+              className={`px-3 py-1.5 text-sm rounded-t ${
+                rightPanelTab === tab
+                  ? 'bg-[var(--bg-app)] text-[var(--text-bright)]'
+                  : 'text-[var(--text-label)]'
+              }`}
+            >
+              {tab === 'details' ? 'Details' : 'Prepare'}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={close}
+          className="ml-auto text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm leading-none"
+          aria-label="Close Sidebar"
+          title="Close Sidebar"
+        >
+          &times;
+        </button>
       </div>
 
       {rightPanelTab === 'details' ? (
-        <>
-      {/* Scene Models section */}
-      <div className="flex flex-col">
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">
-            Scene Models
-          </h2>
-          <button
-            onClick={close}
-            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm leading-none"
-            aria-label="Close Sidebar"
-            title="Close Sidebar"
-          >
-            &times;
-          </button>
+        <div
+          role="tabpanel"
+          id="right-tabpanel-details"
+          aria-labelledby="right-tab-details"
+          tabIndex={0}
+          className="flex flex-col flex-1 min-h-0"
+        >
+          {/* Scene Models section */}
+          <div className="flex flex-col">
+            <div className="px-4 pt-4 pb-2">
+              <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">
+                Scene Models
+              </h2>
+            </div>
+            <ModelList />
+          </div>
+
+          {/* Separator between scene models and file info */}
+          <div className="border-t border-[var(--border)]" />
+
+          <div className="p-4 flex flex-col flex-1 overflow-y-auto">
+            <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">File Info</h2>
+
+            {isLoading && (
+              <p className="text-sm text-[var(--text-label)] mt-3">Loading...</p>
+            )}
+
+            {error && (
+              <p className="text-[var(--error)] text-sm mt-3 break-words">{error}</p>
+            )}
+
+            {!fileName && !isLoading && !error && (
+              <p className="text-sm text-[var(--text-muted)] mt-2">No file loaded</p>
+            )}
+
+            {fileName && (
+              <dl className="mt-3 flex flex-col gap-3">
+                {/* Name */}
+                <div>
+                  <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Name</dt>
+                  <dd className="text-sm text-[var(--text-primary)] truncate" title={fileName}>
+                    {fileName}
+                  </dd>
+                </div>
+
+                {/* Format */}
+                {fileExtension && (
+                  <div>
+                    <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Format</dt>
+                    <dd>
+                      <span className="inline-block px-2 py-0.5 bg-[var(--bg-button)] text-[var(--text-primary)] text-xs rounded font-mono">
+                        {fileExtension.toUpperCase().replace('.', '')}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+
+                {/* Size */}
+                {fileSize !== null && (
+                  <div>
+                    <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Size</dt>
+                    <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">{formatBytes(fileSize)}</dd>
+                  </div>
+                )}
+
+                {/* Triangle count */}
+                <div>
+                  <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Triangles</dt>
+                  <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">
+                    {triangleCount !== null ? triangleCount.toLocaleString() : 'N/A'}
+                  </dd>
+                </div>
+              </dl>
+            )}
+            {geometryDetails && (
+              <>
+                <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide mt-6">Geometry</h2>
+                <dl className="mt-3 grid grid-cols-2 gap-3">
+                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Vertices</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.vertices.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Meshes</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.meshes.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Boundary edges</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.boundaryEdges.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Non-manifold</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.nonManifoldEdges.toLocaleString()}</dd></div>
+                </dl>
+              </>
+            )}
+          </div>
         </div>
-        <ModelList />
-      </div>
-
-      {/* Separator between scene models and file info */}
-      <div className="border-t border-[var(--border)]" />
-
-      <div className="p-4 flex flex-col flex-1 overflow-y-auto">
-      <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">File Info</h2>
-
-      {isLoading && (
-        <p className="text-sm text-[var(--text-label)] mt-3">Loading...</p>
-      )}
-
-      {error && (
-        <p className="text-[var(--error)] text-sm mt-3 break-words">{error}</p>
-      )}
-
-      {!fileName && !isLoading && !error && (
-        <p className="text-sm text-[var(--text-muted)] mt-2">No file loaded</p>
-      )}
-
-      {fileName && (
-        <dl className="mt-3 flex flex-col gap-3">
-          {/* Name */}
-          <div>
-            <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Name</dt>
-            <dd className="text-sm text-[var(--text-primary)] truncate" title={fileName}>
-              {fileName}
-            </dd>
-          </div>
-
-          {/* Format */}
-          {fileExtension && (
-            <div>
-              <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Format</dt>
-              <dd>
-                <span className="inline-block px-2 py-0.5 bg-[var(--bg-button)] text-[var(--text-primary)] text-xs rounded font-mono">
-                  {fileExtension.toUpperCase().replace('.', '')}
-                </span>
-              </dd>
-            </div>
-          )}
-
-          {/* Size */}
-          {fileSize !== null && (
-            <div>
-              <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Size</dt>
-              <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">{formatBytes(fileSize)}</dd>
-            </div>
-          )}
-
-          {/* Triangle count */}
-          <div>
-            <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Triangles</dt>
-            <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">
-              {triangleCount !== null ? triangleCount.toLocaleString() : 'N/A'}
-            </dd>
-          </div>
-        </dl>
-      )}
-      {geometryDetails && (
-        <>
-          <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide mt-6">Geometry</h2>
-          <dl className="mt-3 grid grid-cols-2 gap-3">
-            <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Vertices</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.vertices.toLocaleString()}</dd></div>
-            <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Meshes</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.meshes.toLocaleString()}</dd></div>
-            <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Boundary edges</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.boundaryEdges.toLocaleString()}</dd></div>
-            <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Non-manifold</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.nonManifoldEdges.toLocaleString()}</dd></div>
-          </dl>
-        </>
-      )}
-      </div>
-        </>
       ) : (
-        <div className="p-4 flex-1 overflow-y-auto">
+        <div
+          role="tabpanel"
+          id="right-tabpanel-prepare"
+          aria-labelledby="right-tab-prepare"
+          tabIndex={0}
+          className="p-4 flex-1 overflow-y-auto"
+        >
           <PreparePanel onUndoEdit={onUndoEdit} />
         </div>
       )}

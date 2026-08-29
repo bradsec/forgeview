@@ -112,4 +112,16 @@ describe('Sidebar tabs', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
     expect(screen.getByRole('tab', { name: 'Prepare' }).getAttribute('aria-selected')).toBe('true')
   })
+
+  it('moves between tabs with Left/Right arrow keys', () => {
+    render(<Sidebar />)
+    const detailsTab = screen.getByRole('tab', { name: 'Details' })
+    detailsTab.focus()
+    fireEvent.keyDown(detailsTab, { key: 'ArrowRight' })
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Prepare' }))
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Prepare' }), { key: 'ArrowLeft' })
+    expect(useViewerStore.getState().rightPanelTab).toBe('details')
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Details' }))
+  })
 })

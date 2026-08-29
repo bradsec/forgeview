@@ -2,6 +2,7 @@ import { useViewerStore } from '../../store/viewerStore'
 
 export function RepairSection({ onUndoEdit }: { onUndoEdit?: () => void }) {
   const canUndoEdit = useViewerStore((s) => s.canUndoEdit)
+  const hasModel = useViewerStore((s) => s.filePath !== null || s.loadedModels.length > 0)
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">
@@ -14,8 +15,9 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: () => void }) {
       <div className="mt-3 flex flex-col gap-2">
         <button
           type="button"
+          disabled={!hasModel}
           onClick={() => useViewerStore.getState().setSolidEditorOpen(true)}
-          className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start"
+          className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
         >
           Make solid…
         </button>

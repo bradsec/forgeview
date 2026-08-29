@@ -31,13 +31,20 @@ describe('Toolbar application menus', () => {
     expect(useViewerStore.getState().sidebarVisible).toBe(true)
   })
 
-  it('Prepare button opens the details drawer on a narrow viewport', async () => {
+  it('View menu opens the details drawer via Prepare on a narrow viewport', async () => {
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
     useViewerStore.setState({ filePath: '/m/model.stl', mobileDrawer: 'none', rightPanelTab: 'details' })
     render(<Toolbar />)
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare' }))
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Prepare' }))
     expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
     expect(useViewerStore.getState().mobileDrawer).toBe('details')
+  })
+
+  it('shows a Prepare item in the View menu', async () => {
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    expect(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Prepare' })).toBeTruthy()
   })
   it('opens and closes the File menu after choosing Open file', async () => {
     render(<Toolbar />)
