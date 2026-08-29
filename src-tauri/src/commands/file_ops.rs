@@ -104,7 +104,16 @@ fn read_file_bounded(path: &Path, max_size: u64) -> Result<Vec<u8>, String> {
     // Inspect the path before opening it. Windows rejects opening directories
     // with "Access is denied", while Unix permits the open, so checking first
     // keeps the command error stable across platforms.
-    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    let pre = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    if !pre.is_file() {
+        return Err("Path is not a regular file".to_string());
+    }
+
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    // Re-check against the opened handle, not the path: a symlink swapped in
+    // between the pre-check and here cannot get a directory or an oversized
+    // file past this point.
+    let metadata = file.metadata().map_err(|e| e.to_string())?;
     if !metadata.is_file() {
         return Err("Path is not a regular file".to_string());
     }
@@ -116,7 +125,6 @@ fn read_file_bounded(path: &Path, max_size: u64) -> Result<Vec<u8>, String> {
         ));
     }
 
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let mut bytes = Vec::with_capacity(metadata.len() as usize);
     file.take(max_size + 1)
         .read_to_end(&mut bytes)
