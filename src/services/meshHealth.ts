@@ -70,3 +70,29 @@ export function analyzeGeometry(geometry: THREE.BufferGeometry): MeshHealth {
   if (source !== geometry) source.dispose()
   return result
 }
+
+/** Sum health counts across scene meshes. watertight is the logical AND and is
+ * false when there are no meshes, matching "nothing loaded is not a solid". */
+export function summariseHealth(healths: MeshHealth[]): {
+  vertices: number
+  boundaryEdges: number
+  nonManifoldEdges: number
+  degenerateFaces: number
+  duplicateFaces: number
+  watertight: boolean
+} {
+  return healths.reduce(
+    (sum, item) => ({
+      vertices: sum.vertices + item.vertices,
+      boundaryEdges: sum.boundaryEdges + item.boundaryEdges,
+      nonManifoldEdges: sum.nonManifoldEdges + item.nonManifoldEdges,
+      degenerateFaces: sum.degenerateFaces + item.degenerateFaces,
+      duplicateFaces: sum.duplicateFaces + item.duplicateFaces,
+      watertight: sum.watertight && item.watertight,
+    }),
+    {
+      vertices: 0, boundaryEdges: 0, nonManifoldEdges: 0,
+      degenerateFaces: 0, duplicateFaces: 0, watertight: healths.length > 0,
+    }
+  )
+}

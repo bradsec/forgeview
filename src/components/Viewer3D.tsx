@@ -15,7 +15,7 @@ import {
 } from '../utils/cameraActions'
 import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
-import { analyzeGeometry } from '../services/meshHealth'
+import { analyzeGeometry, summariseHealth } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
 
 export interface Viewer3DHandle {
@@ -125,12 +125,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     const box = new THREE.Box3()
     for (const root of roots) box.expandByObject(root)
     const size = box.getSize(new THREE.Vector3())
-    const health = meshes.map((mesh) => analyzeGeometry(mesh.geometry)).reduce((sum, item) => ({
-      vertices: sum.vertices + item.vertices,
-      boundaryEdges: sum.boundaryEdges + item.boundaryEdges,
-      nonManifoldEdges: sum.nonManifoldEdges + item.nonManifoldEdges,
-      watertight: sum.watertight && item.watertight,
-    }), { vertices: 0, boundaryEdges: 0, nonManifoldEdges: 0, watertight: true })
+    const health = summariseHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
     const unitScales = roots.map((root) => root.userData.modelUnitInMm).filter((value): value is number => typeof value === 'number')
     const modelUnitInMm = unitScales.length === roots.length && unitScales.every((value) => value === unitScales[0])
       ? unitScales[0]
