@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.2 - 2026-08-29
+
+- Fix the viewport going blank during and after Make solid, and not recovering
+  on mobile. The GPU visibility pass created a second WebGL context, which the
+  browser evicted the viewer's context to make room for; it now renders on the
+  viewer's own renderer and restores its state, and its render target is back
+  to 1024. The viewer also handles WebGL context loss and restore so a lost
+  context recovers instead of staying grey. Make solid forces one repaint on
+  completion so the result shows without waiting for the next frame.
+
 ## 1.7.1 - 2026-08-29
 
 - Fix Make solid punching flat-bottomed gashes into the surface. The voxel
