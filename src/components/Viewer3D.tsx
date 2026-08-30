@@ -25,6 +25,9 @@ export interface RepairRunResult {
   label: string
   perMesh: PerMeshStage[][]
   seal?: SolidRepairStats
+  /** Meshes left untouched because they carry material groups, uv, or color
+   * attributes the simple stages would strip. Seal still collapses them. */
+  skippedMeshes: number
 }
 
 export interface Viewer3DHandle {
@@ -195,6 +198,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   }
   const clearUndo = () => {
     discardAll(undoStackRef.current)
+    // A dropped undo stack can no longer step a seal back, so the "sealed"
+    // banner on watertight/manifold rows must not outlive it (it also leaks
+    // across models in multi-model mode, where clearUndo runs without setFile).
+    useViewerStore.getState().setSealApplied(false)
     syncUndoLabels()
   }
 
@@ -276,49 +283,102 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       return box.getSize(new THREE.Vector3())
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {
+      // Nothing requested: return before any snapshot so no undo closure is
+      // built that would dispose then reassign the same live geometry.
+      if (stageIds.length === 0) return { label: '', perMesh: [], skippedMeshes: 0 }
+
       const wantSeal = stageIds.includes('seal')
       const simpleIds = stageIds.filter((s): s is RepairStageId => s !== 'seal')
-      const meshes = withGeometry(modelMeshes())
-      if (meshes.length === 0) throw new Error('The scene has no mesh geometry to repair')
-      const originals = meshes.map((m) => m.geometry)
+      const allMeshes = withGeometry(modelMeshes())
+      if (allMeshes.length === 0) throw new Error('The scene has no mesh geometry to repair')
+
+      // The simple stages emit position-only, groupless geometry. A mesh that
+      // draws with an array material, or splits into more than one draw group,
+      // renders nothing once the groups are gone; a uv or color attribute would
+      // be silently stripped (textured -> one texel, vertexColors -> black) and
+      // then exported that way. Such a mesh is skipped: its geometry and
+      // material stay untouched and it is kept out of `originals` and the undo
+      // entry. A plain single-group mesh (STL, single-material OBJ) is
+      // repairable. Seal still collapses everything regardless.
+      const isRepairable = (m: THREE.Mesh) => {
+        const g = m.geometry as THREE.BufferGeometry
+        if (Array.isArray(m.material) || g.groups.length > 1) return false
+        return !g.getAttribute('uv') && !g.getAttribute('color')
+      }
+      const repairable = allMeshes.filter(isRepairable)
+      const skipped = allMeshes.filter((m) => !isRepairable(m))
+      if (repairable.length === 0 && !wantSeal) {
+        throw new Error('No repairable geometry: the model uses textures or multiple materials')
+      }
+
+      const originals = repairable.map((m) => m.geometry)
+      const skippedOriginals = skipped.map((m) => m.geometry)
+
+      // Put the repairable meshes back to their pre-run geometry, disposing
+      // whatever intermediate currently sits on them. Shared by the seal-phase
+      // failure rollback and the undo `apply` so the two cannot drift.
+      const rollbackSimple = () => {
+        repairable.forEach((m, i) => {
+          if (m.geometry !== originals[i]) { m.geometry.dispose(); m.geometry = originals[i] }
+        })
+      }
+      const refreshTail = () => {
+        for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
+        updateTriangleDetails()
+        updateGeometryDetails()
+        invalidate()
+      }
 
       let perMesh: PerMeshStage[][] = []
-      if (simpleIds.length) {
-        const res = await runRepairInWorker(meshes, simpleIds, (p, phase) => onProgress(wantSeal ? p * 0.5 : p, phase), signal)
-        const current = withGeometry(modelMeshes())
-        if (current.length !== meshes.length || meshes.some((m, i) => m !== current[i])) {
+      if (simpleIds.length && repairable.length) {
+        const res = await runRepairInWorker(repairable, simpleIds, (p, phase) => onProgress(wantSeal ? p * 0.5 : p, phase), signal)
+        const currentAll = withGeometry(modelMeshes())
+        if (currentAll.length !== allMeshes.length || allMeshes.some((m, i) => m !== currentAll[i])) {
           res.geometries.forEach((g) => g.dispose())
           throw new Error('The open model changed while repair was running')
         }
-        meshes.forEach((m, i) => { m.geometry = res.geometries[i] })
+        repairable.forEach((m, i) => { m.geometry = res.geometries[i] })
         perMesh = res.perMesh
       }
 
       let seal: SolidRepairStats | undefined
       let sealBits: Awaited<ReturnType<typeof applySeal>> | undefined
       if (wantSeal) {
-        // Geometry as applySeal will find it: post simple-stage swap. applySeal
-        // replaces meshes[i].geometry again with the sealed soup, so a simple
-        // stage's intermediate result is left referenced by nothing. Dispose it,
-        // but never the pre-everything originals the undo entry restores.
-        const preSeal = meshes.map((m) => m.geometry)
-        sealBits = await applySeal(sealOpts.resolution, (p, phase) => onProgress(simpleIds.length ? 50 + p * 0.5 : p, phase), signal, { stripInternalWalls: sealOpts.stripInternalWalls })
-        preSeal.forEach((g, i) => { if (g !== originals[i]) g.dispose() })
+        // Post simple-stage swap: what applySeal reads off the meshes. It swaps
+        // every mesh's geometry again to the sealed soup, orphaning each
+        // repairable mesh's intermediate — dispose those, never the pre-run
+        // originals the undo entry restores.
+        const preSeal = repairable.map((m) => m.geometry)
+        try {
+          sealBits = await applySeal(sealOpts.resolution, (p, phase) => onProgress(simpleIds.length ? 50 + p * 0.5 : p, phase), signal, { stripInternalWalls: sealOpts.stripInternalWalls })
+        } catch (err) {
+          // Cancel/Close (RepairDialog turns that into controller.abort()), a
+          // seal worker error, or applySeal's own identity-guard throw: the
+          // simple stages are already on the meshes. Restore the pre-run
+          // geometry, drop the orphaned intermediates, refresh the panel, then
+          // rethrow — no undo entry is pushed.
+          rollbackSimple()
+          refreshTail()
+          throw err
+        }
+        const attachedNow = new Set(modelMeshes().map((m) => m.geometry))
+        preSeal.forEach((g) => { if (!originals.includes(g) && !attachedNow.has(g)) g.dispose() })
         seal = sealBits.stats
       }
 
       const label = stageIds.length > 1 ? 'Repair all' : STAGE_LABEL[stageIds[0]]
-      // sealMeshes below and `meshes` here are the same withGeometry(modelMeshes())
-      // array in the same order, so undo restoring geometry via `meshes` and
-      // material via `sealMeshes[0]` targets one and the same mesh set.
       const sealMeshes = sealBits?.meshes
       const solidMaterial = sealBits?.solidMaterial
       const originalMaterial = sealBits?.originalMaterial
       pushUndo({
         label,
         apply: () => {
-          meshes.forEach((m, i) => { m.geometry.dispose(); m.geometry = originals[i] })
+          rollbackSimple()
           if (sealMeshes && originalMaterial !== undefined) {
+            // applySeal swapped every mesh (repairable + skipped) to the sealed
+            // soup. rollbackSimple has already restored the repairable ones;
+            // restore the skipped meshes and the collapsed material.
+            skipped.forEach((m, i) => { m.geometry.dispose(); m.geometry = skippedOriginals[i] })
             sealMeshes[0].material = originalMaterial
             solidMaterial?.dispose()
           }
@@ -326,24 +386,29 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         discard: () => {
           originals.forEach((g) => g.dispose())
           if (originalMaterial !== undefined) {
+            // Seal ran, so the skipped meshes' original geometry is orphaned too.
+            skippedOriginals.forEach((g) => g.dispose())
             for (const mat of Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial]) mat.dispose()
           }
         },
       })
 
       if (wantSeal) useViewerStore.getState().setSealApplied(true)
-      const roots = modelRoots()
-      for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
-      updateTriangleDetails()
-      updateGeometryDetails()
-      invalidate()
+      refreshTail()
+      // A long worker run can leave the RAF loop throttled (backgrounded tab or
+      // mobile), so the demand-render bump in refreshTail may not paint for
+      // seconds. Force one synchronous frame so the repair shows at once.
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current)
       }
-      return { label, perMesh, seal }
+      return { label, perMesh, seal, skippedMeshes: skipped.length }
     },
     undoEdit: (steps = 1) => {
       popApply(undoStackRef.current, clampUndoSteps(steps, undoStackRef.current.length))
+      // A full drain means nothing sealed remains on the model; the residual
+      // watertight/manifold banner must clear with it. A partial undo that
+      // leaves older entries keeps the flag (accepted, design spec §7).
+      if (undoStackRef.current.length === 0) useViewerStore.getState().setSealApplied(false)
       syncUndoLabels()
       const roots = modelRoots()
       for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)

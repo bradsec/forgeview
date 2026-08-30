@@ -42,13 +42,14 @@ const KEY = (x: number, y: number, z: number) =>
 
 export function weldVertices(geo: THREE.BufferGeometry, tolerance = 1e-4): StageResult {
   try {
-    const src = geo.index ? geo.clone() : geo.toNonIndexed()
-    const merged = mergeVertices(src, tolerance)
-    if (src !== geo) src.dispose()
+    // mergeVertices accepts indexed and non-indexed input and returns a fresh
+    // geometry, so the caller's geometry is never touched and nothing to clean
+    // up leaks on the throw path below.
+    const merged = mergeVertices(geo, tolerance)
     merged.computeVertexNormals()
     return { geometry: merged }
   } catch {
-    return { geometry: geo.clone(), note: 'skipped: unsupported attribute layout' }
+    return { geometry: geo.clone(), note: 'skipped: weld failed' }
   }
 }
 
@@ -140,11 +141,16 @@ function vertexTable(positions: Float32Array, tris: number[][], vertexCount: num
 /**
  * BFS over shared-edge adjacency, per connected component, flipping each
  * triangle's winding to agree with its component seed, then recomputing vertex
- * normals. If a component contains an edge that would force one triangle into
- * both orientations at once (non-orientable, e.g. a Mobius strip), every
- * tentative flip in that component is reverted and the component is left exactly
- * as it came in; the count of such components is reported in `note`. Never
- * throws on a non-orientable input. Pure: the input geometry is not mutated.
+ * normals. Seed-consistent is not enough: if the seed is itself inverted the
+ * whole component ends up wound inward, so after the BFS pass each orientable
+ * component's signed volume `V = Σ dot(a, cross(b, c)) / 6` is checked and the
+ * whole component reversed when `V < 0`, leaving normals pointing outward. If a
+ * component contains an edge that would force one triangle into both
+ * orientations at once (non-orientable, e.g. a Mobius strip), every tentative
+ * flip in that component is reverted, the signed-volume correction is skipped,
+ * and the component is left exactly as it came in; the count of such components
+ * is reported in `note`. Never throws on a non-orientable input. Pure: the input
+ * geometry is not mutated.
  */
 export function unifyNormals(geo: THREE.BufferGeometry): StageResult {
   const { positions, tris, vertexCount } = triModel(geo)
@@ -171,6 +177,7 @@ export function unifyNormals(geo: THREE.BufferGeometry): StageResult {
   for (let seed = 0; seed < tris.length; seed++) {
     if (visited[seed]) continue
     visited[seed] = true
+    const component = [seed]
     const flipped: number[] = []
     const queue = [seed]
     let conflict = false
@@ -186,6 +193,7 @@ export function unifyNormals(geo: THREE.BufferGeometry): StageResult {
           const inconsistent = hasDirectedEdge(nb, a, b)
           if (!visited[nti]) {
             visited[nti] = true
+            component.push(nti)
             if (inconsistent && !consistent) { nb.reverse(); flipped.push(nti) }
             queue.push(nti)
           } else if (inconsistent && !consistent) {
@@ -197,7 +205,19 @@ export function unifyNormals(geo: THREE.BufferGeometry): StageResult {
     if (conflict) {
       for (const ti of flipped) tris[ti].reverse()
       nonOrientable++
+      continue
     }
+    // Seed-consistent now; flip the whole component if it came out inward.
+    let volume = 0
+    for (const ti of component) {
+      const [ia, ib, ic] = tris[ti]
+      const a = table[ia], b = table[ib], c = table[ic]
+      const cx = b[1] * c[2] - b[2] * c[1]
+      const cy = b[2] * c[0] - b[0] * c[2]
+      const cz = b[0] * c[1] - b[1] * c[0]
+      volume += a[0] * cx + a[1] * cy + a[2] * cz
+    }
+    if (volume < 0) for (const ti of component) tris[ti].reverse()
   }
   return {
     geometry: rebuild(tris, (id) => table[id]),
@@ -253,9 +273,14 @@ export function removeSmallShells(geo: THREE.BufferGeometry, minFraction = 0.01)
  * in the direction their triangle traverses them, then chained into closed
  * loops. Each simple loop gets a centroid vertex and a triangle fan; the fan
  * winds `(centroid, b, a)` against each directed boundary edge `a -> b`, so the
- * cap's outward face agrees with the one-sided surface it closes. Any loop that
- * is not simple (an edge chained twice, a revisited vertex, or fewer than three
- * vertices) is skipped and counted. `note` reports fills and skips. Never
+ * cap's outward face agrees with the one-sided surface it closes. Boundary edges
+ * are grouped into connected components (union-find over their endpoints); a
+ * component with any vertex whose boundary in-degree or out-degree exceeds one
+ * is pinched (e.g. a figure-eight sharing an apex) and every loop in it is
+ * skipped wholesale, since a single `Map` walk would silently merge or fan the
+ * chains. Simple components (every boundary vertex exactly one in, one out) are
+ * walked and fanned; a chain that still fails to close, or is shorter than
+ * three vertices, is skipped and counted. `note` reports fills and skips. Never
  * throws. Pure: the input geometry is not mutated.
  */
 export function fillHoles(geo: THREE.BufferGeometry): StageResult {
@@ -272,19 +297,53 @@ export function fillHoles(geo: THREE.BufferGeometry): StageResult {
       edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1)
     }
   }
-  const boundaryNext = new Map<number, number>()
-  let boundaryCount = 0
+  const dirEdges: [number, number][] = []
   for (const tri of tris) {
     for (let e = 0; e < 3; e++) {
       const a = tri[e], b = tri[(e + 1) % 3]
       const k = a < b ? `${a}_${b}` : `${b}_${a}`
-      if (edgeUse.get(k) === 1) { boundaryNext.set(a, b); boundaryCount++ }
+      if (edgeUse.get(k) === 1) dirEdges.push([a, b])
     }
   }
 
   const outTris = tris.map((t) => [...t])
-  let filled = 0, skipped = 0
-  const startNodes = new Set(boundaryNext.keys())
+
+  if (dirEdges.length === 0) return { geometry: geo.clone() }
+
+  // out/in degree per boundary vertex, and union-find grouping the directed
+  // edges into connected boundary components.
+  const outDeg = new Map<number, number>()
+  const inDeg = new Map<number, number>()
+  const parent = new Map<number, number>()
+  const find = (x: number): number => {
+    const p = parent.get(x)
+    if (p === undefined) { parent.set(x, x); return x }
+    if (p === x) return x
+    const r = find(p)
+    parent.set(x, r)
+    return r
+  }
+  const union = (x: number, y: number) => { parent.set(find(x), find(y)) }
+  for (const [a, b] of dirEdges) {
+    outDeg.set(a, (outDeg.get(a) ?? 0) + 1)
+    inDeg.set(b, (inDeg.get(b) ?? 0) + 1)
+    union(a, b)
+  }
+  const pinchedRoots = new Set<number>()
+  for (const [v, d] of outDeg) if (d > 1) pinchedRoots.add(find(v))
+  for (const [v, d] of inDeg) if (d > 1) pinchedRoots.add(find(v))
+
+  const boundaryNext = new Map<number, number>()
+  const startNodesSeed: number[] = []
+  let boundaryCount = 0
+  for (const [a, b] of dirEdges) {
+    if (pinchedRoots.has(find(a))) continue
+    boundaryNext.set(a, b)
+    startNodesSeed.push(a)
+    boundaryCount++
+  }
+  let filled = 0, skipped = pinchedRoots.size
+  const startNodes = new Set(startNodesSeed)
   while (startNodes.size) {
     const start = startNodes.values().next().value as number
     const loop: number[] = []
@@ -354,21 +413,28 @@ export interface RunStage {
  * `REPAIR_STAGE_IDS` order regardless of the order they are passed. Each stage
  * records mesh health before and after via `analyzeGeometry`. Intermediate
  * geometries are disposed; the caller's input and the returned geometry are not.
+ * `onStage` fires immediately before each stage runs, with the count already
+ * completed, the total to run, and the stage id, so a caller can report
+ * sub-mesh progress.
  */
 export function runStages(
   geo: THREE.BufferGeometry,
   stageIds: RepairStageId[],
+  onStage?: (done: number, total: number, id: RepairStageId) => void,
 ): { geometry: THREE.BufferGeometry; stages: RunStage[] } {
   const want = new Set(stageIds)
+  const ordered = REPAIR_STAGE_IDS.filter((id) => want.has(id))
   let current = geo.clone()
   const stages: RunStage[] = []
-  for (const id of REPAIR_STAGE_IDS) {
-    if (!want.has(id)) continue
+  let done = 0
+  for (const id of ordered) {
+    onStage?.(done, ordered.length, id)
     const before = analyzeGeometry(current)
     const res = STAGE_FN[id](current)
     if (res.geometry !== current) current.dispose()
     current = res.geometry
     stages.push({ id, before, after: analyzeGeometry(current), note: res.note })
+    done++
   }
   return { geometry: current, stages }
 }

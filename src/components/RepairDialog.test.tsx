@@ -5,7 +5,7 @@ import { RepairDialog } from './RepairDialog'
 import { useViewerStore } from '../store/viewerStore'
 
 function stubRef() {
-  return { current: { runRepair: vi.fn().mockResolvedValue({ label: 'x', perMesh: [], seal: undefined }) } }
+  return { current: { runRepair: vi.fn().mockResolvedValue({ label: 'x', perMesh: [], seal: undefined, skippedMeshes: 0 }) } }
 }
 
 beforeEach(() => {
@@ -46,5 +46,21 @@ describe('RepairDialog', () => {
     const seal = screen.getByTestId('repair-stage-seal')
     expect(within(seal).getByRole('combobox')).toBeTruthy()
     expect(within(seal).getByRole('checkbox')).toBeTruthy()
+  })
+
+  it('aborts the in-flight run when the dialog is closed', async () => {
+    let capturedSignal: AbortSignal | undefined
+    const runRepair = vi.fn((_ids, _opts, _onProgress, signal?: AbortSignal) => {
+      capturedSignal = signal
+      return new Promise(() => {}) // never resolves — stays in flight
+    })
+    render(<RepairDialog viewerRef={{ current: { runRepair } } as never} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /repair all/i }))
+    expect(capturedSignal).toBeInstanceOf(AbortSignal)
+    expect(capturedSignal!.aborted).toBe(false)
+
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(capturedSignal!.aborted).toBe(true)
   })
 })

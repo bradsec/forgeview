@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { runStages, type RepairStageId } from './repairStages'
+import { runStages, STAGE_LABEL, type RepairStageId } from './repairStages'
 
 interface InMsg {
   id: number
@@ -16,18 +16,24 @@ self.onmessage = (event: MessageEvent<InMsg>) => {
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.positions), 3))
     if (m.index) g.setIndex(new THREE.BufferAttribute(new Uint32Array(m.index), 1))
-    ;(self as unknown as Worker).postMessage({
-      type: 'progress', id,
-      percent: Math.round((i / meshes.length) * 90),
-      phase: `Repairing mesh ${i + 1} of ${meshes.length}`,
+    // Progress advances as each stage of this mesh completes so a large
+    // single-mesh model does not sit at one number until the seal phase.
+    const post = (percent: number, phase: string) =>
+      (self as unknown as Worker).postMessage({ type: 'progress', id, percent, phase })
+    const { geometry, stages } = runStages(g, stageIds, (doneStages, totalStages, stageId) => {
+      const stageFraction = totalStages > 0 ? doneStages / totalStages : 0
+      post(
+        Math.round(((i + stageFraction) / meshes.length) * 90),
+        `Mesh ${i + 1}/${meshes.length}: ${STAGE_LABEL[stageId]}`,
+      )
     })
-    const { geometry, stages } = runStages(g, stageIds)
-    const pos = (geometry.index ? geometry.toNonIndexed() : geometry).getAttribute('position')
-      .array as Float32Array
+    const flat = geometry.index ? geometry.toNonIndexed() : geometry
+    const pos = flat.getAttribute('position').array as Float32Array
     const buf = new Float32Array(pos).buffer
     outMeshes.push({ positions: buf, index: null })
     transfer.push(buf)
     perMesh.push(stages)
+    if (flat !== geometry) flat.dispose()
     g.dispose()
     geometry.dispose()
   })

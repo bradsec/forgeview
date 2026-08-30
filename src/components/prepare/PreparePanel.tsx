@@ -17,7 +17,7 @@ export function PreparePanel({ onUndoEdit }: { onUndoEdit?: (steps?: number) => 
         <ReadinessCard
           checks={prepChecks(details, sealApplied)}
           onFix={(fixId) => FIX_HANDLERS[fixId]?.()}
-          canFix={(id) => id in FIX_HANDLERS}
+          canFix={(id) => Object.hasOwn(FIX_HANDLERS, id)}
         />
       ) : (
         <p data-testid="prepare-empty" className="text-sm text-[var(--text-muted)]">

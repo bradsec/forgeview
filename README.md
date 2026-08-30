@@ -34,6 +34,10 @@ The Prepare panel's Repair modal runs mesh-repair stages against the open model,
 each on its own or as one pipeline. The individual stages are weld vertices,
 remove degenerate faces, remove duplicate faces, unify normals, remove small
 shells, and fill holes; each updates the model in place and adds an undo entry.
+The individual stages currently apply only to single-material, untextured
+meshes. A mesh that uses multiple materials, UV coordinates, or vertex colours
+is left unchanged and the dialog reports how many meshes it skipped; Make solid
+still seals those meshes.
 Make solid is the final sealing stage: internal geometry that is not part of the
 outside surface, enclosed cavities and parts hidden inside other parts, is
 deleted, touching parts join under one skin, and every open edge left on the

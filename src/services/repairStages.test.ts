@@ -150,6 +150,29 @@ function tetrahedronOneFaceFlipped(): THREE.BufferGeometry {
   return g
 }
 
+/**
+ * Closed tetrahedron (centroid at origin) with EVERY face wound inward: the
+ * reverse of each outward face. BFS makes the component seed-consistent but
+ * inward; only the signed-volume correction can turn it back outward.
+ */
+function tetrahedronAllFacesFlipped(): THREE.BufferGeometry {
+  const A = [1, 1, 1]
+  const B = [1, -1, -1]
+  const C = [-1, 1, -1]
+  const D = [-1, -1, 1]
+  // outward faces: [B,D,C], [A,C,D], [A,D,B], [A,B,C] — reverse each.
+  const faces = [
+    [C, D, B],
+    [D, C, A],
+    [B, D, A],
+    [C, B, A],
+  ]
+  const positions = new Float32Array(faces.flat(2))
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  return g
+}
+
 describe('unifyNormals', () => {
   it('returns a geometry with consistent winding and does not throw on a flat quad', () => {
     const { geometry } = unifyNormals(inconsistentQuad())
@@ -202,6 +225,26 @@ describe('unifyNormals', () => {
       expect(n.dot(outward)).toBeGreaterThan(0)
     }
   })
+
+  it('re-winds an all-inverted closed tetrahedron outward via signed volume', () => {
+    const { geometry } = unifyNormals(tetrahedronAllFacesFlipped())
+    const p = geometry.getAttribute('position')
+    const triCount = p.count / 3
+    expect(triCount).toBe(4)
+
+    const mesh = new THREE.Vector3()
+    for (let i = 0; i < p.count; i++) mesh.add(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)))
+    mesh.divideScalar(p.count)
+
+    for (let t = 0; t < triCount; t++) {
+      const a = new THREE.Vector3(p.getX(t * 3), p.getY(t * 3), p.getZ(t * 3))
+      const b = new THREE.Vector3(p.getX(t * 3 + 1), p.getY(t * 3 + 1), p.getZ(t * 3 + 1))
+      const c = new THREE.Vector3(p.getX(t * 3 + 2), p.getY(t * 3 + 2), p.getZ(t * 3 + 2))
+      const n = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize()
+      const outward = a.clone().add(b).add(c).divideScalar(3).sub(mesh)
+      expect(n.dot(outward)).toBeGreaterThan(0)
+    }
+  })
 })
 
 /** unit cube missing the +Z face: 10 triangles, one square hole */
@@ -212,6 +255,26 @@ function openCube(): THREE.BufferGeometry {
   const keep = new Float32Array([...full.slice(0, 18 * 4), ...full.slice(18 * 5, 18 * 6)])
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.BufferAttribute(keep, 3))
+  return g
+}
+
+/**
+ * Two triangle fans sharing exactly one apex vertex P. Each fan is an open
+ * surface whose boundary is a 4-vertex chain (P -> rim -> P); sharing the apex
+ * gives P boundary out-degree 2 and in-degree 2 — a pinched, non-simple
+ * boundary component that fillHoles must skip wholesale.
+ */
+function figureEightBoundary(): THREE.BufferGeometry {
+  const P = [0, 0, 0]
+  const a0 = [1, 0, 0], a1 = [1, 1, 0], a2 = [0, 1, 0]
+  const b0 = [-1, 0, 0], b1 = [-1, -1, 0], b2 = [0, -1, 0]
+  const faces = [
+    [P, a0, a1], [P, a1, a2],
+    [P, b0, b1], [P, b1, b2],
+  ]
+  const positions = new Float32Array(faces.flat(2))
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   return g
 }
 
@@ -255,11 +318,14 @@ describe('fillHoles', () => {
     expect(checked).toBe(4)
   })
 
-  it('reports a skipped non-simple loop without throwing', () => {
-    // figure-eight boundary is hard to build; assert no-throw + note shape on a clean closed mesh
-    const g = new THREE.BoxGeometry(1, 1, 1)
-    const { note } = fillHoles(g)
-    expect(note === undefined || /0 .*filled/i.test(note)).toBe(true)
+  it('skips a pinched figure-eight boundary and fills nothing', () => {
+    const src = figureEightBoundary()
+    const before = analyzeGeometry(src).boundaryEdges
+    expect(before).toBeGreaterThan(0)
+    let result!: ReturnType<typeof fillHoles>
+    expect(() => { result = fillHoles(src) }).not.toThrow()
+    expect(analyzeGeometry(result.geometry).boundaryEdges).toBe(before)
+    expect(result.note).toMatch(/skipped/)
   })
 })
 

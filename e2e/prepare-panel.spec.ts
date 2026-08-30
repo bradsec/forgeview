@@ -71,9 +71,12 @@ test.describe('Prepare panel', () => {
     const history = page.getByTestId('undo-history').filter({ visible: true })
     await expect(history.getByRole('button')).toHaveText(['Make solid (seal)'])
 
-    // Clicking the entry reverts the seal.
+    // Clicking the entry reverts the seal. Draining the undo stack also clears
+    // the sealApplied flag, so the watertight row must read a hard 'fail'
+    // again, not the informational 'warn' a lingering flag would leave.
     await history.getByRole('button', { name: /Make solid/ }).click()
     await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
+    await expect(watertight).toHaveAttribute('data-state', 'fail')
     await expect(page.getByTestId('undo-history').filter({ visible: true })).toHaveCount(0)
   })
 
