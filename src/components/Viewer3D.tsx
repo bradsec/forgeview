@@ -17,7 +17,7 @@ import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
 import { analyzeGeometry, summariseHealth } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
-import { MAX_UNDO, clampUndoSteps, type UndoEntry } from '../services/undoStack'
+import { clampUndoSteps, pushBounded, discardAll, popApply, type UndoEntry } from '../services/undoStack'
 
 export interface Viewer3DHandle {
   snapToView: (direction: ViewDirection) => void
@@ -173,13 +173,11 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     useViewerStore.getState().setCanUndoEdit(labels.length > 0)
   }
   const pushUndo = (entry: UndoEntry) => {
-    undoStackRef.current.push(entry)
-    while (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift()!.discard()
+    pushBounded(undoStackRef.current, entry)
     syncUndoLabels()
   }
   const clearUndo = () => {
-    for (const entry of undoStackRef.current) entry.discard()
-    undoStackRef.current = []
+    discardAll(undoStackRef.current)
     syncUndoLabels()
   }
 
@@ -284,8 +282,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       return result.stats
     },
     undoEdit: (steps = 1) => {
-      const n = clampUndoSteps(steps, undoStackRef.current.length)
-      for (let i = 0; i < n; i++) undoStackRef.current.pop()!.apply()
+      popApply(undoStackRef.current, clampUndoSteps(steps, undoStackRef.current.length))
       syncUndoLabels()
       const roots = modelRoots()
       for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
