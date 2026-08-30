@@ -340,3 +340,26 @@ describe('setFileFromBuffer (browser files)', () => {
     expect(useViewerStore.getState().fileBuffer).toBeNull()
   })
 })
+
+describe('undoLabels', () => {
+  beforeEach(() => {
+    useViewerStore.setState({ undoLabels: [], canUndoEdit: false })
+  })
+
+  it('defaults to an empty array', () => {
+    expect(useViewerStore.getInitialState().undoLabels).toEqual([])
+  })
+
+  it('setUndoLabels replaces the list', () => {
+    useViewerStore.getState().setUndoLabels(['Make solid'])
+    expect(useViewerStore.getState().undoLabels).toEqual(['Make solid'])
+    useViewerStore.getState().setUndoLabels(['Weld vertices', 'Make solid'])
+    expect(useViewerStore.getState().undoLabels).toEqual(['Weld vertices', 'Make solid'])
+  })
+
+  it('setUndoLabels does not touch canUndoEdit', () => {
+    useViewerStore.setState({ canUndoEdit: true })
+    useViewerStore.getState().setUndoLabels([])
+    expect(useViewerStore.getState().canUndoEdit).toBe(true)
+  })
+})

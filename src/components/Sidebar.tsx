@@ -17,7 +17,7 @@ function formatBytes(bytes: number): string {
  * Right-side panel showing scene models and file metadata.
  * Resizable via left-edge drag handle. Closable via header button.
  */
-export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUndoEdit?: () => void } = {}) {
+export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUndoEdit?: (steps?: number) => void } = {}) {
   const fileName = useViewerStore((s) => s.fileName)
   const fileExtension = useViewerStore((s) => s.fileExtension)
   const fileSize = useViewerStore((s) => s.fileSize)

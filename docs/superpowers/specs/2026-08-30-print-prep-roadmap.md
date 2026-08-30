@@ -166,6 +166,34 @@ Carry-forward into SP-2 (deferred from SP-1 reviews, do not lose):
 - Stale doc comment `src/components/Sidebar.tsx` "Closable via header button"
   (close moved to the tab strip).
 
+## SP-2 decomposition (2026-08-30)
+
+SP-2 (staged auto-repair) is split into four cycles, each its own spec + plan +
+build:
+
+| # | Piece | Depends on | Status |
+|---|-------|-----------|--------|
+| SP-2a | Undo history stack | — | SHIPPED, branch `sp2a-undo-history`, commits e993477..6f57ce2. Bounded 5-entry `UndoEntry[]` in Viewer3D, `undoEdit(steps?)`, `undoLabels` store field, clickable undo list in the Repair section. Spec: `2026-08-30-sp2a-undo-history-design.md`. |
+| SP-2b | Staged repair pipeline + Repair modal | SP-2a | Not started. New `meshRepair.worker.ts` (weld, degenerate, duplicate, normals, small-shell, flat fan hole-fill); dedicated Repair modal with per-stage run + before/after + "Repair all"; fold Make solid seal in as the final stage; rewire readiness-card `seal` fixId. Clears SP-1 debt: watertight-row Fix loop, Fix-without-handler guard, `--text-warning` token, double-`<Sidebar>`-mount dedup + duplicate-id, stale Sidebar doc comment. |
+| SP-2c | Fill single hole on click | SP-2b | Not started. Viewport raycast-pick a boundary loop, fill just it. Brings a minimal raycaster. |
+| SP-2d | Split by shell | — | Not started. Connected-component split into named scene models; touches the multi-model store. |
+
+Carry-forward into SP-2b (deferred from SP-2a final review):
+
+- Move the stack mechanics into `src/services/undoStack.ts` as pure functions
+  over `UndoEntry[]` (`pushBounded`, `discardAll`, `popAndApply`, closures
+  injected) as the FIRST commit of SP-2b, so push/overflow/pop ordering is
+  unit-testable with fake entries and no WebGL. `UndoEntry` interface already
+  lives there.
+- Entry-shape caution: the Make-solid `UndoEntry`'s `discard` unconditionally
+  disposes `originalMaterial` (wrong for a stage that does not swap materials —
+  would dispose a live material) and its `apply` captures a fixed `meshes`
+  array (wrong for a stage that changes the mesh set, e.g. SP-2d split). Each
+  repair stage must build an entry matched to what it actually changed.
+- `undoEdit(steps)` runs the full scene refresh even when the clamped step
+  count is 0; kept deliberately (the `syncUndoLabels()` in that path
+  self-heals a phantom-row click). Leave it.
+
 ## Sources
 
 - Meshmixer 3D print prep: https://www.coohom.com/article/how-to-prepare-3d-models-for-print-in-meshmixer

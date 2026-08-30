@@ -12,7 +12,7 @@ const details = {
 
 beforeEach(() => {
   useViewerStore.setState({
-    geometryDetails: null, canUndoEdit: false, solidEditorOpen: false,
+    geometryDetails: null, canUndoEdit: false, undoLabels: [], solidEditorOpen: false,
     filePath: null, loadedModels: [],
   })
 })
@@ -57,5 +57,49 @@ describe('PreparePanel', () => {
     rerender(<PreparePanel onUndoEdit={onUndoEdit} />)
     await userEvent.click(screen.getByRole('button', { name: 'Undo last model edit' }))
     expect(onUndoEdit).toHaveBeenCalledOnce()
+    expect(onUndoEdit).toHaveBeenCalledWith(1)
+  })
+})
+
+describe('PreparePanel undo history', () => {
+  const details = {
+    width: 1, height: 1, depth: 1, vertices: 3, meshes: 1,
+    boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+    watertight: true, modelUnitInMm: null,
+  }
+  beforeEach(() => {
+    useViewerStore.setState({
+      geometryDetails: details, filePath: '/m/model.stl', loadedModels: [],
+      canUndoEdit: false,
+    })
+  })
+
+  it('shows no undo history list when there are no entries', () => {
+    render(<PreparePanel />)
+    expect(screen.queryByTestId('undo-history')).toBeNull()
+    expect((screen.getByRole('button', { name: 'Undo last model edit' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('renders one row per undo label, newest first, and reverts to that depth on click', async () => {
+    const onUndoEdit = vi.fn()
+    useViewerStore.setState({ canUndoEdit: true, undoLabels: ['Weld vertices', 'Make solid'] })
+    render(<PreparePanel onUndoEdit={onUndoEdit} />)
+    const list = screen.getByTestId('undo-history')
+    const rows = within(list).getAllByRole('button')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].textContent).toContain('Weld vertices')
+    expect(rows[1].textContent).toContain('Make solid')
+    await userEvent.click(rows[0])
+    expect(onUndoEdit).toHaveBeenLastCalledWith(1)
+    await userEvent.click(rows[1])
+    expect(onUndoEdit).toHaveBeenLastCalledWith(2)
+  })
+
+  it('the Undo last model edit button undoes one step', async () => {
+    const onUndoEdit = vi.fn()
+    useViewerStore.setState({ canUndoEdit: true, undoLabels: ['Make solid'] })
+    render(<PreparePanel onUndoEdit={onUndoEdit} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Undo last model edit' }))
+    expect(onUndoEdit).toHaveBeenCalledWith(1)
   })
 })

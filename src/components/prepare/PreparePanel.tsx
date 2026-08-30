@@ -7,7 +7,7 @@ const FIX_HANDLERS: Record<string, () => void> = {
   seal: () => useViewerStore.getState().setSolidEditorOpen(true),
 }
 
-export function PreparePanel({ onUndoEdit }: { onUndoEdit?: () => void }) {
+export function PreparePanel({ onUndoEdit }: { onUndoEdit?: (steps?: number) => void }) {
   const details = useViewerStore((s) => s.geometryDetails)
 
   return (

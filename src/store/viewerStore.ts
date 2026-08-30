@@ -118,8 +118,10 @@ interface ViewerState {
   setExportOpen: (open: boolean) => void
   solidEditorOpen: boolean
   canUndoEdit: boolean
+  undoLabels: string[]
   setSolidEditorOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
+  setUndoLabels: (labels: string[]) => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
   setNotice: (notice: string | null) => void
@@ -201,8 +203,10 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setExportOpen: (open) => set({ exportOpen: open }),
   solidEditorOpen: false,
   canUndoEdit: false,
+  undoLabels: [],
   setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
+  setUndoLabels: (labels) => set({ undoLabels: labels }),
   notice: null,
   setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
@@ -220,9 +224,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [] }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [] }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),
