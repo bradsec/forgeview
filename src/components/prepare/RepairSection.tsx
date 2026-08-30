@@ -32,20 +32,25 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
         </button>
       </div>
       {undoLabels.length > 0 && (
-        <ol data-testid="undo-history" className="mt-3 flex flex-col gap-1">
-          {undoLabels.map((label, index) => (
-            <li key={`${index}-${label}`}>
-              <button
-                type="button"
-                onClick={() => onUndoEdit?.(index + 1)}
-                aria-label={`Undo ${index + 1} step${index === 0 ? '' : 's'}: ${label}`}
-                className="w-full text-left px-2 py-1 rounded text-xs text-[var(--text-primary)] hover:bg-[var(--bg-button)]"
-              >
-                {label}
-              </button>
-            </li>
-          ))}
-        </ol>
+        <div className="mt-3">
+          <p id="undo-history-label" className="text-xs text-[var(--text-muted)] mb-1">
+            Undo history
+          </p>
+          <ol data-testid="undo-history" aria-labelledby="undo-history-label" className="flex flex-col gap-1">
+            {undoLabels.map((label, index) => (
+              <li key={`${index}-${label}`}>
+                <button
+                  type="button"
+                  onClick={() => onUndoEdit?.(index + 1)}
+                  aria-label={`Undo ${index + 1} step${index === 0 ? '' : 's'}: ${label}`}
+                  className="w-full text-left px-2 py-1 rounded text-xs text-[var(--text-primary)] hover:bg-[var(--bg-button)]"
+                >
+                  {label}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
     </div>
   )

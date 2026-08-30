@@ -347,7 +347,7 @@ describe('undoLabels', () => {
   })
 
   it('defaults to an empty array', () => {
-    expect(useViewerStore.getState().undoLabels).toEqual([])
+    expect(useViewerStore.getInitialState().undoLabels).toEqual([])
   })
 
   it('setUndoLabels replaces the list', () => {

@@ -17,7 +17,7 @@ import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
 import { analyzeGeometry, summariseHealth } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
-import { MAX_UNDO, clampUndoSteps } from '../services/undoStack'
+import { MAX_UNDO, clampUndoSteps, type UndoEntry } from '../services/undoStack'
 
 export interface Viewer3DHandle {
   snapToView: (direction: ViewDirection) => void
@@ -102,7 +102,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // (model loads, view mode, theme, settings all land in the store). A small
   // budget instead of a boolean absorbs mutations that land mid-frame.
   const framesToRenderRef = useRef(3)
-  const undoStackRef = useRef<{ label: string; apply: () => void; discard: () => void }[]>([])
+  const undoStackRef = useRef<UndoEntry[]>([])
   const invalidate = () => { framesToRenderRef.current = 3 }
 
   const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values()].filter((root): root is THREE.Object3D => Boolean(root))
@@ -172,7 +172,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     useViewerStore.getState().setUndoLabels(labels)
     useViewerStore.getState().setCanUndoEdit(labels.length > 0)
   }
-  const pushUndo = (entry: { label: string; apply: () => void; discard: () => void }) => {
+  const pushUndo = (entry: UndoEntry) => {
     undoStackRef.current.push(entry)
     while (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift()!.discard()
     syncUndoLabels()
@@ -487,6 +487,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // Bump even when clearing (filePath -> null) so an in-flight load from a
     // previous run is detected as stale and disposed when it resolves
     const version = ++previewVersionRef.current
+    // Tearing down the preview (filePath -> null) must also drop the undo
+    // stack, or a dead "Undo" button and stale undo-history rows outlive the
+    // model. Harmless no-op on an already-empty stack.
+    clearUndo()
     if (!filePath || !fileExtension || !sceneRef.current || !cameraRef.current) {
       // Clearing the preview must also remove a committed model from the
       // scene — the viewer stays mounted when multi-model entries remain
@@ -504,7 +508,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     setLoading(true)
     setError(null)
-    clearUndo()
 
     // Clear any multi-model scene — preview replaces everything
     for (const obj of modelMapRef.current.values()) {

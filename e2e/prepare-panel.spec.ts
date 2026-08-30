@@ -68,8 +68,7 @@ test.describe('Prepare panel', () => {
 
     // Clicking the entry reverts the seal.
     await history.getByRole('button', { name: /Make solid/ }).click()
-    await expect(page.getByTestId('check-boundary').filter({ visible: true }))
-      .toHaveAttribute('data-state', 'fail')
+    await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
     await expect(page.getByTestId('undo-history').filter({ visible: true })).toHaveCount(0)
   })
 })

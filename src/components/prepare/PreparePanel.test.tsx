@@ -12,7 +12,7 @@ const details = {
 
 beforeEach(() => {
   useViewerStore.setState({
-    geometryDetails: null, canUndoEdit: false, solidEditorOpen: false,
+    geometryDetails: null, canUndoEdit: false, undoLabels: [], solidEditorOpen: false,
     filePath: null, loadedModels: [],
   })
 })
@@ -70,7 +70,7 @@ describe('PreparePanel undo history', () => {
   beforeEach(() => {
     useViewerStore.setState({
       geometryDetails: details, filePath: '/m/model.stl', loadedModels: [],
-      canUndoEdit: false, undoLabels: [],
+      canUndoEdit: false,
     })
   })
 
