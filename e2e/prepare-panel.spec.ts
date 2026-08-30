@@ -62,7 +62,14 @@ test.describe('Prepare panel', () => {
 
     await expect(check('boundary')).toHaveAttribute('data-state', 'pass')
 
-    await page.getByRole('button', { name: 'Undo last model edit' }).filter({ visible: true }).click()
-    await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
+    // Undo history now has exactly one entry for the seal.
+    const history = page.getByTestId('undo-history').filter({ visible: true })
+    await expect(history.getByRole('button')).toHaveText(['Make solid'])
+
+    // Clicking the entry reverts the seal.
+    await history.getByRole('button', { name: /Make solid/ }).click()
+    await expect(page.getByTestId('check-boundary').filter({ visible: true }))
+      .toHaveAttribute('data-state', 'fail')
+    await expect(page.getByTestId('undo-history').filter({ visible: true })).toHaveCount(0)
   })
 })
