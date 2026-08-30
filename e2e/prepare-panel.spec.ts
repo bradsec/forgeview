@@ -52,23 +52,86 @@ test.describe('Prepare panel', () => {
     await expect(watertight).toHaveAttribute('data-state', 'fail')
     await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
 
+    // The readiness card's Fix shortcut opens the Repair modal; the seal row
+    // there does what "Make solid" used to.
     await watertight.getByRole('button', { name: 'Fix' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Make solid' })
+    const dialog = page.getByRole('dialog', { name: 'Repair' })
     await expect(dialog).toBeVisible()
-    await dialog.getByLabel('Interior detection detail').selectOption('96')
-    await dialog.getByRole('button', { name: 'Apply' }).click()
-    await expect(dialog.getByRole('definition').first()).toBeVisible({ timeout: 90_000 })
-    await dialog.getByRole('button', { name: 'Close' }).click()
+    const seal = dialog.getByTestId('repair-stage-seal')
+    await seal.getByRole('combobox').selectOption('96')
+    await seal.getByRole('button', { name: /run/i }).click()
+    // No "Solid fill complete" text now: the seal row's own note is the signal.
+    await expect(seal).toContainText('Watertight solid', { timeout: 90_000 })
+    await expect(dialog.locator('progress')).toBeHidden()
+    await dialog.getByRole('button', { name: /close/i }).click()
 
     await expect(check('boundary')).toHaveAttribute('data-state', 'pass')
 
     // Undo history now has exactly one entry for the seal.
     const history = page.getByTestId('undo-history').filter({ visible: true })
-    await expect(history.getByRole('button')).toHaveText(['Make solid'])
+    await expect(history.getByRole('button')).toHaveText(['Make solid (seal)'])
 
     // Clicking the entry reverts the seal.
     await history.getByRole('button', { name: /Make solid/ }).click()
     await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
     await expect(page.getByTestId('undo-history').filter({ visible: true })).toHaveCount(0)
+  })
+
+  test('fills an open box with the Fill holes stage alone, then undoes it', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Prepare flow verified on desktop')
+    test.setTimeout(120_000)
+
+    await dropOpenBox(page)
+    const check = (id: string) => page.getByTestId(`check-${id}`).filter({ visible: true })
+
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
+
+    // Fill holes stage alone seals the open box.
+    await page.getByRole('button', { name: 'Repair…' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Repair' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByTestId('repair-stage-holeFill').getByRole('button', { name: /run/i }).click()
+    await expect(dialog.getByTestId('repair-stage-holeFill')).toContainText(/filled/i, { timeout: 30_000 })
+    await dialog.getByRole('button', { name: /close/i }).click()
+    await expect(check('boundary')).toHaveAttribute('data-state', 'pass')
+
+    // Undo from the history list re-opens the hole.
+    const history = page.getByTestId('undo-history').filter({ visible: true })
+    await history.getByRole('button', { name: /Fill holes/i }).click()
+    await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
+  })
+
+  test('Repair all seals the open box and keeps the WebGL context', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Prepare flow verified on desktop')
+    test.setTimeout(180_000)
+
+    await dropOpenBox(page)
+
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Repair…' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Repair' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByTestId('repair-stage-seal').getByRole('combobox').selectOption('96')
+    await dialog.getByRole('button', { name: 'Repair all' }).click()
+    await expect(dialog.locator('progress')).toBeHidden({ timeout: 120_000 })
+    await expect(dialog.getByTestId('repair-stage-seal')).toContainText(
+      /watertight solid|0 open edges? left/i,
+      { timeout: 30_000 },
+    )
+    await dialog.getByRole('button', { name: /close/i }).click()
+
+    // Every readiness row that can be fixed is now satisfied.
+    await expect(
+      page.locator('[data-testid^="check-"][data-state="fail"]').filter({ visible: true }),
+    ).toHaveCount(0)
+
+    // The viewport's WebGL context must survive the seal's visibility pass.
+    const contextLost = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas')
+      const gl = canvas?.getContext('webgl2') ?? canvas?.getContext('webgl')
+      return gl ? gl.isContextLost() : true
+    })
+    expect(contextLost).toBe(false)
   })
 })

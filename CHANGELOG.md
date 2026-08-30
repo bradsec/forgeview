@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Repair modal: run individual mesh-repair stages (weld vertices, remove
+  degenerate and duplicate faces, unify normals, remove small shells, fill
+  holes) or the whole pipeline with Make solid as the final sealing stage.
+  Replaces the standalone Make solid dialog.
 - Prepare panel replaces the Edit menu: a tabbed right sidebar with a
   print-readiness score card and the Make solid / undo actions.
 - Undo history: the Prepare panel keeps the last 5 model edits; click any entry
