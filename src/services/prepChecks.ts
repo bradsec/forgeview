@@ -36,7 +36,7 @@ function countRow(
 
 /** Ordered print-readiness rows derived from mesh health. Rows whose analysis
  * ships in a later sub-project always return 'unavailable' here. */
-export function prepChecks(details: GeometryDetails | null): PrepCheck[] {
+export function prepChecks(details: GeometryDetails | null, sealApplied = false): PrepCheck[] {
   if (!details) {
     return [
       { id: 'watertight', label: 'Watertight' },
@@ -48,7 +48,7 @@ export function prepChecks(details: GeometryDetails | null): PrepCheck[] {
     ].map((row) => ({ ...row, state: 'unavailable' as const, detail: 'Open a model' }))
   }
 
-  return [
+  const rows: PrepCheck[] = [
     details.watertight
       ? { id: 'watertight', label: 'Watertight', state: 'pass', detail: 'Sealed' }
       : { id: 'watertight', label: 'Watertight', state: 'fail', detail: 'Not watertight', fixId: 'seal' },
@@ -62,4 +62,19 @@ export function prepChecks(details: GeometryDetails | null): PrepCheck[] {
       detail: 'Available in a later update',
     })),
   ]
+
+  if (!sealApplied) return rows
+
+  // Once a seal has run, residual watertight/manifold defects are inherited from
+  // the original skin and are informational only: no Fix button re-opens repair.
+  return rows.map((row) =>
+    (row.id === 'watertight' || row.id === 'nonManifold') && row.state === 'fail'
+      ? {
+          ...row,
+          state: 'warn' as const,
+          detail: 'Sealed; residual edges inherited from the original skin',
+          fixId: undefined,
+        }
+      : row
+  )
 }

@@ -59,4 +59,25 @@ describe('prepChecks', () => {
       expect(byId[id].fixId).toBe('seal')
     }
   })
+
+  it('annotates watertight/manifold as warn (no Fix) once a seal has run', () => {
+    const leaky: GeometryDetails = { ...clean, watertight: false, nonManifoldEdges: 4, boundaryEdges: 0 }
+    const byId = Object.fromEntries(prepChecks(leaky, true).map((c) => [c.id, c]))
+    expect(byId.watertight.state).toBe('warn')
+    expect(byId.watertight.fixId).toBeUndefined()
+    expect(byId.watertight.detail).toMatch(/residual/i)
+    expect(byId.nonManifold.state).toBe('warn')
+    expect(byId.nonManifold.fixId).toBeUndefined()
+  })
+
+  it('still fails a real open edge after a seal', () => {
+    const holed: GeometryDetails = { ...clean, watertight: false, boundaryEdges: 6 }
+    const byId = Object.fromEntries(prepChecks(holed, true).map((c) => [c.id, c]))
+    expect(byId.boundary.state).toBe('fail')
+  })
+
+  it('sealApplied omitted behaves as today', () => {
+    const leaky: GeometryDetails = { ...clean, watertight: false, nonManifoldEdges: 4 }
+    expect(prepChecks(leaky).find((c) => c.id === 'watertight')!.state).toBe('fail')
+  })
 })

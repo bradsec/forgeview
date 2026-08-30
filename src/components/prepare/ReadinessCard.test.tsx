@@ -25,4 +25,14 @@ describe('ReadinessCard', () => {
     expect(onFix).toHaveBeenCalledWith('seal')
     expect(within(screen.getByTestId('check-thickness')).queryByRole('button', { name: 'Fix' })).toBeNull()
   })
+
+  it('hides Fix when canFix returns false', () => {
+    render(<ReadinessCard checks={[{ id: 'watertight', label: 'Watertight', state: 'fail', detail: 'x', fixId: 'seal' }]} onFix={vi.fn()} canFix={() => false} />)
+    expect(screen.queryByRole('button', { name: /fix/i })).toBeNull()
+  })
+
+  it('warn rows use the --warning token class', () => {
+    render(<ReadinessCard checks={[{ id: 'watertight', label: 'Watertight', state: 'warn', detail: 'x' }]} onFix={vi.fn()} />)
+    expect(screen.getByTestId('check-watertight').querySelector('.text-\\[var\\(--warning\\)\\]')).toBeTruthy()
+  })
 })
