@@ -118,8 +118,10 @@ interface ViewerState {
   setExportOpen: (open: boolean) => void
   solidEditorOpen: boolean
   canUndoEdit: boolean
+  undoLabels: string[]
   setSolidEditorOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
+  setUndoLabels: (labels: string[]) => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
   setNotice: (notice: string | null) => void
@@ -201,8 +203,10 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setExportOpen: (open) => set({ exportOpen: open }),
   solidEditorOpen: false,
   canUndoEdit: false,
+  undoLabels: [],
   setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
+  setUndoLabels: (labels) => set({ undoLabels: labels }),
   notice: null,
   setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
