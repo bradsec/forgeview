@@ -17,7 +17,15 @@ import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
 import { analyzeGeometry, summariseHealth } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
+import { runRepairInWorker, type PerMeshStage } from '../services/meshRepair'
+import { STAGE_LABEL, type RepairStageId } from '../services/repairStages'
 import { clampUndoSteps, pushBounded, discardAll, popApply, type UndoEntry } from '../services/undoStack'
+
+export interface RepairRunResult {
+  label: string
+  perMesh: PerMeshStage[][]
+  seal?: SolidRepairStats
+}
 
 export interface Viewer3DHandle {
   snapToView: (direction: ViewDirection) => void
@@ -29,7 +37,12 @@ export interface Viewer3DHandle {
   orbitBy: (deltaTheta: number, deltaPhi: number) => void
   getCamera: () => THREE.PerspectiveCamera | THREE.OrthographicCamera | undefined
   getScene: () => THREE.Scene | undefined
-  makeSolid: (resolution: number, onProgress: (percent: number, phase: string) => void, signal?: AbortSignal, options?: { stripInternalWalls?: boolean }) => Promise<SolidRepairStats>
+  runRepair: (
+    stageIds: (RepairStageId | 'seal')[],
+    sealOpts: { resolution: number; stripInternalWalls: boolean },
+    onProgress: (percent: number, phase: string) => void,
+    signal?: AbortSignal,
+  ) => Promise<RepairRunResult>
   getModelDimensions: () => THREE.Vector3 | null
   undoEdit: (steps?: number) => void
 }
@@ -111,6 +124,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     for (const root of modelRoots()) root.traverse((child) => { if (child instanceof THREE.Mesh) meshes.push(child) })
     return meshes
   }
+  // Placeholder geometries from an earlier solid fill hold no triangles and
+  // would crash the soup combination on a second run.
+  const withGeometry = (list: THREE.Mesh[]) =>
+    list.filter((mesh) => ((mesh.geometry as THREE.BufferGeometry).getAttribute('position')?.count ?? 0) > 0)
   const updateGeometryDetails = () => {
     const roots = modelRoots()
     // Make solid leaves attribute-less placeholder geometries on collapsed
@@ -181,6 +198,34 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     syncUndoLabels()
   }
 
+  const applySeal = async (
+    resolution: number,
+    onProgress: (p: number, phase: string) => void,
+    signal: AbortSignal | undefined,
+    opts: { stripInternalWalls: boolean },
+  ) => {
+    const meshes = withGeometry(modelMeshes())
+    const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal, {
+      stripInternalWalls: opts.stripInternalWalls,
+      renderer: rendererRef.current ?? null,
+    })
+    const current = withGeometry(modelMeshes())
+    if (current.length !== meshes.length || meshes.some((m, i) => m !== current[i])) {
+      result.geometries.forEach((g) => g.dispose())
+      throw new Error('The open model changed while repair was running')
+    }
+    const originals = meshes.map((m) => m.geometry)
+    const originalMaterial = meshes[0].material
+    meshes.forEach((m, i) => { m.geometry = result.geometries[i] })
+    // The filled solid is one STL-style geometry without uv/color attributes;
+    // the source material (possibly textured) would render it broken.
+    const solidMaterial = new THREE.MeshStandardMaterial({
+      color: getTheme(useViewerStore.getState().theme).modelColor, roughness: 0.85, metalness: 0,
+    })
+    meshes[0].material = solidMaterial
+    return { meshes, originals, originalMaterial, solidMaterial, stats: result.stats }
+  }
+
   useImperativeHandle(ref, () => ({
     snapToView: (direction: ViewDirection) => {
       if (cameraRef.current && controlsRef.current && sceneRef.current) {
@@ -230,56 +275,72 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       for (const root of roots) box.expandByObject(root)
       return box.getSize(new THREE.Vector3())
     },
-    makeSolid: async (resolution, onProgress, signal, options) => {
-      // Placeholder geometries from an earlier solid fill hold no triangles
-      // and would crash the soup combination on a second run.
-      const withGeometry = (list: THREE.Mesh[]) =>
-        list.filter((mesh) => ((mesh.geometry as THREE.BufferGeometry).getAttribute('position')?.count ?? 0) > 0)
+    runRepair: async (stageIds, sealOpts, onProgress, signal) => {
+      const wantSeal = stageIds.includes('seal')
+      const simpleIds = stageIds.filter((s): s is RepairStageId => s !== 'seal')
       const meshes = withGeometry(modelMeshes())
-      const result = await repairGeometriesInWorker(meshes, resolution, onProgress, signal, {
-        ...options,
-        renderer: rendererRef.current ?? null,
-      })
-      const currentMeshes = withGeometry(modelMeshes())
-      if (currentMeshes.length !== meshes.length || meshes.some((mesh, index) => mesh !== currentMeshes[index])) {
-        result.geometries.forEach((geometry) => geometry.dispose())
-        throw new Error('The open model changed while repair was running')
+      if (meshes.length === 0) throw new Error('The scene has no mesh geometry to repair')
+      const originals = meshes.map((m) => m.geometry)
+
+      let perMesh: PerMeshStage[][] = []
+      if (simpleIds.length) {
+        const res = await runRepairInWorker(meshes, simpleIds, (p, phase) => onProgress(wantSeal ? p * 0.5 : p, phase), signal)
+        const current = withGeometry(modelMeshes())
+        if (current.length !== meshes.length || meshes.some((m, i) => m !== current[i])) {
+          res.geometries.forEach((g) => g.dispose())
+          throw new Error('The open model changed while repair was running')
+        }
+        meshes.forEach((m, i) => { m.geometry = res.geometries[i] })
+        perMesh = res.perMesh
       }
-      const originals = meshes.map((mesh) => mesh.geometry)
-      const originalMaterial = meshes[0].material
-      meshes.forEach((mesh, index) => { mesh.geometry = result.geometries[index] })
-      // The filled solid is one STL-style geometry without uv/color attributes;
-      // the source material (possibly textured) would render it broken.
-      const solidMaterial = new THREE.MeshStandardMaterial({
-        color: getTheme(useViewerStore.getState().theme).modelColor,
-        roughness: 0.85,
-        metalness: 0,
-      })
-      meshes[0].material = solidMaterial
+
+      let seal: SolidRepairStats | undefined
+      let sealBits: Awaited<ReturnType<typeof applySeal>> | undefined
+      if (wantSeal) {
+        // Geometry as applySeal will find it: post simple-stage swap. applySeal
+        // replaces meshes[i].geometry again with the sealed soup, so a simple
+        // stage's intermediate result is left referenced by nothing. Dispose it,
+        // but never the pre-everything originals the undo entry restores.
+        const preSeal = meshes.map((m) => m.geometry)
+        sealBits = await applySeal(sealOpts.resolution, (p, phase) => onProgress(simpleIds.length ? 50 + p * 0.5 : p, phase), signal, { stripInternalWalls: sealOpts.stripInternalWalls })
+        preSeal.forEach((g, i) => { if (g !== originals[i]) g.dispose() })
+        seal = sealBits.stats
+      }
+
+      const label = stageIds.length > 1 ? 'Repair all' : STAGE_LABEL[stageIds[0]]
+      // sealMeshes below and `meshes` here are the same withGeometry(modelMeshes())
+      // array in the same order, so undo restoring geometry via `meshes` and
+      // material via `sealMeshes[0]` targets one and the same mesh set.
+      const sealMeshes = sealBits?.meshes
+      const solidMaterial = sealBits?.solidMaterial
+      const originalMaterial = sealBits?.originalMaterial
       pushUndo({
-        label: 'Make solid',
+        label,
         apply: () => {
-          meshes.forEach((mesh, index) => { mesh.geometry.dispose(); mesh.geometry = originals[index] })
-          meshes[0].material = originalMaterial
-          solidMaterial.dispose()
+          meshes.forEach((m, i) => { m.geometry.dispose(); m.geometry = originals[i] })
+          if (sealMeshes && originalMaterial !== undefined) {
+            sealMeshes[0].material = originalMaterial
+            solidMaterial?.dispose()
+          }
         },
         discard: () => {
-          originals.forEach((geometry) => geometry.dispose())
-          for (const material of Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial]) material.dispose()
+          originals.forEach((g) => g.dispose())
+          if (originalMaterial !== undefined) {
+            for (const mat of Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial]) mat.dispose()
+          }
         },
       })
+
+      if (wantSeal) useViewerStore.getState().setSealApplied(true)
       const roots = modelRoots()
       for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
       updateTriangleDetails()
       updateGeometryDetails()
       invalidate()
-      // The visibility pass and the long worker run can leave the RAF loop
-      // throttled (backgrounded tab, mobile). Paint once now so the solid
-      // shows without waiting for the next scheduled frame.
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current)
       }
-      return result.stats
+      return { label, perMesh, seal }
     },
     undoEdit: (steps = 1) => {
       popApply(undoStackRef.current, clampUndoSteps(steps, undoStackRef.current.length))
