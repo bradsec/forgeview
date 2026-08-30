@@ -13,10 +13,10 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
 - Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
 - Export the scene as STL, 3MF, OBJ, PLY, or GLB (File > Export model as)
-- Edit models in place with worker-backed Make solid processing, live progress, and one-level undo
+- Prepare panel (right sidebar) with a print-readiness score card and worker-backed Make solid processing, live progress, and one-level undo
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
-- Compact app menu, left Explorer, right Details panel, and bottom camera navigation
+- Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation
 - In-app format help, About information, and repository/version status footer
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
 - Solid, wireframe, and points view modes
@@ -30,15 +30,20 @@ Export preserves static mesh transforms, instances, material groups, vertex
 colors, and other geometry attributes supported by the target format. Bake
 skinned poses and active morph deformation into static geometry before export.
 
-Edit > Make solid fills the scene into one STL-style solid. Internal geometry
-that is not part of the outside surface, enclosed cavities and parts hidden
-inside other parts, is deleted, touching parts join under one skin, and every
-open edge left on the outer surface is sealed, so the result has no holes.
+Prepare > Repair > Make solid fills the scene into one STL-style solid. Internal
+geometry that is not part of the outside surface, enclosed cavities and parts
+hidden inside other parts, is deleted, touching parts join under one skin, and
+every open edge left on the outer surface is sealed, so the result has no holes.
 The kept exterior triangles are unchanged, so the outer appearance stays
 exactly as loaded and triangle and vertex counts drop. Materials collapse to a
 single solid material. Draft, Standard, and Fine detection detail trade
 processing cost against how finely interior geometry is separated from the
 outside surface. Undo restores the original geometry and materials.
+
+The Prepare panel's readiness card summarises watertightness, manifold and open
+edges, and degenerate or duplicate faces, with a Fix shortcut to Make solid;
+wall-thickness, overhang, and build-plate checks are listed but arrive in a
+later release.
 
 The result is a sealed shell, hollow inside; slicers and CAD tools treat a
 closed surface as a solid body. Details reports boundary and non-manifold edge

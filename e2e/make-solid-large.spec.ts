@@ -30,12 +30,12 @@ test.describe('Make solid on a real model', () => {
   test.slow()
 
   test('fills the model without leaving it empty', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'Edit flow verified on desktop')
+    test.skip(isMobile, 'Prepare flow verified on desktop')
     test.setTimeout(360_000)
 
     await dropModel(page)
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Make solid…' }).click()
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Make solid…' }).click()
     const dialog = page.getByRole('dialog', { name: 'Make solid' })
     await expect(dialog).toBeVisible()
     await dialog.getByLabel('Interior detection detail').selectOption('96')
@@ -67,12 +67,12 @@ test.describe('Make solid on a real model', () => {
   })
 
   test('remove internal walls drops the non-manifold count', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'Edit flow verified on desktop')
+    test.skip(isMobile, 'Prepare flow verified on desktop')
     test.setTimeout(360_000)
 
     await dropModel(page)
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Make solid…' }).click()
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Make solid…' }).click()
     const dialog = page.getByRole('dialog', { name: 'Make solid' })
     await expect(dialog).toBeVisible()
 

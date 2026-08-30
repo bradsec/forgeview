@@ -29,7 +29,7 @@ describe('Sidebar mobile variant', () => {
 describe('Sidebar geometry details', () => {
   const details = {
     width: 1, height: 1, depth: 1, meshes: 1, modelUnitInMm: null,
-    vertices: 10, boundaryEdges: 9, nonManifoldEdges: 2, watertight: false,
+    vertices: 10, boundaryEdges: 9, nonManifoldEdges: 2, degenerateFaces: 0, duplicateFaces: 0, watertight: false,
   }
 
   beforeEach(() => {
@@ -79,5 +79,49 @@ describe('Sidebar desktop variant', () => {
 
     expect(remove.mock.calls.some(([type]) => type === 'mousemove')).toBe(true)
     expect(remove.mock.calls.some(([type]) => type === 'mouseup')).toBe(true)
+  })
+})
+
+describe('Sidebar tabs', () => {
+  beforeEach(() => {
+    useViewerStore.setState({
+      sidebarVisible: true, mobileDrawer: 'none', rightPanelTab: 'details',
+      fileName: 'model.stl', fileExtension: '.stl', fileSize: 10, triangleCount: 4,
+      isLoading: false, error: null, loadedModels: [], filePath: '/m/model.stl',
+      geometryDetails: null, canUndoEdit: false,
+    })
+  })
+
+  it('shows the Details body by default', () => {
+    render(<Sidebar />)
+    expect(screen.getByText('File Info')).toBeTruthy()
+    expect(screen.queryByTestId('prepare-empty')).toBeNull()
+  })
+
+  it('switches to the Prepare body when the Prepare tab is clicked', async () => {
+    render(<Sidebar />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    expect(screen.getByTestId('prepare-empty')).toBeTruthy()
+    expect(screen.queryByText('File Info')).toBeNull()
+  })
+
+  it('marks the active tab with aria-selected', async () => {
+    render(<Sidebar />)
+    expect(screen.getByRole('tab', { name: 'Details' }).getAttribute('aria-selected')).toBe('true')
+    await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
+    expect(screen.getByRole('tab', { name: 'Prepare' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('moves between tabs with Left/Right arrow keys', () => {
+    render(<Sidebar />)
+    const detailsTab = screen.getByRole('tab', { name: 'Details' })
+    detailsTab.focus()
+    fireEvent.keyDown(detailsTab, { key: 'ArrowRight' })
+    expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Prepare' }))
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Prepare' }), { key: 'ArrowLeft' })
+    expect(useViewerStore.getState().rightPanelTab).toBe('details')
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Details' }))
   })
 })

@@ -141,7 +141,7 @@ function SegmentedControl<T extends string>({
   )
 }
 
-export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
+export function Toolbar() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const aboutRef = useRef<HTMLElement>(null)
   const aboutPreviousFocusRef = useRef<HTMLElement | null>(null)
@@ -181,8 +181,8 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
   const mainView = useViewerStore((state) => state.mainView)
   const explorerVisible = useViewerStore((state) => state.explorerVisible)
   const sidebarVisible = useViewerStore((state) => state.sidebarVisible)
+  const rightPanelTab = useViewerStore((state) => state.rightPanelTab)
   const theme = useViewerStore((state) => state.theme)
-  const canUndoEdit = useViewerStore((state) => state.canUndoEdit)
 
   const openFolder = async () => {
     await openDir()
@@ -196,6 +196,15 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
     }
     if (panel === 'explorer') useViewerStore.getState().setExplorerVisible(!explorerVisible)
     else useViewerStore.getState().setSidebarVisible(!sidebarVisible)
+  }
+
+  const openPrepare = () => {
+    useViewerStore.getState().setRightPanelTab('prepare')
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      useViewerStore.getState().setMobileDrawer('details')
+      return
+    }
+    useViewerStore.getState().setSidebarVisible(true)
   }
 
   return (
@@ -225,15 +234,6 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
             </>
           )}
         </Menu>
-        <Menu label="Edit">
-          {(close) => (
-            <>
-              <MenuItem disabled={!hasModel} onClick={() => { close(); useViewerStore.getState().setSolidEditorOpen(true) }}>Make solid…</MenuItem>
-              <div className="menu-separator" role="separator" />
-              <MenuItem disabled={!canUndoEdit} onClick={() => { close(); onUndoEdit?.() }}>Undo last model edit</MenuItem>
-            </>
-          )}
-        </Menu>
         <Menu label="View">
           {(close) => (
             <>
@@ -252,6 +252,7 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
               <div className="menu-separator" role="separator" />
               <MenuItem disabled={!dirPath} onClick={() => { close(); togglePanel('explorer') }} selected={Boolean(dirPath && explorerVisible)}>Explorer</MenuItem>
               <MenuItem onClick={() => { close(); togglePanel('details') }} selected={sidebarVisible}>Details</MenuItem>
+              <MenuItem onClick={() => { close(); openPrepare() }} selected={sidebarVisible && rightPanelTab === 'prepare'}>Prepare</MenuItem>
               <div className="menu-separator" role="separator" />
               <MenuItem onClick={() => { close(); useViewerStore.getState().toggleTheme() }}>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</MenuItem>
               <MenuItem onClick={() => { close(); useViewerStore.getState().setSettingsOpen(true) }}>Settings</MenuItem>
@@ -291,9 +292,20 @@ export function Toolbar({ onUndoEdit }: { onUndoEdit?: () => void } = {}) {
         />
         <button
           type="button"
-          aria-pressed={sidebarVisible}
-          onClick={() => useViewerStore.getState().setSidebarVisible(!sidebarVisible)}
-          className={`toolbar-action ${sidebarVisible ? 'is-active' : ''}`}
+          aria-pressed={sidebarVisible && rightPanelTab === 'prepare'}
+          onClick={openPrepare}
+          className={`toolbar-action ${sidebarVisible && rightPanelTab === 'prepare' ? 'is-active' : ''}`}
+        >
+          Prepare
+        </button>
+        <button
+          type="button"
+          aria-pressed={sidebarVisible && rightPanelTab === 'details'}
+          onClick={() => {
+            useViewerStore.getState().setRightPanelTab('details')
+            useViewerStore.getState().setSidebarVisible(!sidebarVisible || rightPanelTab === 'prepare')
+          }}
+          className={`toolbar-action ${sidebarVisible && rightPanelTab === 'details' ? 'is-active' : ''}`}
         >
           Details
         </button>
