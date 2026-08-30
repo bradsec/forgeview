@@ -119,9 +119,11 @@ interface ViewerState {
   solidEditorOpen: boolean
   canUndoEdit: boolean
   undoLabels: string[]
+  sealApplied: boolean
   setSolidEditorOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
   setUndoLabels: (labels: string[]) => void
+  setSealApplied: (v: boolean) => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
   setNotice: (notice: string | null) => void
@@ -204,9 +206,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
   solidEditorOpen: false,
   canUndoEdit: false,
   undoLabels: [],
+  sealApplied: false,
   setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   setUndoLabels: (labels) => set({ undoLabels: labels }),
+  setSealApplied: (v) => set({ sealApplied: v }),
   notice: null,
   setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
@@ -224,9 +228,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [] }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [] }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),
