@@ -17,6 +17,7 @@ import { getEffectiveSettings } from '../utils/performancePresets'
 import { getTheme } from '../themes'
 import { analyzeGeometry, summariseHealth } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
+import { MAX_UNDO, clampUndoSteps } from '../services/undoStack'
 
 export interface Viewer3DHandle {
   snapToView: (direction: ViewDirection) => void
@@ -30,7 +31,7 @@ export interface Viewer3DHandle {
   getScene: () => THREE.Scene | undefined
   makeSolid: (resolution: number, onProgress: (percent: number, phase: string) => void, signal?: AbortSignal, options?: { stripInternalWalls?: boolean }) => Promise<SolidRepairStats>
   getModelDimensions: () => THREE.Vector3 | null
-  undoEdit: () => void
+  undoEdit: (steps?: number) => void
 }
 
 export function disposeViewerResources(
@@ -101,7 +102,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // (model loads, view mode, theme, settings all land in the store). A small
   // budget instead of a boolean absorbs mutations that land mid-frame.
   const framesToRenderRef = useRef(3)
-  const undoRef = useRef<{ apply: () => void; discard: () => void } | null>(null)
+  const undoStackRef = useRef<{ label: string; apply: () => void; discard: () => void }[]>([])
   const invalidate = () => { framesToRenderRef.current = 3 }
 
   const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values()].filter((root): root is THREE.Object3D => Boolean(root))
@@ -166,10 +167,20 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (modelGroupRef.current) useViewerStore.getState().setTriangleCount(countTriangles(modelGroupRef.current))
     for (const [id, root] of modelMapRef.current) useViewerStore.getState().updateModelTriangles(id, countTriangles(root))
   }
+  const syncUndoLabels = () => {
+    const labels = undoStackRef.current.map((entry) => entry.label).reverse()
+    useViewerStore.getState().setUndoLabels(labels)
+    useViewerStore.getState().setCanUndoEdit(labels.length > 0)
+  }
+  const pushUndo = (entry: { label: string; apply: () => void; discard: () => void }) => {
+    undoStackRef.current.push(entry)
+    while (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift()!.discard()
+    syncUndoLabels()
+  }
   const clearUndo = () => {
-    undoRef.current?.discard()
-    undoRef.current = null
-    useViewerStore.getState().setCanUndoEdit(false)
+    for (const entry of undoStackRef.current) entry.discard()
+    undoStackRef.current = []
+    syncUndoLabels()
   }
 
   useImperativeHandle(ref, () => ({
@@ -236,7 +247,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         result.geometries.forEach((geometry) => geometry.dispose())
         throw new Error('The open model changed while repair was running')
       }
-      clearUndo()
       const originals = meshes.map((mesh) => mesh.geometry)
       const originalMaterial = meshes[0].material
       meshes.forEach((mesh, index) => { mesh.geometry = result.geometries[index] })
@@ -248,7 +258,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         metalness: 0,
       })
       meshes[0].material = solidMaterial
-      undoRef.current = {
+      pushUndo({
+        label: 'Make solid',
         apply: () => {
           meshes.forEach((mesh, index) => { mesh.geometry.dispose(); mesh.geometry = originals[index] })
           meshes[0].material = originalMaterial
@@ -258,8 +269,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           originals.forEach((geometry) => geometry.dispose())
           for (const material of Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial]) material.dispose()
         },
-      }
-      useViewerStore.getState().setCanUndoEdit(true)
+      })
       const roots = modelRoots()
       for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
       updateTriangleDetails()
@@ -273,11 +283,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       }
       return result.stats
     },
-    undoEdit: () => {
-      const undo = undoRef.current
-      undoRef.current = null
-      undo?.apply()
-      useViewerStore.getState().setCanUndoEdit(false)
+    undoEdit: (steps = 1) => {
+      const n = clampUndoSteps(steps, undoStackRef.current.length)
+      for (let i = 0; i < n; i++) undoStackRef.current.pop()!.apply()
+      syncUndoLabels()
       const roots = modelRoots()
       for (const root of roots) applyViewMode(root, useViewerStore.getState().viewMode)
       updateTriangleDetails()
