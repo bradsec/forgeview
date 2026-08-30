@@ -102,14 +102,14 @@ export default function App() {
             </div>
           )}
         </main>
-        <Sidebar onUndoEdit={() => viewerRef.current?.undoEdit()} />
+        <Sidebar onUndoEdit={(steps) => viewerRef.current?.undoEdit(steps)} />
         </div>
       </div>
       <MobileDrawer side="left" open={mobileDrawer === 'explorer'} onClose={() => setMobileDrawer('none')}>
         <DirectoryPanel mobile />
       </MobileDrawer>
       <MobileDrawer side="right" open={mobileDrawer === 'details'} onClose={() => setMobileDrawer('none')}>
-        <Sidebar mobile onUndoEdit={() => viewerRef.current?.undoEdit()} />
+        <Sidebar mobile onUndoEdit={(steps) => viewerRef.current?.undoEdit(steps)} />
       </MobileDrawer>
       <SettingsModal />
       <ExportDialog viewerRef={viewerRef} />
