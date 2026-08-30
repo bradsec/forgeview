@@ -12,7 +12,7 @@ const details = {
 
 beforeEach(() => {
   useViewerStore.setState({
-    geometryDetails: null, canUndoEdit: false, undoLabels: [], solidEditorOpen: false,
+    geometryDetails: null, canUndoEdit: false, undoLabels: [], repairDialogOpen: false,
     filePath: null, loadedModels: [],
   })
 })
@@ -23,29 +23,29 @@ describe('PreparePanel', () => {
     expect(screen.getByTestId('prepare-empty')).toBeTruthy()
     expect(screen.queryByTestId('check-watertight')).toBeNull()
     expect(screen.getByRole('button', { name: 'Undo last model edit' })).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Make solid…' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('renders the readiness card and repair section when a model is loaded', () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
     render(<PreparePanel />)
     expect(screen.getByTestId('check-watertight').getAttribute('data-state')).toBe('fail')
-    expect(screen.getByRole('button', { name: 'Make solid…' })).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Make solid…' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Repair…' })).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('a Fix on a seal row opens the Make solid dialog', async () => {
+  it('a Fix on a seal row opens the repair dialog', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
     render(<PreparePanel />)
     await userEvent.click(within(screen.getByTestId('check-watertight')).getByRole('button', { name: 'Fix Watertight' }))
-    expect(useViewerStore.getState().solidEditorOpen).toBe(true)
+    expect(useViewerStore.getState().repairDialogOpen).toBe(true)
   })
 
-  it('the Make solid button opens the dialog', async () => {
+  it('the Repair button opens the dialog', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
     render(<PreparePanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Make solid…' }))
-    expect(useViewerStore.getState().solidEditorOpen).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Repair…' }))
+    expect(useViewerStore.getState().repairDialogOpen).toBe(true)
   })
 
   it('Undo is disabled until an edit can be undone, then calls onUndoEdit', async () => {

@@ -4,7 +4,7 @@ import { ReadinessCard } from './ReadinessCard'
 import { RepairSection } from './RepairSection'
 
 const FIX_HANDLERS: Record<string, () => void> = {
-  seal: () => useViewerStore.getState().setSolidEditorOpen(true),
+  seal: () => useViewerStore.getState().setRepairDialogOpen(true),
 }
 
 export function PreparePanel({ onUndoEdit }: { onUndoEdit?: (steps?: number) => void }) {

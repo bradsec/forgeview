@@ -116,11 +116,11 @@ interface ViewerState {
   settingsOpen: boolean
   exportOpen: boolean
   setExportOpen: (open: boolean) => void
-  solidEditorOpen: boolean
+  repairDialogOpen: boolean
   canUndoEdit: boolean
   undoLabels: string[]
   sealApplied: boolean
-  setSolidEditorOpen: (open: boolean) => void
+  setRepairDialogOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
   setUndoLabels: (labels: string[]) => void
   setSealApplied: (v: boolean) => void
@@ -203,11 +203,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
   settingsOpen: false,
   exportOpen: false,
   setExportOpen: (open) => set({ exportOpen: open }),
-  solidEditorOpen: false,
+  repairDialogOpen: false,
   canUndoEdit: false,
   undoLabels: [],
   sealApplied: false,
-  setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
+  setRepairDialogOpen: (open) => set({ repairDialogOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   setUndoLabels: (labels) => set({ undoLabels: labels }),
   setSealApplied: (v) => set({ sealApplied: v }),
