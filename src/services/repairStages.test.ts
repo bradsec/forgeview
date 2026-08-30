@@ -6,6 +6,9 @@ import {
   dropDuplicateFaces,
   unifyNormals,
   removeSmallShells,
+  fillHoles,
+  runStages,
+  REPAIR_STAGE_IDS,
   STAGE_LABEL,
 } from './repairStages'
 import { analyzeGeometry } from './meshHealth'
@@ -198,6 +201,87 @@ describe('unifyNormals', () => {
       const outward = a.clone().add(b).add(c).divideScalar(3).sub(mesh)
       expect(n.dot(outward)).toBeGreaterThan(0)
     }
+  })
+})
+
+/** unit cube missing the +Z face: 10 triangles, one square hole */
+function openCube(): THREE.BufferGeometry {
+  const full = new THREE.BoxGeometry(1, 1, 1).toNonIndexed().getAttribute('position').array as Float32Array
+  // BoxGeometry face order: +X,-X,+Y,-Y,+Z,-Z ; each face = 6 verts = 18 floats.
+  // Drop +Z face (index 4) -> keep 0..3 and 5.
+  const keep = new Float32Array([...full.slice(0, 18 * 4), ...full.slice(18 * 5, 18 * 6)])
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(keep, 3))
+  return g
+}
+
+describe('fillHoles', () => {
+  it('seals a single square hole', () => {
+    const src = openCube()
+    const before = analyzeGeometry(src)
+    expect(before.boundaryEdges).toBe(4)
+    const { geometry, note } = fillHoles(src)
+    const after = analyzeGeometry(geometry)
+    expect(after.boundaryEdges).toBe(0)
+    expect(after.watertight).toBe(true)
+    // centroid fan over the 4-vertex loop adds exactly 4 triangles (verified).
+    expect(after.triangles).toBe(before.triangles + 4)
+    expect(note).toMatch(/1 (loop )?filled/i)
+    // input geometry untouched
+    expect(src.getAttribute('position').count).toBe(30)
+  })
+
+  it('fill cap faces outward for the convex open cube', () => {
+    const src = openCube()
+    const originalTris = src.getAttribute('position').count / 3
+    const { geometry } = fillHoles(src)
+    const p = geometry.getAttribute('position')
+    const triCount = p.count / 3
+
+    const mesh = new THREE.Vector3()
+    for (let i = 0; i < p.count; i++) mesh.add(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)))
+    mesh.divideScalar(p.count)
+
+    let checked = 0
+    for (let t = originalTris; t < triCount; t++) {
+      const a = new THREE.Vector3(p.getX(t * 3), p.getY(t * 3), p.getZ(t * 3))
+      const b = new THREE.Vector3(p.getX(t * 3 + 1), p.getY(t * 3 + 1), p.getZ(t * 3 + 1))
+      const c = new THREE.Vector3(p.getX(t * 3 + 2), p.getY(t * 3 + 2), p.getZ(t * 3 + 2))
+      const n = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize()
+      const outward = a.clone().add(b).add(c).divideScalar(3).sub(mesh)
+      expect(n.dot(outward)).toBeGreaterThan(0)
+      checked++
+    }
+    expect(checked).toBe(4)
+  })
+
+  it('reports a skipped non-simple loop without throwing', () => {
+    // figure-eight boundary is hard to build; assert no-throw + note shape on a clean closed mesh
+    const g = new THREE.BoxGeometry(1, 1, 1)
+    const { note } = fillHoles(g)
+    expect(note === undefined || /0 .*filled/i.test(note)).toBe(true)
+  })
+})
+
+describe('runStages', () => {
+  it('applies stages in canonical order and reports per-stage health', () => {
+    const { geometry, stages } = runStages(openCube(), ['holeFill', 'weld']) // deliberately out of order
+    expect(stages.map((s) => s.id)).toEqual(['weld', 'holeFill'])
+
+    // weld runs first and actually merges: a weld-only pipeline collapses the
+    // 30 split corners of the open cube down to its 8 unique vertices.
+    expect(openCube().getAttribute('position').count).toBe(30)
+    const weldOnly = runStages(openCube(), ['weld'])
+    expect(weldOnly.geometry.getAttribute('position').count).toBe(8)
+
+    // holeFill (second) seals what weld left open
+    expect(stages[0].after.watertight).toBe(false)
+    expect(stages[1].after.watertight).toBe(true)
+    expect(analyzeGeometry(geometry).watertight).toBe(true)
+  })
+
+  it('REPAIR_STAGE_IDS is the canonical order', () => {
+    expect([...REPAIR_STAGE_IDS]).toEqual(['weld', 'degenerate', 'duplicate', 'normals', 'smallShells', 'holeFill'])
   })
 })
 

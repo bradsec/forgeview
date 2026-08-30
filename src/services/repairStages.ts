@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { analyzeGeometry, type MeshHealth } from './meshHealth'
 
 export interface StageResult {
   geometry: THREE.BufferGeometry
@@ -245,4 +246,129 @@ export function removeSmallShells(geo: THREE.BufferGeometry, minFraction = 0.01)
       ? `${dropped} shell${dropped === 1 ? '' : 's'} removed (${droppedTris} tri${droppedTris === 1 ? '' : 's'})`
       : undefined,
   }
+}
+
+/**
+ * Seal open boundaries. Boundary edges (used by exactly one triangle) are kept
+ * in the direction their triangle traverses them, then chained into closed
+ * loops. Each simple loop gets a centroid vertex and a triangle fan; the fan
+ * winds `(centroid, b, a)` against each directed boundary edge `a -> b`, so the
+ * cap's outward face agrees with the one-sided surface it closes. Any loop that
+ * is not simple (an edge chained twice, a revisited vertex, or fewer than three
+ * vertices) is skipped and counted. `note` reports fills and skips. Never
+ * throws. Pure: the input geometry is not mutated.
+ */
+export function fillHoles(geo: THREE.BufferGeometry): StageResult {
+  const { positions, tris, vertexCount } = triModel(geo)
+  const table = vertexTable(positions, tris, vertexCount)
+
+  // directed boundary edges: an edge used by exactly one triangle, kept in the
+  // direction that triangle traverses it.
+  const edgeUse = new Map<string, number>()
+  for (const tri of tris) {
+    for (let e = 0; e < 3; e++) {
+      const a = tri[e], b = tri[(e + 1) % 3]
+      const k = a < b ? `${a}_${b}` : `${b}_${a}`
+      edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1)
+    }
+  }
+  const boundaryNext = new Map<number, number>()
+  let boundaryCount = 0
+  for (const tri of tris) {
+    for (let e = 0; e < 3; e++) {
+      const a = tri[e], b = tri[(e + 1) % 3]
+      const k = a < b ? `${a}_${b}` : `${b}_${a}`
+      if (edgeUse.get(k) === 1) { boundaryNext.set(a, b); boundaryCount++ }
+    }
+  }
+
+  const outTris = tris.map((t) => [...t])
+  let filled = 0, skipped = 0
+  const startNodes = new Set(boundaryNext.keys())
+  while (startNodes.size) {
+    const start = startNodes.values().next().value as number
+    const loop: number[] = []
+    let cur = start
+    let ok = true
+    for (let guard = 0; guard <= boundaryCount + 1; guard++) {
+      loop.push(cur)
+      startNodes.delete(cur)
+      const nxt = boundaryNext.get(cur)
+      if (nxt === undefined) { ok = false; break }
+      if (nxt === start) break
+      if (loop.includes(nxt)) { ok = false; break }
+      cur = nxt
+    }
+    if (!ok || loop.length < 3) { skipped++; continue }
+    // centroid + Newell best-fit-plane normal of the loop. `planeNormal` is the
+    // loop's geometric orientation; the fan winding below is taken from the
+    // directed boundary edges instead (they already encode which side the
+    // surface is on), so `planeNormal` is kept only as the documented per-loop
+    // plane fit the design calls for.
+    const c = [0, 0, 0]
+    for (const id of loop) { const v = table[id]; c[0] += v[0]; c[1] += v[1]; c[2] += v[2] }
+    c[0] /= loop.length; c[1] /= loop.length; c[2] /= loop.length
+    const planeNormal = [0, 0, 0]
+    for (let i = 0; i < loop.length; i++) {
+      const p = table[loop[i]], q = table[loop[(i + 1) % loop.length]]
+      planeNormal[0] += (p[1] - q[1]) * (p[2] + q[2])
+      planeNormal[1] += (p[2] - q[2]) * (p[0] + q[0])
+      planeNormal[2] += (p[0] - q[0]) * (p[1] + q[1])
+    }
+    void planeNormal
+    // fan from centroid; the boundary loop is directed so the surface is on its
+    // left — the cap must wind the other way, i.e. (centroid, b, a).
+    const centroidId = table.push([c[0], c[1], c[2]]) - 1
+    for (let i = 0; i < loop.length; i++) {
+      const a = loop[i], b = loop[(i + 1) % loop.length]
+      outTris.push([centroidId, b, a])
+    }
+    filled++
+  }
+
+  if (!filled) return { geometry: geo.clone(), note: skipped ? `0 filled, ${skipped} skipped` : undefined }
+  return {
+    geometry: rebuild(outTris, (id) => table[id]),
+    note: `${filled} loop${filled === 1 ? '' : 's'} filled${skipped ? `, ${skipped} skipped` : ''}`,
+  }
+}
+
+const STAGE_FN: Record<RepairStageId, (g: THREE.BufferGeometry) => StageResult> = {
+  weld: (g) => weldVertices(g),
+  degenerate: dropDegenerateFaces,
+  duplicate: dropDuplicateFaces,
+  normals: unifyNormals,
+  smallShells: (g) => removeSmallShells(g),
+  holeFill: fillHoles,
+}
+
+export interface RunStage {
+  id: RepairStageId
+  before: MeshHealth
+  after: MeshHealth
+  note?: string
+}
+
+/**
+ * Apply the requested repair stages to a clone of `geo`, always in canonical
+ * `REPAIR_STAGE_IDS` order regardless of the order they are passed. Each stage
+ * records mesh health before and after via `analyzeGeometry`. Intermediate
+ * geometries are disposed; the caller's input and the returned geometry are not.
+ */
+export function runStages(
+  geo: THREE.BufferGeometry,
+  stageIds: RepairStageId[],
+): { geometry: THREE.BufferGeometry; stages: RunStage[] } {
+  const want = new Set(stageIds)
+  let current = geo.clone()
+  const stages: RunStage[] = []
+  for (const id of REPAIR_STAGE_IDS) {
+    if (!want.has(id)) continue
+    const before = analyzeGeometry(current)
+    const res = STAGE_FN[id](current)
+    if (res.geometry !== current) current.dispose()
+    current = res.geometry
+    stages.push({ id, before, after: analyzeGeometry(current), note: res.note })
+  }
+  return { geometry: current, stages }
 }
