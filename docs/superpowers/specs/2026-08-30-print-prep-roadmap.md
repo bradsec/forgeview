@@ -174,9 +174,45 @@ build:
 | # | Piece | Depends on | Status |
 |---|-------|-----------|--------|
 | SP-2a | Undo history stack | — | SHIPPED, branch `sp2a-undo-history`, commits e993477..6f57ce2. Bounded 5-entry `UndoEntry[]` in Viewer3D, `undoEdit(steps?)`, `undoLabels` store field, clickable undo list in the Repair section. Spec: `2026-08-30-sp2a-undo-history-design.md`. |
-| SP-2b | Staged repair pipeline + Repair modal | SP-2a | Not started. New `meshRepair.worker.ts` (weld, degenerate, duplicate, normals, small-shell, flat fan hole-fill); dedicated Repair modal with per-stage run + before/after + "Repair all"; fold Make solid seal in as the final stage; rewire readiness-card `seal` fixId. Clears SP-1 debt: watertight-row Fix loop, Fix-without-handler guard, `--text-warning` token, double-`<Sidebar>`-mount dedup + duplicate-id, stale Sidebar doc comment. |
+| SP-2b | Staged repair pipeline + Repair modal | SP-2a | SHIPPED, branch `sp2b-repair-pipeline`, commits 7beea99..6897dfa (11 tasks + a final-review fix wave; 2 tasks needed 1 fix round, final review needed 1 wave). `src/services/repairStages.ts` (weld / degenerate / duplicate / unify-normals-with-signed-volume-outward-correction / remove-small-shells / fill-holes-skipping-pinched-components + `runStages`), `meshRepair.worker.ts` + `meshRepair.ts`, `Viewer3D.runRepair` (per-mesh simple stages + seal, one undo entry, skips textured/multi-material meshes), `RepairDialog.tsx` (replaces `SolidEditorDialog`; per-stage before→after, WebGL-less + strip-walls warnings, skipped-mesh note), `sealApplied` readiness annotation (clears SP-1 watertight-Fix-loop), `useId` Sidebar tab ids. Spec: `2026-08-30-sp2b-repair-pipeline-design.md`; plan: `../plans/2026-08-30-sp2b-repair-pipeline.md`. |
 | SP-2c | Fill single hole on click | SP-2b | Not started. Viewport raycast-pick a boundary loop, fill just it. Brings a minimal raycaster. |
 | SP-2d | Split by shell | — | Not started. Connected-component split into named scene models; touches the multi-model store. |
+
+### Carry-forward from SP-2b (deferred / parked, do not lose)
+
+- **Attribute-preserving weld.** SP-2b's simple stages SKIP any mesh with an
+  array material, >1 draw group, or a `uv`/`color` attribute (they emit
+  position-only geometry that would blank a multi-material mesh and strip
+  texture/vertex-colour data). `weldVertices` specifically COULD carry
+  `uv`/`color`/`groups` through the worker — a real later enhancement so
+  textured models can at least be welded.
+- **`unifyNormals` on non-manifold meshes** abandons the whole connected
+  component (any non-2-manifold edge). The signed-volume outward correction
+  only runs on orientable components. A raycast/occlusion outward test would
+  be more robust.
+- **`fillHoles` pinch handling** now SKIPS non-simple (pinched) boundary
+  components wholesale rather than partially filling; a real ear-clip /
+  constrained triangulation for non-planar or pinched loops is the eventual
+  upgrade.
+- **`sealApplied` partial-undo gap.** Reset on a full undo drain and on
+  `clearUndo`/`setFile`; a partial undo that removes just the seal entry while
+  older entries remain still leaves the flag set until the next load
+  (accepted, design spec §7).
+- Perf, unmeasured: `dropDegenerateFaces` allocates `Vector3`s per triangle;
+  `fillHoles` uses `loop.includes` (O(n²) in loop length); `runStages` runs
+  `analyzeGeometry` twice per stage boundary. Matters only on multi-million-
+  triangle models.
+- `make-solid-large.spec.ts` (opt-in) `detailValue()` helper has unverified
+  DOM assumptions and a long-timeout-on-the-wrong-assertion; `model-workflows`
+  test title says "visible progress" but only asserts hidden-after. Tidy when
+  next touching e2e.
+- `meshRepair.worker.ts` is the first repo worker to bundle `three` (~116 KB
+  lazy chunk). Splitting the `STAGE_LABEL` / `REPAIR_STAGE_IDS` constants into
+  their own module would guarantee `mergeVertices` tree-shakes out of the main
+  chunk rather than depending on Rollup.
+- SP-2d split-by-shell changes the mesh SET, so its `UndoEntry` cannot reuse
+  `runRepair`'s fixed-`meshes`-array `apply`; build one matched to the add/
+  remove it performs.
 
 Carry-forward into SP-2b (deferred from SP-2a final review):
 
