@@ -4,6 +4,8 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
   const canUndoEdit = useViewerStore((s) => s.canUndoEdit)
   const undoLabels = useViewerStore((s) => s.undoLabels)
   const hasModel = useViewerStore((s) => s.filePath !== null || s.loadedModels.length > 0)
+  const holeFillMode = useViewerStore((s) => s.holeFillMode)
+  const holeFillStatus = useViewerStore((s) => s.holeFillStatus)
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">
@@ -24,12 +26,41 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
         </button>
         <button
           type="button"
+          disabled={!hasModel}
+          aria-pressed={holeFillMode}
+          onClick={() => useViewerStore.getState().setHoleFillMode(!holeFillMode)}
+          className={
+            'px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
+            (holeFillMode
+              ? 'bg-[var(--accent-button)] text-white'
+              : 'bg-[var(--bg-button)]')
+          }
+        >
+          Fill a single hole
+        </button>
+        <button
+          type="button"
           disabled={!canUndoEdit}
           onClick={() => onUndoEdit?.(1)}
           className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm self-start disabled:opacity-50"
         >
           Undo last model edit
         </button>
+        {holeFillMode && (
+          <p className="text-xs text-[var(--text-muted)]">
+            Click a highlighted loop in the viewport. Press Esc to stop.
+            {holeFillStatus && (
+              <>
+                {' '}
+                {holeFillStatus.loops} open loop{holeFillStatus.loops === 1 ? '' : 's'}
+                {holeFillStatus.skippedMeshes > 0 &&
+                  ` · ${holeFillStatus.skippedMeshes} mesh${
+                    holeFillStatus.skippedMeshes === 1 ? '' : 'es'
+                  } not eligible`}
+              </>
+            )}
+          </p>
+        )}
       </div>
       {undoLabels.length > 0 && (
         <div className="mt-3">

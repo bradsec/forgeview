@@ -10,6 +10,8 @@
   print-readiness score card and the Make solid / undo actions.
 - Undo history: the Prepare panel keeps the last 5 model edits; click any entry
   in the undo list to step back to that point.
+- Prepare > Repair: **Fill a single hole** — pick one open boundary loop in
+  the viewport and cap just it, as its own undo step.
 
 ## 1.7.2 - 2026-08-29
 

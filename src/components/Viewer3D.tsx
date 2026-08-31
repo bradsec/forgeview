@@ -1,4 +1,4 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { loadModel, loadModelFromBuffer, disposeModel, applyViewMode, countTriangles, fitAllModels } from '../loaders'
@@ -18,8 +18,12 @@ import { getTheme } from '../themes'
 import { analyzeGeometry, summariseHealth } from '../services/meshHealth'
 import { repairGeometriesInWorker, type SolidRepairStats } from '../services/solidRepair'
 import { runRepairInWorker, type PerMeshStage } from '../services/meshRepair'
-import { STAGE_LABEL, type RepairStageId } from '../services/repairStages'
+import { STAGE_LABEL, fillLoop, type RepairStageId } from '../services/repairStages'
 import { clampUndoSteps, pushBounded, discardAll, popApply, type UndoEntry } from '../services/undoStack'
+import {
+  buildLoopOverlays, disposeLoopOverlays, pickOverlay, makeOverlayMaterials,
+  type OverlayEntry,
+} from '../services/holeFillOverlay'
 
 export interface RepairRunResult {
   label: string
@@ -83,6 +87,15 @@ interface Viewer3DProps {
   viewMode: 'solid' | 'wireframe' | 'points'
 }
 
+/** A mesh whose geometry the simple repair stages / hole-fill overlay can
+ *  safely rewrite: single draw group, non-array material, no uv/color that a
+ *  position-only rebuild would strip. */
+export function isRepairable(m: THREE.Mesh): boolean {
+  const g = m.geometry as THREE.BufferGeometry
+  if (Array.isArray(m.material) || g.groups.length > 1) return false
+  return !g.getAttribute('uv') && !g.getAttribute('color')
+}
+
 export function modelLoadKey(models: Array<{ id: string; path: string; extension: string }>): string {
   return models.map(({ id, path, extension }) => `${id}\u0000${path}\u0000${extension}`).join('\u0001')
 }
@@ -106,6 +119,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const gridRef = useRef<THREE.GridHelper | undefined>(undefined)
   const lightsRef = useRef<THREE.Light[]>([])
   const antialiasRef = useRef(true) // matches initial renderer creation
+  // Bumped whenever Effect 7 swaps the renderer/canvas (antialias toggle) so
+  // the hole-fill pick effect re-runs and rebinds its listeners to the new
+  // canvas instead of the disposed one.
+  const [rendererGen, setRendererGen] = useState(0)
   const animIdRef = useRef<number>(0)
   const animRef = useRef<CameraAnimationState>(createAnimationState())
   // Current double-click listener and its element, so renderer swaps
@@ -119,6 +136,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // budget instead of a boolean absorbs mutations that land mid-frame.
   const framesToRenderRef = useRef(3)
   const undoStackRef = useRef<UndoEntry[]>([])
+  const holeOverlayRef = useRef<{
+    group: THREE.Group
+    entries: OverlayEntry[]
+    hovered: number
+    materials: ReturnType<typeof makeOverlayMaterials>
+    badge: HTMLDivElement
+  } | null>(null)
   const invalidate = () => { framesToRenderRef.current = 3 }
 
   const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values()].filter((root): root is THREE.Object3D => Boolean(root))
@@ -233,6 +257,80 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     return { meshes, originals, originalMaterial, solidMaterial, stats: result.stats }
   }
 
+  const rebuildHoleOverlays = () => {
+    const scene = sceneRef.current
+    if (!scene) return
+    const existing = holeOverlayRef.current
+    if (existing) {
+      disposeLoopOverlays(existing.entries)
+      scene.remove(existing.group)
+    }
+    const materials = existing?.materials ?? makeOverlayMaterials(0x4c9ffe)
+    const badge = existing?.badge ?? (() => {
+      const el = document.createElement('div')
+      el.className =
+        'pointer-events-none absolute z-20 px-1.5 py-0.5 rounded text-[11px] ' +
+        'bg-[var(--bg-elevated,#1e1e28)] text-[var(--text-primary,#fff)] shadow'
+      el.style.display = 'none'
+      mountRef.current?.appendChild(el)
+      return el
+    })()
+    const group = new THREE.Group()
+    group.userData.holeOverlay = true
+    const meshes = withGeometry(modelMeshes())
+    const { entries, skippedMeshes } = buildLoopOverlays(meshes, isRepairable, materials)
+    for (const e of entries) group.add(e.group)
+    scene.add(group)
+    holeOverlayRef.current = { group, entries, hovered: -1, materials, badge }
+    useViewerStore.getState().setHoleFillStatus({ loops: entries.length, skippedMeshes })
+    invalidate()
+  }
+
+  const teardownHoleOverlays = () => {
+    const scene = sceneRef.current
+    const cur = holeOverlayRef.current
+    if (cur && scene) {
+      disposeLoopOverlays(cur.entries)
+      scene.remove(cur.group)
+      cur.materials.cap.dispose()
+      cur.materials.capHover.dispose()
+      cur.materials.outline.dispose()
+      cur.badge.remove()
+    }
+    holeOverlayRef.current = null
+    useViewerStore.getState().setHoleFillStatus(null)
+    invalidate()
+  }
+
+  const applyLoopFill = (entry: OverlayEntry) => {
+    const mesh = entry.mesh
+    const before = withGeometry(modelMeshes())
+    if (!before.includes(mesh)) return
+    const original = mesh.geometry as THREE.BufferGeometry
+    // entry.localPoints is the loop ring in this geometry's own local space, so
+    // it KEY-matches the geometry's vertices directly. The overlay only ever
+    // transforms points to world space for the cap/outline; the ring itself is
+    // never moved, so no inverse-matrix round trip is needed here.
+    const res = fillLoop(original, entry.localPoints)
+    if (res.geometry === original || res.note) { res.geometry.dispose?.(); return }
+    mesh.geometry = res.geometry
+    pushUndo({
+      label: 'Fill hole',
+      apply: () => {
+        if (mesh.geometry !== original) { (mesh.geometry as THREE.BufferGeometry).dispose(); mesh.geometry = original }
+      },
+      discard: () => original.dispose(),
+    })
+    rebuildHoleOverlays()
+    for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
+    updateTriangleDetails()
+    updateGeometryDetails()
+    invalidate()
+    if (rendererRef.current && sceneRef.current && cameraRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current)
+    }
+  }
+
   useImperativeHandle(ref, () => ({
     snapToView: (direction: ViewDirection) => {
       if (cameraRef.current && controlsRef.current && sceneRef.current) {
@@ -300,11 +398,6 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       // material stay untouched and it is kept out of `originals` and the undo
       // entry. A plain single-group mesh (STL, single-material OBJ) is
       // repairable. Seal still collapses everything regardless.
-      const isRepairable = (m: THREE.Mesh) => {
-        const g = m.geometry as THREE.BufferGeometry
-        if (Array.isArray(m.material) || g.groups.length > 1) return false
-        return !g.getAttribute('uv') && !g.getAttribute('color')
-      }
       const repairable = allMeshes.filter(isRepairable)
       const skipped = allMeshes.filter((m) => !isRepairable(m))
       if (repairable.length === 0 && !wantSeal) {
@@ -614,6 +707,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // stack, or a dead "Undo" button and stale undo-history rows outlive the
     // model. Harmless no-op on an already-empty stack.
     clearUndo()
+    useViewerStore.getState().setHoleFillMode(false)
     if (!filePath || !fileExtension || !sceneRef.current || !cameraRef.current) {
       // Clearing the preview must also remove a committed model from the
       // scene — the viewer stays mounted when multi-model entries remain
@@ -794,7 +888,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     const currentIds = new Set(modelMapRef.current.keys())
     const nextIds = new Set(loadedModels.map((m) => m.id))
-    if (currentIds.size !== nextIds.size || [...currentIds].some((id) => !nextIds.has(id))) clearUndo()
+    if (currentIds.size !== nextIds.size || [...currentIds].some((id) => !nextIds.has(id))) {
+      clearUndo()
+      useViewerStore.getState().setHoleFillMode(false)
+    }
 
     // Find removed IDs — dispose and delete from map
     for (const id of currentIds) {
@@ -1022,6 +1119,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
       rendererRef.current = newRenderer
       antialiasRef.current = settings.antialias
+      // Wake Effect 9 so hole-fill pick listeners rebind to the new canvas.
+      setRendererGen((g) => g + 1)
 
     }
 
@@ -1165,6 +1264,86 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
   }, [theme])
 
-  return <div ref={mountRef} className="w-full h-full" />
+  // Effect 9: Hole-fill pick mode — overlay lifecycle + pointer/click/key wiring.
+  // Placed after the renderer effect so rendererRef / cameraRef are populated.
+  const holeFillMode = useViewerStore((s) => s.holeFillMode)
+  const repairDialogOpen = useViewerStore((s) => s.repairDialogOpen)
+  useEffect(() => {
+    if (!holeFillMode) return
+    const el = rendererRef.current?.domElement
+    const mount = mountRef.current
+    if (!el || !mount) return
+
+    rebuildHoleOverlays()
+
+    const raycaster = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+    const setRay = (e: PointerEvent | MouseEvent) => {
+      const rect = el.getBoundingClientRect()
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(ndc, cameraRef.current!)
+    }
+
+    let downX = 0, downY = 0
+    const onDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY }
+
+    const onMove = (e: PointerEvent) => {
+      const st = holeOverlayRef.current
+      if (!st) return
+      setRay(e)
+      const hit = pickOverlay(st.entries, raycaster)
+      if (hit !== st.hovered) {
+        if (st.hovered >= 0) st.entries[st.hovered].cap.material = st.materials.cap
+        if (hit >= 0) st.entries[hit].cap.material = st.materials.capHover
+        st.hovered = hit
+        invalidate()
+      }
+      if (hit >= 0) {
+        const c = new THREE.Vector3()
+        st.entries[hit].cap.geometry.computeBoundingBox()
+        st.entries[hit].cap.geometry.boundingBox!.getCenter(c)
+        c.project(cameraRef.current!)
+        const rect = el.getBoundingClientRect()
+        st.badge.textContent = `${st.entries[hit].loop.vertexCount} vertices`
+        st.badge.style.left = `${(c.x * 0.5 + 0.5) * rect.width}px`
+        st.badge.style.top = `${(-c.y * 0.5 + 0.5) * rect.height}px`
+        st.badge.style.display = ''
+      } else {
+        st.badge.style.display = 'none'
+      }
+    }
+
+    const onClick = (e: MouseEvent) => {
+      const st = holeOverlayRef.current
+      if (!st || st.hovered < 0) return
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 4) return // was a drag
+      applyLoopFill(st.entries[st.hovered])
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') useViewerStore.getState().setHoleFillMode(false)
+    }
+
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('click', onClick)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('click', onClick)
+      window.removeEventListener('keydown', onKey)
+      teardownHoleOverlays()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holeFillMode, rendererGen])
+
+  // Effect 10: Auto-disarm pick mode when the Repair dialog opens
+  useEffect(() => {
+    if (repairDialogOpen && holeFillMode) useViewerStore.getState().setHoleFillMode(false)
+  }, [repairDialogOpen, holeFillMode])
+
+  return <div ref={mountRef} className="w-full h-full relative" />
   }
 )
