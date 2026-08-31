@@ -21,9 +21,26 @@ async function dropModel(page: Page): Promise<void> {
   await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
 }
 
-const LABELS = ['triangles', 'vertices', 'boundaryEdges', 'nonManifoldEdges', 'meshes', 'grid', 'result']
-const pairAfter = (text: string) => Number(text.split('→')[1].replace(/[^\d]/g, ''))
-const pairBefore = (text: string) => Number(text.split('→')[0].replace(/[^\d]/g, ''))
+const visibleCheck = (page: Page, id: string) =>
+  page.getByTestId(`check-${id}`).filter({ visible: true })
+
+/** Read a numeric value from the Details tab's File Info / Geometry lists.
+ * The Repair modal no longer renders a stats table, so the panel is the only
+ * place these counts are shown. */
+async function detailValue(page: Page, term: string): Promise<number> {
+  await page.getByRole('tab', { name: 'Details' }).click()
+  const dd = page.getByRole('term', { name: term }).locator('xpath=following-sibling::dd[1]')
+  const text = ((await dd.textContent()) ?? '').trim()
+  return Number(text.replace(/[^\d]/g, ''))
+}
+
+async function runSeal(page: Page) {
+  await page.getByRole('button', { name: 'Prepare' }).click()
+  await page.getByRole('button', { name: 'Repair…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Repair' })
+  await expect(dialog).toBeVisible()
+  return dialog
+}
 
 test.describe('Make solid on a real model', () => {
   test.skip(!hasModel, 'no test.stl fixture at repo root')
@@ -34,27 +51,29 @@ test.describe('Make solid on a real model', () => {
     test.setTimeout(360_000)
 
     await dropModel(page)
-    await page.getByRole('button', { name: 'Prepare' }).click()
-    await page.getByRole('button', { name: 'Make solid…' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Make solid' })
-    await expect(dialog).toBeVisible()
-    await dialog.getByLabel('Interior detection detail').selectOption('96')
-    await dialog.getByRole('button', { name: 'Apply' }).click()
-    await expect(dialog.getByText('Solid fill complete')).toBeVisible({ timeout: 330_000 })
+    const trisBefore = await detailValue(page, 'Triangles')
 
-    const definitions = dialog.getByRole('definition')
-    const values: Record<string, string> = {}
-    for (let i = 0; i < LABELS.length; i++) values[LABELS[i]] = ((await definitions.nth(i).textContent()) ?? '').trim()
-    console.log('Make solid:', JSON.stringify(values))
+    const dialog = await runSeal(page)
+    const seal = dialog.getByTestId('repair-stage-seal')
+    await seal.getByRole('combobox').selectOption('96')
+    await seal.getByRole('button', { name: /run/i }).click()
+    await expect(dialog.locator('progress')).toBeHidden({ timeout: 330_000 })
+    // The seal row's note replaces the old "Solid fill complete" text.
+    await expect(seal).toContainText(/watertight solid|0 open edges? left/i)
+    await dialog.getByRole('button', { name: /close/i }).click()
 
-    expect(pairAfter(values.triangles)).toBeGreaterThan(0)
-    expect(pairAfter(values.triangles)).toBeLessThanOrEqual(pairBefore(values.triangles))
+    // The sealed shell has no open edges: nothing reads as a hole.
+    await expect(visibleCheck(page, 'boundary')).toHaveAttribute('data-state', 'pass')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+
+    const trisAfter = await detailValue(page, 'Triangles')
+    console.log('Make solid triangles:', trisBefore, '->', trisAfter)
+    // Not left empty; kept exterior only, so the count never grows.
+    expect(trisAfter).toBeGreaterThan(0)
+    expect(trisAfter).toBeLessThanOrEqual(trisBefore)
     // Skin protection: a shell with no enclosed cavities loses almost nothing;
     // over-dropping here is what punched the flat-bottomed gashes.
-    expect(pairBefore(values.triangles) - pairAfter(values.triangles)).toBeLessThan(pairBefore(values.triangles) * 0.02)
-    // The sealed shell has no open edges: nothing reads as a hole.
-    expect(pairAfter(values.boundaryEdges)).toBe(0)
-    await expect(page.getByRole('alert')).toHaveCount(0)
+    expect(trisBefore - trisAfter).toBeLessThan(trisBefore * 0.02)
 
     // The viewport's WebGL context must survive the visibility pass (a second
     // context here used to evict it and blank the view).
@@ -71,31 +90,34 @@ test.describe('Make solid on a real model', () => {
     test.setTimeout(360_000)
 
     await dropModel(page)
-    await page.getByRole('button', { name: 'Prepare' }).click()
-    await page.getByRole('button', { name: 'Make solid…' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Make solid' })
-    await expect(dialog).toBeVisible()
+    const nmBefore = await detailValue(page, 'Non-manifold')
+    const trisBefore = await detailValue(page, 'Triangles')
 
-    const strip = dialog.getByRole('checkbox', { name: /Remove internal walls/ })
+    const dialog = await runSeal(page)
+    const seal = dialog.getByTestId('repair-stage-seal')
+
+    const strip = seal.getByRole('checkbox', { name: /Remove internal walls/ })
     if (!(await strip.isEnabled())) {
       test.skip(true, 'headless GL has no WebGL2, strip mode unavailable')
     }
     await strip.check()
-    await dialog.getByLabel('Interior detection detail').selectOption('96')
-    await dialog.getByRole('button', { name: 'Apply' }).click()
-    await expect(dialog.getByText('Solid fill complete')).toBeVisible({ timeout: 330_000 })
+    await seal.getByRole('combobox').selectOption('96')
+    await seal.getByRole('button', { name: /run/i }).click()
+    await expect(dialog.locator('progress')).toBeHidden({ timeout: 330_000 })
+    await expect(seal).toContainText(/watertight solid|0 open edges? left/i)
+    await dialog.getByRole('button', { name: /close/i }).click()
 
-    const definitions = dialog.getByRole('definition')
-    const values: Record<string, string> = {}
-    for (let i = 0; i < LABELS.length; i++) values[LABELS[i]] = ((await definitions.nth(i).textContent()) ?? '').trim()
-    console.log('Make solid (strip walls):', JSON.stringify(values))
+    // Skin still sealed with no open edges.
+    await expect(visibleCheck(page, 'boundary')).toHaveAttribute('data-state', 'pass')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+
+    const nmAfter = await detailValue(page, 'Non-manifold')
+    const trisAfter = await detailValue(page, 'Triangles')
+    console.log('Make solid (strip walls) non-manifold:', nmBefore, '->', nmAfter, 'tris:', trisBefore, '->', trisAfter)
 
     // Internal partitions removed: fewer non-manifold edges than the source,
-    // some triangles gone, skin still sealed with no open edges.
-    expect(pairAfter(values.nonManifoldEdges)).toBeLessThan(pairBefore(values.nonManifoldEdges))
-    expect(pairAfter(values.triangles)).toBeLessThan(pairBefore(values.triangles))
-    expect(pairAfter(values.boundaryEdges)).toBe(0)
-    await expect(dialog.getByText(/removal was skipped/)).toHaveCount(0)
-    await expect(page.getByRole('alert')).toHaveCount(0)
+    // some triangles gone.
+    expect(nmAfter).toBeLessThan(nmBefore)
+    expect(trisAfter).toBeLessThan(trisBefore)
   })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { ModelList } from './ModelList'
 import { PreparePanel } from './prepare/PreparePanel'
@@ -14,10 +14,10 @@ function formatBytes(bytes: number): string {
 }
 
 /**
- * Right-side panel showing scene models and file metadata.
- * Resizable via left-edge drag handle. Closable via header button.
+ * Right panel with Details / Prepare tabs; resizable via the left-edge handle; close control lives in the tab strip.
  */
 export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUndoEdit?: (steps?: number) => void } = {}) {
+  const uid = useId()
   const fileName = useViewerStore((s) => s.fileName)
   const fileExtension = useViewerStore((s) => s.fileExtension)
   const fileSize = useViewerStore((s) => s.fileSize)
@@ -92,7 +92,7 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
     if (!next) return
     event.preventDefault()
     useViewerStore.getState().setRightPanelTab(next)
-    document.getElementById(`right-tab-${next}`)?.focus()
+    document.getElementById(`${uid}-tab-${next}`)?.focus()
   }
 
   return (
@@ -140,11 +140,11 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
           {(['details', 'prepare'] as const).map((tab) => (
             <button
               key={tab}
-              id={`right-tab-${tab}`}
+              id={`${uid}-tab-${tab}`}
               role="tab"
               type="button"
               aria-selected={rightPanelTab === tab}
-              aria-controls={`right-tabpanel-${tab}`}
+              aria-controls={`${uid}-tabpanel-${tab}`}
               tabIndex={rightPanelTab === tab ? 0 : -1}
               onClick={() => useViewerStore.getState().setRightPanelTab(tab)}
               className={`px-3 py-1.5 text-sm rounded-t ${
@@ -170,8 +170,8 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
       {rightPanelTab === 'details' ? (
         <div
           role="tabpanel"
-          id="right-tabpanel-details"
-          aria-labelledby="right-tab-details"
+          id={`${uid}-tabpanel-details`}
+          aria-labelledby={`${uid}-tab-details`}
           tabIndex={0}
           className="flex flex-col flex-1 min-h-0"
         >
@@ -258,8 +258,8 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
       ) : (
         <div
           role="tabpanel"
-          id="right-tabpanel-prepare"
-          aria-labelledby="right-tab-prepare"
+          id={`${uid}-tabpanel-prepare`}
+          aria-labelledby={`${uid}-tab-prepare`}
           tabIndex={0}
           className="p-4 flex-1 overflow-y-auto"
         >

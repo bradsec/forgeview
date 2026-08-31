@@ -156,16 +156,20 @@ test('exports the open model as binary STL via download', async ({ page, isMobil
 
 test('makes the open model solid from the Prepare panel with visible progress', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Prepare flow verified on desktop')
+  test.setTimeout(60_000)
   await dropStl(page, 'repairme.stl', OPEN_BOX_STL)
   await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Prepare' }).click()
-  await page.getByRole('button', { name: 'Make solid…' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Make solid' })
+  await page.getByRole('button', { name: 'Repair…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Repair' })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Apply' }).click()
-  await expect(dialog.getByText('Solid fill complete')).toBeVisible()
-  await expect(dialog.getByText('Watertight solid')).toBeVisible()
+  const seal = dialog.getByTestId('repair-stage-seal')
+  await seal.getByRole('combobox').selectOption('96')
+  await seal.getByRole('button', { name: /run/i }).click()
+  // The shared <progress> drives the run; the seal row reports the finished solid.
+  await expect(seal).toContainText('Watertight solid', { timeout: 45_000 })
+  await expect(dialog.locator('progress')).toBeHidden()
 })
 
 test('export menu item is disabled with no model open', async ({ page }) => {

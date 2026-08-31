@@ -9,7 +9,7 @@ const STATE_LABEL: Record<PrepCheckState, string> = {
 
 const STATE_CLASS: Record<PrepCheckState, string> = {
   pass: 'text-[var(--success,#15803d)]',
-  warn: 'text-[var(--text-warning,#b45309)]',
+  warn: 'text-[var(--warning)]',
   fail: 'text-[var(--error)]',
   unavailable: 'text-[var(--text-muted)]',
 }
@@ -17,9 +17,11 @@ const STATE_CLASS: Record<PrepCheckState, string> = {
 export function ReadinessCard({
   checks,
   onFix,
+  canFix,
 }: {
   checks: PrepCheck[]
   onFix: (fixId: string) => void
+  canFix?: (fixId: string) => boolean
 }) {
   return (
     <div>
@@ -44,7 +46,7 @@ export function ReadinessCard({
                 <span className={`text-xs font-medium ${STATE_CLASS[check.state]}`}>
                   {STATE_LABEL[check.state]}
                 </span>
-                {fixId && (
+                {fixId && (canFix ? canFix(fixId) : true) && (
                   <button
                     type="button"
                     aria-label={`Fix ${check.label}`}

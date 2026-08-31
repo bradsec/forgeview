@@ -17,10 +17,10 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
         <button
           type="button"
           disabled={!hasModel}
-          onClick={() => useViewerStore.getState().setSolidEditorOpen(true)}
+          onClick={() => useViewerStore.getState().setRepairDialogOpen(true)}
           className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
         >
-          Make solid…
+          Repair…
         </button>
         <button
           type="button"

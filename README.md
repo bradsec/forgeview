@@ -13,7 +13,7 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
 - Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
 - Export the scene as STL, 3MF, OBJ, PLY, or GLB (File > Export model as)
-- Prepare panel (right sidebar) with a print-readiness score card and worker-backed Make solid processing, live progress, and up to 5 steps of undo
+- Prepare panel (right sidebar) with a print-readiness score card and a worker-backed Repair modal of individually runnable mesh-repair stages, live progress, and up to 5 steps of undo
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation
@@ -30,21 +30,32 @@ Export preserves static mesh transforms, instances, material groups, vertex
 colors, and other geometry attributes supported by the target format. Bake
 skinned poses and active morph deformation into static geometry before export.
 
-Prepare > Repair > Make solid fills the scene into one STL-style solid. Internal
-geometry that is not part of the outside surface, enclosed cavities and parts
-hidden inside other parts, is deleted, touching parts join under one skin, and
-every open edge left on the outer surface is sealed, so the result has no holes.
-The kept exterior triangles are unchanged, so the outer appearance stays
-exactly as loaded and triangle and vertex counts drop. Materials collapse to a
-single solid material. Draft, Standard, and Fine detection detail trade
-processing cost against how finely interior geometry is separated from the
-outside surface. The Prepare panel keeps the last 5 model edits, and each entry
-in the undo list steps the geometry and materials back to that point.
+The Prepare panel's Repair modal runs mesh-repair stages against the open model,
+each on its own or as one pipeline. The individual stages are weld vertices,
+remove degenerate faces, remove duplicate faces, unify normals, remove small
+shells, and fill holes; each updates the model in place and adds an undo entry.
+The individual stages currently apply only to single-material, untextured
+meshes. A mesh that uses multiple materials, UV coordinates, or vertex colours
+is left unchanged and the dialog reports how many meshes it skipped; Make solid
+still seals those meshes.
+Make solid is the final sealing stage: internal geometry that is not part of the
+outside surface, enclosed cavities and parts hidden inside other parts, is
+deleted, touching parts join under one skin, and every open edge left on the
+outer surface is sealed, so the result has no holes. The kept exterior triangles
+are unchanged, so the outer appearance stays exactly as loaded and triangle and
+vertex counts drop. Materials collapse to a single solid material. Draft,
+Standard, and Fine detection detail trade processing cost against how finely
+interior geometry is separated from the outside surface. Repair all runs every
+stage in order, ending with Make solid, in a single pass. The Prepare panel
+keeps the last 5 model edits, and each entry in the undo list steps the geometry
+and materials back to that point.
 
 The Prepare panel's readiness card summarises watertightness, manifold and open
-edges, and degenerate or duplicate faces, with a Fix shortcut to Make solid;
-wall-thickness, overhang, and build-plate checks are listed but arrive in a
-later release.
+edges, and degenerate or duplicate faces, with a Fix shortcut that opens the
+Repair modal; wall-thickness, overhang, and build-plate checks are listed but
+arrive in a later release. Once a seal has run, the watertight and manifold rows
+are marked informational: any residual edges are inherited from the original
+skin and the rows no longer offer a Fix.
 
 The result is a sealed shell, hollow inside; slicers and CAD tools treat a
 closed surface as a solid body. Details reports boundary and non-manifold edge

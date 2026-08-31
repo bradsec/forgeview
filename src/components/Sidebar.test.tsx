@@ -124,4 +124,13 @@ describe('Sidebar tabs', () => {
     expect(useViewerStore.getState().rightPanelTab).toBe('details')
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Details' }))
   })
+
+  it('gives each mount unique tab ids', () => {
+    const a = render(<Sidebar />).container
+    const b = render(<Sidebar mobile />).container
+    const idA = a.querySelector('[role="tab"]')?.getAttribute('id')
+    const idB = b.querySelector('[role="tab"]')?.getAttribute('id')
+    expect(idA).toBeTruthy()
+    expect(idA).not.toBe(idB)
+  })
 })

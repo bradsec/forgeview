@@ -363,3 +363,22 @@ describe('undoLabels', () => {
     expect(useViewerStore.getState().canUndoEdit).toBe(true)
   })
 })
+
+describe('sealApplied', () => {
+  beforeEach(() => { useViewerStore.setState({ sealApplied: false }) })
+
+  it('defaults to false', () => {
+    expect(useViewerStore.getInitialState().sealApplied).toBe(false)
+  })
+
+  it('setSealApplied toggles it', () => {
+    useViewerStore.getState().setSealApplied(true)
+    expect(useViewerStore.getState().sealApplied).toBe(true)
+  })
+
+  it('setFile resets it', () => {
+    useViewerStore.setState({ sealApplied: true })
+    useViewerStore.getState().setFile('/m/x.stl', 'x.stl', '.stl', 10)
+    expect(useViewerStore.getState().sealApplied).toBe(false)
+  })
+})

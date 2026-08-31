@@ -116,12 +116,14 @@ interface ViewerState {
   settingsOpen: boolean
   exportOpen: boolean
   setExportOpen: (open: boolean) => void
-  solidEditorOpen: boolean
+  repairDialogOpen: boolean
   canUndoEdit: boolean
   undoLabels: string[]
-  setSolidEditorOpen: (open: boolean) => void
+  sealApplied: boolean
+  setRepairDialogOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
   setUndoLabels: (labels: string[]) => void
+  setSealApplied: (v: boolean) => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
   setNotice: (notice: string | null) => void
@@ -201,12 +203,14 @@ export const useViewerStore = create<ViewerState>((set) => ({
   settingsOpen: false,
   exportOpen: false,
   setExportOpen: (open) => set({ exportOpen: open }),
-  solidEditorOpen: false,
+  repairDialogOpen: false,
   canUndoEdit: false,
   undoLabels: [],
-  setSolidEditorOpen: (open) => set({ solidEditorOpen: open }),
+  sealApplied: false,
+  setRepairDialogOpen: (open) => set({ repairDialogOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   setUndoLabels: (labels) => set({ undoLabels: labels }),
+  setSealApplied: (v) => set({ sealApplied: v }),
   notice: null,
   setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
@@ -224,9 +228,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [] }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [] }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),
