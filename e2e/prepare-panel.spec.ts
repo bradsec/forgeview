@@ -105,6 +105,37 @@ test.describe('Prepare panel', () => {
     await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
   })
 
+  test('fills one open loop picked in the viewport', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Viewport pick verified on desktop')
+    test.setTimeout(120_000)
+
+    await dropOpenBox(page)
+    const check = (id: string) => page.getByTestId(`check-${id}`).filter({ visible: true })
+
+    await page.getByRole('button', { name: 'Prepare' }).click()
+    await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
+
+    // The fixture is loaded Z-up with no rotation, so the removed face is on
+    // world +Z. The "Front" standard view puts the camera on +Z looking -Z,
+    // straight into the hole, so the loop cap projects to the canvas centre.
+    await page.getByRole('combobox', { name: 'Standard view' }).selectOption('front')
+    await page.waitForTimeout(400) // let the camera snap animation settle
+
+    await page.getByRole('button', { name: 'Fill a single hole' }).click()
+    await expect(page.getByText(/1 open loop\b/).filter({ visible: true })).toBeVisible()
+
+    // Click the centre of the canvas — over the open face, on the cap overlay.
+    await page.locator('canvas').first().click()
+
+    await expect(check('boundary')).toHaveAttribute('data-state', 'pass')
+
+    const history = page.getByTestId('undo-history').filter({ visible: true })
+    await expect(history.getByRole('button')).toHaveText(['Fill hole'])
+
+    await history.getByRole('button', { name: 'Fill hole' }).click()
+    await expect(check('boundary')).toHaveAttribute('data-state', 'fail')
+  })
+
   test('Repair all seals the open box and keeps the WebGL context', async ({ page, isMobile }) => {
     test.skip(isMobile, 'Prepare flow verified on desktop')
     test.setTimeout(180_000)

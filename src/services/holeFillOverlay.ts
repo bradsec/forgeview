@@ -4,6 +4,11 @@ import { extractBoundaryLoops, centroidFan, type BoundaryLoop } from './boundary
 export interface OverlayEntry {
   mesh: THREE.Mesh
   loop: BoundaryLoop
+  /** The loop ring in the mesh's own local space, before `mesh.matrixWorld`
+   * places the cap/outline. `fillLoop` needs these: it KEY-matches every point
+   * against the geometry's own vertices, so a world-space round trip through the
+   * inverse matrix can miss. */
+  localPoints: [number, number, number][]
   cap: THREE.Mesh
   outline: THREE.LineLoop
   group: THREE.Group
@@ -73,7 +78,7 @@ export function buildLoopOverlays(
       const group = new THREE.Group()
       group.userData.holeOverlay = true
       group.add(cap, outline)
-      entries.push({ mesh, loop, cap, outline, group })
+      entries.push({ mesh, loop, localPoints: loop.points, cap, outline, group })
     }
   }
   return { entries, skippedMeshes }

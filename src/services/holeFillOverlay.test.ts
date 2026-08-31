@@ -25,6 +25,10 @@ describe('buildLoopOverlays', () => {
     expect(skippedMeshes).toBe(0)
     expect(entries[0].group.userData.holeOverlay).toBe(true)
     expect(entries[0].cap.geometry.getAttribute('position').count).toBe(12) // 4 fan tris
+    // localPoints is the untransformed ring: same data as loop.points, and NOT
+    // shifted by the mesh's x=10 world offset (that offset only moves the cap).
+    expect(entries[0].localPoints).toEqual(entries[0].loop.points)
+    expect(entries[0].localPoints.every(([x]) => Math.abs(x) < 1)).toBe(true)
     // world-placed: cap centroid near x=10
     entries[0].cap.geometry.computeBoundingBox()
     const c = new THREE.Vector3()

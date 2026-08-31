@@ -1,4 +1,4 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { loadModel, loadModelFromBuffer, disposeModel, applyViewMode, countTriangles, fitAllModels } from '../loaders'
@@ -119,6 +119,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const gridRef = useRef<THREE.GridHelper | undefined>(undefined)
   const lightsRef = useRef<THREE.Light[]>([])
   const antialiasRef = useRef(true) // matches initial renderer creation
+  // Bumped whenever Effect 7 swaps the renderer/canvas (antialias toggle) so
+  // the hole-fill pick effect re-runs and rebinds its listeners to the new
+  // canvas instead of the disposed one.
+  const [rendererGen, setRendererGen] = useState(0)
   const animIdRef = useRef<number>(0)
   const animRef = useRef<CameraAnimationState>(createAnimationState())
   // Current double-click listener and its element, so renderer swaps
@@ -303,15 +307,11 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     const before = withGeometry(modelMeshes())
     if (!before.includes(mesh)) return
     const original = mesh.geometry as THREE.BufferGeometry
-    // entry.loop.points are world-space; fillLoop needs THIS geometry's local
-    // coords. Transform back through the mesh's inverse world matrix.
-    mesh.updateWorldMatrix(true, false)
-    const inv = new THREE.Matrix4().copy(mesh.matrixWorld).invert()
-    const localPts = entry.loop.points.map((p) => {
-      const v = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(inv)
-      return [v.x, v.y, v.z] as [number, number, number]
-    })
-    const res = fillLoop(original, localPts)
+    // entry.localPoints is the loop ring in this geometry's own local space, so
+    // it KEY-matches the geometry's vertices directly. The overlay only ever
+    // transforms points to world space for the cap/outline; the ring itself is
+    // never moved, so no inverse-matrix round trip is needed here.
+    const res = fillLoop(original, entry.localPoints)
     if (res.geometry === original || res.note) { res.geometry.dispose?.(); return }
     mesh.geometry = res.geometry
     pushUndo({
@@ -1119,6 +1119,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
       rendererRef.current = newRenderer
       antialiasRef.current = settings.antialias
+      // Wake Effect 9 so hole-fill pick listeners rebind to the new canvas.
+      setRendererGen((g) => g + 1)
 
     }
 
@@ -1335,13 +1337,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownHoleOverlays()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holeFillMode])
+  }, [holeFillMode, rendererGen])
 
   // Effect 10: Auto-disarm pick mode when the Repair dialog opens
   useEffect(() => {
     if (repairDialogOpen && holeFillMode) useViewerStore.getState().setHoleFillMode(false)
   }, [repairDialogOpen, holeFillMode])
 
-  return <div ref={mountRef} className="w-full h-full" />
+  return <div ref={mountRef} className="w-full h-full relative" />
   }
 )
