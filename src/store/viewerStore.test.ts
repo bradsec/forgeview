@@ -382,3 +382,26 @@ describe('sealApplied', () => {
     expect(useViewerStore.getState().sealApplied).toBe(false)
   })
 })
+
+describe('hole-fill mode', () => {
+  it('defaults off with no status', () => {
+    const s = useViewerStore.getState()
+    expect(s.holeFillMode).toBe(false)
+    expect(s.holeFillStatus).toBeNull()
+  })
+
+  it('setters update the fields', () => {
+    useViewerStore.getState().setHoleFillMode(true)
+    useViewerStore.getState().setHoleFillStatus({ loops: 3, skippedMeshes: 1 })
+    expect(useViewerStore.getState().holeFillMode).toBe(true)
+    expect(useViewerStore.getState().holeFillStatus).toEqual({ loops: 3, skippedMeshes: 1 })
+  })
+
+  it('setFile clears mode and status', () => {
+    useViewerStore.getState().setHoleFillMode(true)
+    useViewerStore.getState().setHoleFillStatus({ loops: 2, skippedMeshes: 0 })
+    useViewerStore.getState().setFile('/tmp/x.stl', 'x.stl', '.stl', 10)
+    expect(useViewerStore.getState().holeFillMode).toBe(false)
+    expect(useViewerStore.getState().holeFillStatus).toBeNull()
+  })
+})
