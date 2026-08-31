@@ -14,6 +14,7 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
 - Export the scene as STL, 3MF, OBJ, PLY, or GLB (File > Export model as)
 - Prepare panel (right sidebar) with a print-readiness score card and a worker-backed Repair modal of individually runnable mesh-repair stages, live progress, and up to 5 steps of undo
+- **Fill a single hole** — arm from the Repair section, then click a highlighted open loop in the viewport to cap just that hole. Each fill is a separate entry in the undo history. Eligible meshes only (single material, no textures); ineligible meshes are reported as a count.
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation

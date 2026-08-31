@@ -419,3 +419,35 @@ skill recipe for manual confirmation.
 None blocking. The `raycaster.params.Line.threshold` scale factor and the
 badge-vs-panel-status-line choice are settled during implementation against the
 `verify` recipe.
+
+## Implementation notes (2026-08-31)
+
+Four refinements from plan to shipped code:
+
+1. **Topology helpers extracted to `meshTopology.ts`.** The shared `triModel`,
+   `vertexTable`, and `KEY` functions live in `src/services/meshTopology.ts`
+   (not re-exported from `repairStages.ts`), imported by both `boundaryLoops.ts`
+   and the refactored `fillHoles`.
+
+2. **Each overlay is a translucent centroid-fan cap Mesh, not a LineLoop.**
+   The overlay entry holds `cap: THREE.Mesh` (the pick target, a thin
+   BufferGeometry face-normal-shaded triangle fan in a translucent material,
+   world-baked positions) and `outline: THREE.LineLoop` (visual-only, the loop
+   perimeter). The Mesh is picked by `raycaster.intersectObjects`, giving a
+   stable pick target even on thin or tangent-silhouette loops.
+
+3. **Overlays live in a scene-level Group.** Rather than adding `LineLoop` /
+   `Mesh` children under the geometry mesh (which risks `traverse` calls in
+   `applyViewMode`, exporters, etc. picking them up), overlays are held in a
+   scene-level `Group` (positioned world-baked, so they stay in the right
+   place). The group is added to the scene, hidden from normal traversal by
+   `scene.children` filtering downstream.
+
+4. **Overlay / pick logic is unit-tested in `holeFillOverlay.test.ts`.** The
+   test seam is `buildLoopOverlays()` and `pickOverlay()`, exposed as test
+   exports (no jsdom WebGL). `Viewer3D` has no dedicated overlay unit test
+   because jsdom has no WebGL context; the overlay/pick path is covered
+   end-to-end by `prepare-panel.spec.ts`. **Note:** `OverlayEntry.localPoints`
+   was added to carry mesh-local coords directly (avoiding the
+   inverse-world-transform round trip, which missed the `KEY` match after
+   fit-translation).
