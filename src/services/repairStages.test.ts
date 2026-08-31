@@ -7,11 +7,13 @@ import {
   unifyNormals,
   removeSmallShells,
   fillHoles,
+  fillLoop,
   runStages,
   REPAIR_STAGE_IDS,
   STAGE_LABEL,
 } from './repairStages'
 import { analyzeGeometry } from './meshHealth'
+import { extractBoundaryLoops } from './boundaryLoops'
 
 /** unit cube as 12 non-indexed triangles with split vertices (36 positions) */
 function splitCube(): THREE.BufferGeometry {
@@ -326,6 +328,53 @@ describe('fillHoles', () => {
     expect(() => { result = fillHoles(src) }).not.toThrow()
     expect(analyzeGeometry(result.geometry).boundaryEdges).toBe(before)
     expect(result.note).toMatch(/skipped/)
+  })
+})
+
+describe('fillLoop', () => {
+  it('caps exactly the passed loop and seals the open cube', () => {
+    const src = openCube()
+    const before = analyzeGeometry(src)
+    const { loops } = extractBoundaryLoops(src)
+    const { geometry, note } = fillLoop(src, loops[0].points)
+    const after = analyzeGeometry(geometry)
+    expect(after.boundaryEdges).toBe(0)
+    expect(after.watertight).toBe(true)
+    expect(after.triangles).toBe(before.triangles + 4)
+    expect(note).toBeUndefined()
+    // input untouched
+    expect(src.getAttribute('position').count).toBe(30)
+  })
+
+  it('faces the cap outward for the convex open cube', () => {
+    const src = openCube()
+    const originalTris = src.getAttribute('position').count / 3
+    const { loops } = extractBoundaryLoops(src)
+    const { geometry } = fillLoop(src, loops[0].points)
+    const p = geometry.getAttribute('position')
+    const triCount = p.count / 3
+    const mesh = new THREE.Vector3()
+    for (let i = 0; i < p.count; i++) mesh.add(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)))
+    mesh.divideScalar(p.count)
+    let checked = 0
+    for (let t = originalTris; t < triCount; t++) {
+      const a = new THREE.Vector3(p.getX(t * 3), p.getY(t * 3), p.getZ(t * 3))
+      const b = new THREE.Vector3(p.getX(t * 3 + 1), p.getY(t * 3 + 1), p.getZ(t * 3 + 1))
+      const c = new THREE.Vector3(p.getX(t * 3 + 2), p.getY(t * 3 + 2), p.getZ(t * 3 + 2))
+      const n = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize()
+      const outward = a.clone().add(b).add(c).divideScalar(3).sub(mesh)
+      expect(n.dot(outward)).toBeGreaterThan(0)
+      checked++
+    }
+    expect(checked).toBe(4)
+  })
+
+  it('no-ops with a note when a loop point is not on the geometry', () => {
+    const src = openCube()
+    const before = analyzeGeometry(src).triangles
+    const { geometry, note } = fillLoop(src, [[99, 99, 99], [98, 99, 99], [98, 98, 99]])
+    expect(analyzeGeometry(geometry).triangles).toBe(before)
+    expect(note).toMatch(/not on geometry/)
   })
 })
 
