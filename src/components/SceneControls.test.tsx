@@ -22,6 +22,8 @@ describe('SceneControls', () => {
         runRepair: vi.fn(),
         getModelDimensions: vi.fn(),
         undoEdit: vi.fn(),
+        splitByShell: vi.fn(),
+        getSplitPart: vi.fn(),
       } satisfies Viewer3DHandle,
     }
     render(<SceneControls viewerRef={viewerRef} />)
