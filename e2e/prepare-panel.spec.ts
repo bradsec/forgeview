@@ -168,4 +168,70 @@ test.describe('Prepare panel', () => {
     })
     expect(contextLost).toBe(false)
   })
+
+  /** ASCII STL of two axis-aligned 10mm cubes, the second offset +30 on X.
+   *  One solid, two disconnected shells: 24 triangles total. */
+  function twoCubesStl(): string {
+    const cube = (ox: number) => {
+      const s = 10
+      const v = [
+        [ox, 0, 0], [ox + s, 0, 0], [ox + s, s, 0], [ox, s, 0],
+        [ox, 0, s], [ox + s, 0, s], [ox + s, s, s], [ox, s, s],
+      ]
+      const tris = [
+        [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+        [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+        [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4],
+      ]
+      let out = ''
+      for (const [a, b, c] of tris) {
+        out += 'facet normal 0 0 0\nouter loop\n'
+        for (const i of [a, b, c]) out += `vertex ${v[i][0]} ${v[i][1]} ${v[i][2]}\n`
+        out += 'endloop\nendfacet\n'
+      }
+      return out
+    }
+    return `solid two\n${cube(0)}${cube(30)}endsolid two\n`
+  }
+
+  async function dropStl(page: Page, stl: string, name: string): Promise<void> {
+    await page.goto('/')
+    await page.evaluate(({ stl, name }) => {
+      const file = new File([stl], name, { type: 'model/stl' })
+      const dt = new DataTransfer()
+      dt.items.add(file)
+      window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }))
+    }, { stl, name })
+    await expect(page.getByRole('banner')).toContainText(name)
+    await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
+  }
+
+  test('splits a two-body model into parts and recombines on undo', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Split flow verified on desktop')
+    test.setTimeout(120_000)
+
+    await dropStl(page, twoCubesStl(), 'two.stl')
+    await page.getByRole('button', { name: 'Prepare' }).click()
+
+    // exact: after the split the undo-history entry is also named "Split by shell".
+    const splitBtn = page.getByRole('button', { name: 'Split by shell', exact: true }).filter({ visible: true })
+    await expect(splitBtn).toBeEnabled()
+    await splitBtn.click()
+
+    const parts = page.getByTestId('split-parts').filter({ visible: true })
+    await expect(parts.getByRole('listitem')).toHaveCount(2)
+    await expect(parts).toContainText('tris')
+    await expect(splitBtn).toBeDisabled()
+
+    // hide part 2
+    const p2 = parts.getByRole('checkbox').nth(1)
+    await p2.uncheck()
+    await expect(p2).not.toBeChecked()
+
+    // undo the split from the history list -> back to one model, list gone
+    const history = page.getByTestId('undo-history').filter({ visible: true })
+    await history.getByRole('button', { name: /split by shell/i }).click()
+    await expect(page.getByTestId('split-parts').filter({ visible: true })).toHaveCount(0)
+    await expect(splitBtn).toBeEnabled()
+  })
 })
