@@ -2,12 +2,20 @@ import { useViewerStore } from '../../store/viewerStore'
 import { prepChecks } from '../../services/prepChecks'
 import { ReadinessCard } from './ReadinessCard'
 import { RepairSection } from './RepairSection'
+import { PartsSection } from './PartsSection'
+import type { Viewer3DHandle } from '../Viewer3D'
 
 const FIX_HANDLERS: Record<string, () => void> = {
   seal: () => useViewerStore.getState().setRepairDialogOpen(true),
 }
 
-export function PreparePanel({ onUndoEdit }: { onUndoEdit?: (steps?: number) => void }) {
+export function PreparePanel({
+  onUndoEdit,
+  viewerRef,
+}: {
+  onUndoEdit?: (steps?: number) => void
+  viewerRef: React.RefObject<Viewer3DHandle | null>
+}) {
   const details = useViewerStore((s) => s.geometryDetails)
   const sealApplied = useViewerStore((s) => s.sealApplied)
 
@@ -25,6 +33,7 @@ export function PreparePanel({ onUndoEdit }: { onUndoEdit?: (steps?: number) => 
         </p>
       )}
       <RepairSection onUndoEdit={onUndoEdit} />
+      <PartsSection viewerRef={viewerRef} />
     </div>
   )
 }

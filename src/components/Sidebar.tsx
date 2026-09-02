@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { ModelList } from './ModelList'
 import { PreparePanel } from './prepare/PreparePanel'
+import type { Viewer3DHandle } from './Viewer3D'
 
 const MIN_WIDTH = 140
 const MAX_WIDTH = 500
@@ -16,7 +17,11 @@ function formatBytes(bytes: number): string {
 /**
  * Right panel with Details / Prepare tabs; resizable via the left-edge handle; close control lives in the tab strip.
  */
-export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUndoEdit?: (steps?: number) => void } = {}) {
+export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
+  mobile?: boolean
+  onUndoEdit?: (steps?: number) => void
+  viewerRef: React.RefObject<Viewer3DHandle | null>
+} = { viewerRef: { current: null } }) {
   const uid = useId()
   const fileName = useViewerStore((s) => s.fileName)
   const fileExtension = useViewerStore((s) => s.fileExtension)
@@ -263,7 +268,7 @@ export function Sidebar({ mobile = false, onUndoEdit }: { mobile?: boolean; onUn
           tabIndex={0}
           className="p-4 flex-1 overflow-y-auto"
         >
-          <PreparePanel onUndoEdit={onUndoEdit} />
+          <PreparePanel onUndoEdit={onUndoEdit} viewerRef={viewerRef} />
         </div>
       )}
     </aside>
