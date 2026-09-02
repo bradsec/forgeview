@@ -6,6 +6,8 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
   const hasModel = useViewerStore((s) => s.filePath !== null || s.loadedModels.length > 0)
   const holeFillMode = useViewerStore((s) => s.holeFillMode)
   const holeFillStatus = useViewerStore((s) => s.holeFillStatus)
+  const splitParts = useViewerStore((s) => s.splitParts)
+  const isSplit = splitParts.length > 0
   return (
     <div>
       <h3 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">
@@ -18,7 +20,7 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
       <div className="mt-3 flex flex-col gap-2">
         <button
           type="button"
-          disabled={!hasModel}
+          disabled={!hasModel || isSplit}
           onClick={() => useViewerStore.getState().setRepairDialogOpen(true)}
           className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
         >
@@ -26,7 +28,7 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
         </button>
         <button
           type="button"
-          disabled={!hasModel}
+          disabled={!hasModel || isSplit}
           aria-pressed={holeFillMode}
           onClick={() => useViewerStore.getState().setHoleFillMode(!holeFillMode)}
           className={
@@ -38,6 +40,11 @@ export function RepairSection({ onUndoEdit }: { onUndoEdit?: (steps?: number) =>
         >
           Fill a single hole
         </button>
+        {isSplit && (
+          <p className="text-xs text-[var(--text-muted)]">
+            Recombine the split parts (undo "Split by shell") before repairing.
+          </p>
+        )}
         <button
           type="button"
           disabled={!canUndoEdit}
