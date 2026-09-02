@@ -46,4 +46,29 @@ describe('ExportDialog', () => {
 
     await waitFor(() => expect(exportMeshes).toHaveBeenCalledWith([], '.3mf', { threeMFUnit: 'inch' }))
   })
+
+  it('scopes export to a split part when exportTargetId is set', async () => {
+    const part = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial())
+    const getSplitPart = vi.fn(() => part)
+    const getScene = vi.fn(() => new THREE.Scene())
+    const viewerRef = { current: { getSplitPart, getScene } } as unknown as React.RefObject<Viewer3DHandle>
+    useViewerStore.setState({
+      exportOpen: true,
+      exportTargetId: 'p1',
+      splitParts: [{ id: 'p1', name: 'widget — part 1', triangleCount: 12, visible: true }],
+      pendingModelLoads: 0,
+    })
+    render(<ExportDialog viewerRef={viewerRef} />)
+    expect(screen.getByText(/widget — part 1/)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: /^export$/i }))
+    expect(getSplitPart).toHaveBeenCalledWith('p1')
+  })
+
+  it('clears exportTargetId on close', async () => {
+    useViewerStore.setState({ exportOpen: true, exportTargetId: 'p1' })
+    const viewerRef = { current: { getScene: () => new THREE.Scene(), getSplitPart: () => undefined } } as unknown as React.RefObject<Viewer3DHandle>
+    render(<ExportDialog viewerRef={viewerRef} />)
+    await userEvent.click(screen.getByRole('button', { name: /close/i }))
+    expect(useViewerStore.getState().exportTargetId).toBeNull()
+  })
 })
