@@ -24,6 +24,7 @@ import {
   buildLoopOverlays, disposeLoopOverlays, pickOverlay, makeOverlayMaterials,
   type OverlayEntry,
 } from '../services/holeFillOverlay'
+import { splitByShell as splitGeometryByShell } from '../services/splitByShell'
 
 export interface RepairRunResult {
   label: string
@@ -52,6 +53,10 @@ export interface Viewer3DHandle {
   ) => Promise<RepairRunResult>
   getModelDimensions: () => THREE.Vector3 | null
   undoEdit: (steps?: number) => void
+  /** Split the single open mesh into one mesh per connected shell. Throws an
+   * Error with a user-facing message when not applicable. */
+  splitByShell: () => { parts: number; droppedFragments: number }
+  getSplitPart: (id: string) => THREE.Mesh | undefined
 }
 
 export function disposeViewerResources(
@@ -111,6 +116,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const modelGroupRef = useRef<THREE.Object3D | undefined>(undefined)
   // Multi-model "add to scene" path — keyed by LoadedModel.id
   const modelMapRef = useRef<Map<string, THREE.Object3D>>(new Map())
+  // Split-by-shell: the detached-part group added at scene level, and a map
+  // from SplitPart.id to its live mesh for visibility sync + export lookup
+  const splitPartsGroupRef = useRef<THREE.Group | undefined>(undefined)
+  const splitPartsRef = useRef<Map<string, THREE.Mesh>>(new Map())
   // Track in-flight model loads to prevent duplicate loading from effect re-runs
   const loadingIdsRef = useRef<Set<string>>(new Set())
   // Version counter for the single-model preview effect (Effect 2) so a
@@ -145,7 +154,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   } | null>(null)
   const invalidate = () => { framesToRenderRef.current = 3 }
 
-  const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values()].filter((root): root is THREE.Object3D => Boolean(root))
+  const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values(), splitPartsGroupRef.current].filter((root): root is THREE.Object3D => Boolean(root))
   const modelMeshes = () => {
     const meshes: THREE.Mesh[] = []
     for (const root of modelRoots()) root.traverse((child) => { if (child instanceof THREE.Mesh) meshes.push(child) })
@@ -155,6 +164,30 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // would crash the soup combination on a second run.
   const withGeometry = (list: THREE.Mesh[]) =>
     list.filter((mesh) => ((mesh.geometry as THREE.BufferGeometry).getAttribute('position')?.count ?? 0) > 0)
+  const baseModelName = () => {
+    const n = useViewerStore.getState().fileName
+    if (!n) return 'model'
+    return n.replace(/\.[^./\\]+$/, '')
+  }
+  // Free the live part meshes + their cloned geometries/materials and detach
+  // the part group. Never touches the pre-split original — the undo entry owns
+  // that (its `apply` re-adds it, its `discard` disposes it).
+  const teardownSplitParts = () => {
+    const scene = sceneRef.current
+    const group = splitPartsGroupRef.current
+    if (group) {
+      for (const m of splitPartsRef.current.values()) {
+        m.geometry.dispose()
+        const mat = m.material as THREE.Material | THREE.Material[]
+        if (Array.isArray(mat)) mat.forEach((x) => x.dispose())
+        else mat.dispose()
+      }
+      if (scene) scene.remove(group)
+      group.clear()
+      splitPartsGroupRef.current = undefined
+    }
+    splitPartsRef.current.clear()
+  }
   const updateGeometryDetails = () => {
     const roots = modelRoots()
     // Make solid leaves attribute-less placeholder geometries on collapsed
@@ -496,6 +529,91 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       }
       return { label, perMesh, seal, skippedMeshes: skipped.length }
     },
+    getSplitPart: (id: string) => splitPartsRef.current.get(id),
+
+    splitByShell: () => {
+      const scene = sceneRef.current
+      if (!scene) throw new Error('Split by shell needs an open 3D view')
+      if (useViewerStore.getState().loadedModels.length > 0)
+        throw new Error('Split by shell works on a single open model')
+      const original = modelGroupRef.current
+      if (!original) throw new Error('Split by shell works on a single open model')
+      if (splitPartsGroupRef.current) throw new Error('Already split — undo Split by shell first')
+
+      const meshes = withGeometry(modelMeshes()).filter(isRepairable)
+      if (meshes.length === 0)
+        throw new Error('No splittable mesh: the model uses textures or multiple materials')
+      if (meshes.length > 1)
+        throw new Error('Split by shell needs a single-mesh model')
+
+      const mesh = meshes[0]
+      const res = splitGeometryByShell(mesh.geometry as THREE.BufferGeometry)
+      if (res.parts.length < 2) {
+        res.parts.forEach((g) => g.dispose())
+        throw new Error('Nothing to split: the model is a single connected shell')
+      }
+
+      mesh.updateWorldMatrix(true, false)
+      const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3()
+      mesh.matrixWorld.decompose(pos, quat, scl)
+
+      const theme = getTheme(useViewerStore.getState().theme)
+      const base = baseModelName()
+      const group = new THREE.Group()
+      group.userData.splitGroup = true
+
+      const partMeta: { id: string; name: string; triangleCount: number; visible: boolean }[] = []
+      res.parts.forEach((geo, i) => {
+        const srcMat = mesh.material as THREE.Material
+        const mat = srcMat.clone() as THREE.Material & { color?: THREE.Color }
+        if (mat.color instanceof THREE.Color && mat.color.getHex() === 0xB0B0B0) mat.color.setHex(theme.modelColor)
+        const partMesh = new THREE.Mesh(geo, mat)
+        partMesh.position.copy(pos)
+        partMesh.quaternion.copy(quat)
+        partMesh.scale.copy(scl)
+        const id = crypto.randomUUID()
+        partMesh.userData.splitPartId = id
+        partMesh.name = `${base} — part ${i + 1}`
+        group.add(partMesh)
+        splitPartsRef.current.set(id, partMesh)
+        partMeta.push({
+          id, name: partMesh.name,
+          triangleCount: (geo.getAttribute('position') as THREE.BufferAttribute).count / 3,
+          visible: true,
+        })
+      })
+
+      // Retain `original` + defer its disposal to the undo entry. Null the ref
+      // so modelRoots() yields only the new part group — otherwise the detached
+      // original double-counts in updateTriangleDetails / updateGeometryDetails
+      // and view mode is applied to a dead object.
+      scene.remove(original)
+      modelGroupRef.current = undefined
+      scene.add(group)
+      splitPartsGroupRef.current = group
+      useViewerStore.getState().setSplitParts(partMeta)
+
+      pushUndo({
+        label: 'Split by shell',
+        apply: () => {
+          teardownSplitParts()
+          scene.add(original)
+          modelGroupRef.current = original
+          useViewerStore.getState().setSplitParts([])
+        },
+        discard: () => { disposeModel(original, scene) },
+      })
+
+      for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
+      updateTriangleDetails()
+      updateGeometryDetails()
+      invalidate()
+      if (rendererRef.current && sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current)
+      }
+      return { parts: res.parts.length, droppedFragments: res.droppedFragments }
+    },
+
     undoEdit: (steps = 1) => {
       popApply(undoStackRef.current, clampUndoSteps(steps, undoStackRef.current.length))
       // A full drain means nothing sealed remains on the model; the residual
@@ -599,6 +717,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const targets: THREE.Object3D[] = []
       if (modelGroupRef.current) targets.push(modelGroupRef.current)
       for (const obj of modelMapRef.current.values()) targets.push(obj)
+      if (splitPartsGroupRef.current) targets.push(splitPartsGroupRef.current)
       if (targets.length === 0) return
 
       const rect = renderer.domElement.getBoundingClientRect()
@@ -677,6 +796,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           container.removeChild(liveRenderer.domElement)
         }
       }
+      teardownSplitParts()
       disposeViewerResources(
         scene,
         modelGroupRef.current,
@@ -708,6 +828,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // model. Harmless no-op on an already-empty stack.
     clearUndo()
     useViewerStore.getState().setHoleFillMode(false)
+    teardownSplitParts()
+    useViewerStore.getState().setSplitParts([])
     if (!filePath || !fileExtension || !sceneRef.current || !cameraRef.current) {
       // Clearing the preview must also remove a committed model from the
       // scene — the viewer stays mounted when multi-model entries remain
@@ -833,6 +955,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     for (const obj of modelMapRef.current.values()) {
       applyViewMode(obj, viewMode)
     }
+    if (splitPartsGroupRef.current) {
+      applyViewMode(splitPartsGroupRef.current, viewMode)
+    }
   }, [viewMode])
 
   // Effect 4: Container resize — updates renderer when panels open/close or window resizes
@@ -891,6 +1016,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (currentIds.size !== nextIds.size || [...currentIds].some((id) => !nextIds.has(id))) {
       clearUndo()
       useViewerStore.getState().setHoleFillMode(false)
+      teardownSplitParts()
+      useViewerStore.getState().setSplitParts([])
     }
 
     // Find removed IDs — dispose and delete from map
@@ -1092,6 +1219,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         const targets: THREE.Object3D[] = []
         if (modelGroupRef.current) targets.push(modelGroupRef.current)
         for (const obj of modelMapRef.current.values()) targets.push(obj)
+        if (splitPartsGroupRef.current) targets.push(splitPartsGroupRef.current)
         if (targets.length === 0) return
         const rect = newRenderer.domElement.getBoundingClientRect()
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
@@ -1262,6 +1390,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     for (const obj of modelMapRef.current.values()) {
       updateMaterial(obj)
     }
+    if (splitPartsGroupRef.current) {
+      updateMaterial(splitPartsGroupRef.current)
+    }
   }, [theme])
 
   // Effect 9: Hole-fill pick mode — overlay lifecycle + pointer/click/key wiring.
@@ -1343,6 +1474,18 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   useEffect(() => {
     if (repairDialogOpen && holeFillMode) useViewerStore.getState().setHoleFillMode(false)
   }, [repairDialogOpen, holeFillMode])
+
+  // Effect 11: Split-by-shell part visibility — sync store flags onto the live
+  // part meshes. Keyed on the store array the SplitPanel toggles.
+  const splitParts = useViewerStore((s) => s.splitParts)
+  useEffect(() => {
+    let changed = false
+    for (const p of splitParts) {
+      const m = splitPartsRef.current.get(p.id)
+      if (m && m.visible !== p.visible) { m.visible = p.visible; changed = true }
+    }
+    if (changed) invalidate()
+  }, [splitParts])
 
   return <div ref={mountRef} className="w-full h-full relative" />
   }

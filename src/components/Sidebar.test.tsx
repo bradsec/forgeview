@@ -14,12 +14,12 @@ describe('Sidebar mobile variant', () => {
   })
 
   it('renders content even though sidebarVisible is false', () => {
-    render(<Sidebar mobile />)
+    render(<Sidebar mobile viewerRef={{ current: null }} />)
     expect(screen.getByText('Scene Models')).toBeTruthy()
   })
 
   it('close button clears the mobile drawer, not sidebarVisible', async () => {
-    render(<Sidebar mobile />)
+    render(<Sidebar mobile viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: /close sidebar/i }))
     expect(useViewerStore.getState().mobileDrawer).toBe('none')
     expect(useViewerStore.getState().sidebarVisible).toBe(false)
@@ -42,7 +42,7 @@ describe('Sidebar geometry details', () => {
 
   it('shows factual edge counts without a mesh health verdict', () => {
     useViewerStore.setState({ geometryDetails: details })
-    render(<Sidebar mobile />)
+    render(<Sidebar mobile viewerRef={{ current: null }} />)
     expect(screen.getByText('Boundary edges')).toBeTruthy()
     expect(screen.getByText('Non-manifold')).toBeTruthy()
     expect(screen.queryByText('Mesh health')).toBeNull()
@@ -55,13 +55,13 @@ describe('Sidebar desktop variant', () => {
     useViewerStore.setState({ sidebarVisible: false })
   })
   it('renders the hidden placeholder when sidebarVisible is false', () => {
-    const { container } = render(<Sidebar />)
+    const { container } = render(<Sidebar viewerRef={{ current: null }} />)
     expect(container.querySelector('aside.hidden')).toBeTruthy()
   })
 
   it('supports keyboard resizing when visible', async () => {
     useViewerStore.setState({ sidebarVisible: true })
-    render(<Sidebar />)
+    render(<Sidebar viewerRef={{ current: null }} />)
 
     const separator = screen.getByRole('separator', { name: 'Resize Details' })
     expect(separator.getAttribute('aria-valuenow')).toBe('256')
@@ -72,7 +72,7 @@ describe('Sidebar desktop variant', () => {
   it('removes active pointer resize listeners on unmount', () => {
     useViewerStore.setState({ sidebarVisible: true })
     const remove = vi.spyOn(document, 'removeEventListener')
-    const { unmount } = render(<Sidebar />)
+    const { unmount } = render(<Sidebar viewerRef={{ current: null }} />)
     fireEvent.mouseDown(screen.getByRole('separator', { name: 'Resize Details' }), { clientX: 100 })
 
     unmount()
@@ -93,13 +93,13 @@ describe('Sidebar tabs', () => {
   })
 
   it('shows the Details body by default', () => {
-    render(<Sidebar />)
+    render(<Sidebar viewerRef={{ current: null }} />)
     expect(screen.getByText('File Info')).toBeTruthy()
     expect(screen.queryByTestId('prepare-empty')).toBeNull()
   })
 
   it('switches to the Prepare body when the Prepare tab is clicked', async () => {
-    render(<Sidebar />)
+    render(<Sidebar viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
     expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
     expect(screen.getByTestId('prepare-empty')).toBeTruthy()
@@ -107,14 +107,14 @@ describe('Sidebar tabs', () => {
   })
 
   it('marks the active tab with aria-selected', async () => {
-    render(<Sidebar />)
+    render(<Sidebar viewerRef={{ current: null }} />)
     expect(screen.getByRole('tab', { name: 'Details' }).getAttribute('aria-selected')).toBe('true')
     await userEvent.click(screen.getByRole('tab', { name: 'Prepare' }))
     expect(screen.getByRole('tab', { name: 'Prepare' }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('moves between tabs with Left/Right arrow keys', () => {
-    render(<Sidebar />)
+    render(<Sidebar viewerRef={{ current: null }} />)
     const detailsTab = screen.getByRole('tab', { name: 'Details' })
     detailsTab.focus()
     fireEvent.keyDown(detailsTab, { key: 'ArrowRight' })
@@ -126,8 +126,8 @@ describe('Sidebar tabs', () => {
   })
 
   it('gives each mount unique tab ids', () => {
-    const a = render(<Sidebar />).container
-    const b = render(<Sidebar mobile />).container
+    const a = render(<Sidebar viewerRef={{ current: null }} />).container
+    const b = render(<Sidebar mobile viewerRef={{ current: null }} />).container
     const idA = a.querySelector('[role="tab"]')?.getAttribute('id')
     const idB = b.querySelector('[role="tab"]')?.getAttribute('id')
     expect(idA).toBeTruthy()

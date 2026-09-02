@@ -24,6 +24,9 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const exportOpen = useViewerStore((s) => s.exportOpen)
   const fileName = useViewerStore((s) => s.fileName)
   const pendingModelLoads = useViewerStore((s) => s.pendingModelLoads)
+  const exportTargetId = useViewerStore((s) => s.exportTargetId)
+  const splitParts = useViewerStore((s) => s.splitParts)
+  const targetPart = exportTargetId ? splitParts.find((p) => p.id === exportTargetId) ?? null : null
   const [format, setFormat] = useState<ExportFormat>('.stl')
   const [threeMFUnit, setThreeMFUnit] = useState<ThreeMFUnit>('millimeter')
   const [busy, setBusy] = useState(false)
@@ -33,7 +36,10 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
   const close = () => {
-    if (!busy) useViewerStore.getState().setExportOpen(false)
+    if (!busy) {
+      useViewerStore.getState().setExportOpen(false)
+      useViewerStore.getState().setExportTargetId(null)
+    }
   }
 
   useEffect(() => {
@@ -70,15 +76,18 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   }
 
   const runExport = async () => {
-    const scene = viewerRef.current?.getScene()
     const store = useViewerStore.getState()
     if (store.pendingModelLoads > 0) {
       store.setError('Wait for all scene models to finish loading before exporting')
       return
     }
-    if (!scene) {
-      store.setError('Export needs an open 3D view')
-      return
+    let root: import('three').Object3D | undefined
+    if (exportTargetId) {
+      root = viewerRef.current?.getSplitPart(exportTargetId)
+      if (!root) { store.setError('That part is no longer in the scene'); return }
+    } else {
+      root = viewerRef.current?.getScene()
+      if (!root) { store.setError('Export needs an open 3D view'); return }
     }
     setBusy(true)
     store.setError(null)
@@ -89,17 +98,18 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
       setPhase('Collecting scene meshes')
       await nextPaint()
       const { collectExportMeshes, exportMeshes } = await import('../services/exporters')
-      meshes = collectExportMeshes(scene)
+      meshes = collectExportMeshes(root)
       setPhase(`Serializing ${format} data`)
       await nextPaint()
       const bytes = await exportMeshes(meshes, format, { threeMFUnit })
       setPhase(`Saving ${(bytes.byteLength / (1024 * 1024)).toFixed(1)} MB file`)
       await nextPaint()
-      const target = exportFileName(fileName, format)
+      const target = exportFileName(targetPart ? targetPart.name : fileName, format)
       const saved = await saveExportedFile(bytes, target)
       if (saved !== null) {
         store.setNotice(`Exported ${saved}`)
         store.setExportOpen(false)
+        store.setExportTargetId(null)
       }
     } catch (err) {
       store.setError(err instanceof Error ? err.message : String(err))
@@ -126,7 +136,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
           className="bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-sm"
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-            <h2 id="export-title" className="text-base font-semibold text-[var(--text-bright)]">Export model</h2>
+            <h2 id="export-title" className="text-base font-semibold text-[var(--text-bright)]">{targetPart ? `Export — ${targetPart.name}` : 'Export model'}</h2>
             <button
               ref={closeButtonRef}
               onClick={close}

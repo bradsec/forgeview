@@ -19,7 +19,7 @@ beforeEach(() => {
 
 describe('PreparePanel', () => {
   it('shows the empty state when no model is loaded', () => {
-    render(<PreparePanel />)
+    render(<PreparePanel viewerRef={{ current: null }} />)
     expect(screen.getByTestId('prepare-empty')).toBeTruthy()
     expect(screen.queryByTestId('check-watertight')).toBeNull()
     expect(screen.getByRole('button', { name: 'Undo last model edit' })).toBeTruthy()
@@ -28,22 +28,23 @@ describe('PreparePanel', () => {
 
   it('renders the readiness card and repair section when a model is loaded', () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
-    render(<PreparePanel />)
+    render(<PreparePanel viewerRef={{ current: null }} />)
     expect(screen.getByTestId('check-watertight').getAttribute('data-state')).toBe('fail')
     expect(screen.getByRole('button', { name: 'Repair…' })).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Split by shell' })).toBeTruthy()
   })
 
   it('a Fix on a seal row opens the repair dialog', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
-    render(<PreparePanel />)
+    render(<PreparePanel viewerRef={{ current: null }} />)
     await userEvent.click(within(screen.getByTestId('check-watertight')).getByRole('button', { name: 'Fix Watertight' }))
     expect(useViewerStore.getState().repairDialogOpen).toBe(true)
   })
 
   it('the Repair button opens the dialog', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
-    render(<PreparePanel />)
+    render(<PreparePanel viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Repair…' }))
     expect(useViewerStore.getState().repairDialogOpen).toBe(true)
   })
@@ -51,10 +52,10 @@ describe('PreparePanel', () => {
   it('Undo is disabled until an edit can be undone, then calls onUndoEdit', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
     const onUndoEdit = vi.fn()
-    const { rerender } = render(<PreparePanel onUndoEdit={onUndoEdit} />)
+    const { rerender } = render(<PreparePanel onUndoEdit={onUndoEdit} viewerRef={{ current: null }} />)
     expect((screen.getByRole('button', { name: 'Undo last model edit' }) as HTMLButtonElement).disabled).toBe(true)
     useViewerStore.setState({ canUndoEdit: true })
-    rerender(<PreparePanel onUndoEdit={onUndoEdit} />)
+    rerender(<PreparePanel onUndoEdit={onUndoEdit} viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Undo last model edit' }))
     expect(onUndoEdit).toHaveBeenCalledOnce()
     expect(onUndoEdit).toHaveBeenCalledWith(1)
@@ -75,7 +76,7 @@ describe('PreparePanel undo history', () => {
   })
 
   it('shows no undo history list when there are no entries', () => {
-    render(<PreparePanel />)
+    render(<PreparePanel viewerRef={{ current: null }} />)
     expect(screen.queryByTestId('undo-history')).toBeNull()
     expect((screen.getByRole('button', { name: 'Undo last model edit' }) as HTMLButtonElement).disabled).toBe(true)
   })
@@ -83,7 +84,7 @@ describe('PreparePanel undo history', () => {
   it('renders one row per undo label, newest first, and reverts to that depth on click', async () => {
     const onUndoEdit = vi.fn()
     useViewerStore.setState({ canUndoEdit: true, undoLabels: ['Weld vertices', 'Make solid'] })
-    render(<PreparePanel onUndoEdit={onUndoEdit} />)
+    render(<PreparePanel onUndoEdit={onUndoEdit} viewerRef={{ current: null }} />)
     const list = screen.getByTestId('undo-history')
     const rows = within(list).getAllByRole('button')
     expect(rows).toHaveLength(2)
@@ -98,7 +99,7 @@ describe('PreparePanel undo history', () => {
   it('the Undo last model edit button undoes one step', async () => {
     const onUndoEdit = vi.fn()
     useViewerStore.setState({ canUndoEdit: true, undoLabels: ['Make solid'] })
-    render(<PreparePanel onUndoEdit={onUndoEdit} />)
+    render(<PreparePanel onUndoEdit={onUndoEdit} viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Undo last model edit' }))
     expect(onUndoEdit).toHaveBeenCalledWith(1)
   })

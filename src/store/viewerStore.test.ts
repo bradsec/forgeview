@@ -405,3 +405,37 @@ describe('hole-fill mode', () => {
     expect(useViewerStore.getState().holeFillStatus).toBeNull()
   })
 })
+
+describe('split parts', () => {
+  it('defaults empty with no export target', () => {
+    const s = useViewerStore.getState()
+    expect(s.splitParts).toEqual([])
+    expect(s.exportTargetId).toBeNull()
+  })
+
+  it('setSplitPartVisible flips exactly the matching id', () => {
+    useViewerStore.getState().setSplitParts([
+      { id: 'a', name: 'A', triangleCount: 10, visible: true },
+      { id: 'b', name: 'B', triangleCount: 20, visible: true },
+    ])
+    useViewerStore.getState().setSplitPartVisible('b', false)
+    const parts = useViewerStore.getState().splitParts
+    expect(parts.find((p) => p.id === 'a')!.visible).toBe(true)
+    expect(parts.find((p) => p.id === 'b')!.visible).toBe(false)
+  })
+
+  it('setExportTargetId sets and clears', () => {
+    useViewerStore.getState().setExportTargetId('x')
+    expect(useViewerStore.getState().exportTargetId).toBe('x')
+    useViewerStore.getState().setExportTargetId(null)
+    expect(useViewerStore.getState().exportTargetId).toBeNull()
+  })
+
+  it('setFile resets split parts and export target', () => {
+    useViewerStore.getState().setSplitParts([{ id: 'a', name: 'A', triangleCount: 1, visible: true }])
+    useViewerStore.getState().setExportTargetId('a')
+    useViewerStore.getState().setFile('/tmp/x.stl', 'x.stl', 'stl', 10)
+    expect(useViewerStore.getState().splitParts).toEqual([])
+    expect(useViewerStore.getState().exportTargetId).toBeNull()
+  })
+})

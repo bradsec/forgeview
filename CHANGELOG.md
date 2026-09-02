@@ -12,6 +12,8 @@
   in the undo list to step back to that point.
 - Prepare > Repair: **Fill a single hole** — pick one open boundary loop in
   the viewport and cap just it, as its own undo step.
+- Prepare > Split: **Split by shell** — break a multi-body model into named,
+  toggleable, individually exportable parts, as one undoable edit.
 
 ## 1.7.2 - 2026-08-29
 

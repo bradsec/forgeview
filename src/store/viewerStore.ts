@@ -28,6 +28,13 @@ export interface LoadedModel {
   triangleCount: number
 }
 
+export interface SplitPart {
+  id: string
+  name: string
+  triangleCount: number
+  visible: boolean
+}
+
 export interface DirFileEntry {
   name: string
   fullPath: string
@@ -122,6 +129,11 @@ interface ViewerState {
   sealApplied: boolean
   holeFillMode: boolean
   holeFillStatus: { loops: number; skippedMeshes: number } | null
+  splitParts: SplitPart[]
+  setSplitParts: (parts: SplitPart[]) => void
+  setSplitPartVisible: (id: string, visible: boolean) => void
+  exportTargetId: string | null
+  setExportTargetId: (id: string | null) => void
   setRepairDialogOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
   setUndoLabels: (labels: string[]) => void
@@ -213,6 +225,14 @@ export const useViewerStore = create<ViewerState>((set) => ({
   sealApplied: false,
   holeFillMode: false,
   holeFillStatus: null,
+  splitParts: [],
+  setSplitParts: (parts) => set({ splitParts: parts }),
+  setSplitPartVisible: (id, visible) =>
+    set((state) => ({
+      splitParts: state.splitParts.map((p) => (p.id === id ? { ...p, visible } : p)),
+    })),
+  exportTargetId: null,
+  setExportTargetId: (id) => set({ exportTargetId: id }),
   setRepairDialogOpen: (open) => set({ repairDialogOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   setUndoLabels: (labels) => set({ undoLabels: labels }),
@@ -236,9 +256,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, splitParts: [], exportTargetId: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, splitParts: [], exportTargetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),

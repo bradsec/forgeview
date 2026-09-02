@@ -7,7 +7,7 @@ import { useViewerStore } from '../../store/viewerStore'
 beforeEach(() => {
   useViewerStore.setState({
     filePath: '/tmp/x.stl', loadedModels: [], canUndoEdit: false, undoLabels: [],
-    holeFillMode: false, holeFillStatus: null,
+    holeFillMode: false, holeFillStatus: null, splitParts: [],
   })
 })
 
@@ -37,5 +37,33 @@ describe('RepairSection — fill a single hole', () => {
     render(<RepairSection />)
     expect(screen.getByText(/1 open loop\b/)).toBeTruthy()
     expect(screen.queryByText(/not eligible/)).toBeNull()
+  })
+})
+
+describe('RepairSection — split state', () => {
+  it('disables both Repair and Fill buttons and shows recombine hint when split', () => {
+    useViewerStore.setState({
+      filePath: '/tmp/x.stl',
+      splitParts: [{ id: 'a', name: 'A', triangleCount: 5, visible: true }],
+    })
+    render(<RepairSection />)
+    const repairBtn = screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement
+    const fillBtn = screen.getByRole('button', { name: 'Fill a single hole' }) as HTMLButtonElement
+    expect(repairBtn.disabled).toBe(true)
+    expect(fillBtn.disabled).toBe(true)
+    expect(screen.getByText(/Recombine the split parts/)).toBeTruthy()
+  })
+
+  it('enables both Repair and Fill buttons when not split with a model', () => {
+    useViewerStore.setState({
+      filePath: '/tmp/x.stl',
+      splitParts: [],
+    })
+    render(<RepairSection />)
+    const repairBtn = screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement
+    const fillBtn = screen.getByRole('button', { name: 'Fill a single hole' }) as HTMLButtonElement
+    expect(repairBtn.disabled).toBe(false)
+    expect(fillBtn.disabled).toBe(false)
+    expect(screen.queryByText(/Recombine the split parts/)).toBeNull()
   })
 })
