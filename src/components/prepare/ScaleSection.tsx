@@ -18,6 +18,9 @@ export function ScaleSection({
   const buildVolume = useViewerStore((s) => s.buildVolumeMm)
   const [axis, setAxis] = useState<Axis>('longest')
   const [target, setTarget] = useState('')
+  const [volStr, setVolStr] = useState<{ x: string; y: string; z: string }>({
+    x: String(buildVolume.x), y: String(buildVolume.y), z: String(buildVolume.z),
+  })
 
   const locked = !details || splitParts.length > 0 || measureMode
   const scale = details?.modelUnitInMm ?? 1
@@ -43,6 +46,7 @@ export function ScaleSection({
   const fitOk = isFactorInBounds(fitFactor)
 
   const setVol = (k: 'x' | 'y' | 'z', raw: string) => {
+    setVolStr((prev) => ({ ...prev, [k]: raw }))
     const n = Number(raw)
     useViewerStore.getState().setBuildVolumeMm({ ...buildVolume, [k]: Number.isFinite(n) ? n : 0 })
   }
@@ -108,7 +112,7 @@ export function ScaleSection({
                 key={k}
                 aria-label={`Build volume ${k}`}
                 inputMode="decimal"
-                value={String(buildVolume[k])}
+                value={volStr[k]}
                 disabled={locked}
                 onChange={(e) => setVol(k, e.target.value)}
                 className="w-16 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
@@ -116,7 +120,11 @@ export function ScaleSection({
             ))}
             <button
               type="button"
-              onClick={() => useViewerStore.getState().resetBuildVolumeMm()}
+              onClick={() => {
+                useViewerStore.getState().resetBuildVolumeMm()
+                const v = useViewerStore.getState().buildVolumeMm
+                setVolStr({ x: String(v.x), y: String(v.y), z: String(v.z) })
+              }}
               className="text-xs text-[var(--text-muted)] underline"
             >
               Reset
