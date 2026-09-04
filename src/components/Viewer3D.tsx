@@ -166,6 +166,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     badge: HTMLDivElement
   } | null>(null)
   const measureOverlayRef = useRef<MeasureOverlay | null>(null)
+  const measureBadgeRef = useRef<HTMLDivElement | null>(null)
   const invalidate = () => { framesToRenderRef.current = 3 }
 
   const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values(), splitPartsGroupRef.current].filter((root): root is THREE.Object3D => Boolean(root))
@@ -484,6 +485,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       ov.markerA.visible = false
       ov.markerB.visible = false
       ov.line.visible = false
+      if (measureBadgeRef.current) measureBadgeRef.current.style.display = 'none'
       useViewerStore.getState().setMeasureDistanceMm(null)
       invalidate()
     },
@@ -1568,11 +1570,29 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       'bg-[var(--bg-elevated,#1e1e28)] text-[var(--text-primary,#fff)] shadow'
     badge.style.display = 'none'
     mount.appendChild(badge)
+    measureBadgeRef.current = badge
 
     const raycaster = new THREE.Raycaster()
     const ndc = new THREE.Vector2()
     let downX = 0, downY = 0
     const onDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY }
+
+    // Reproject the badge onto the current camera. Runs on every click (new
+    // point placed) and on every OrbitControls "change" (orbit/pan/zoom) while
+    // both points exist, so the badge tracks the line instead of staying
+    // pinned to the screen position it had when placed.
+    const reprojectBadge = () => {
+      if (!overlay.pointA || !overlay.pointB || !cameraRef.current) return
+      const rect = el.getBoundingClientRect()
+      const dist = measureDistance(overlay, useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1)
+      if (dist == null) return
+      const unit = useViewerStore.getState().measurementUnit
+      const mid = overlay.pointA.clone().lerp(overlay.pointB, 0.5).project(cameraRef.current)
+      badge.textContent = formatLength(fromMm(dist, unit), unit)
+      badge.style.left = `${(mid.x * 0.5 + 0.5) * rect.width}px`
+      badge.style.top = `${(-mid.y * 0.5 + 0.5) * rect.height}px`
+      badge.style.display = ''
+    }
 
     const onClick = (e: MouseEvent) => {
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 4) return // was a drag
@@ -1587,17 +1607,15 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const dist = measureDistance(overlay, unitInMm)
       useViewerStore.getState().setMeasureDistanceMm(dist)
       if (dist != null && overlay.pointA && overlay.pointB) {
-        const unit = useViewerStore.getState().measurementUnit
-        const mid = overlay.pointA.clone().lerp(overlay.pointB, 0.5).project(cameraRef.current!)
-        badge.textContent = formatLength(fromMm(dist, unit), unit)
-        badge.style.left = `${(mid.x * 0.5 + 0.5) * rect.width}px`
-        badge.style.top = `${(-mid.y * 0.5 + 0.5) * rect.height}px`
-        badge.style.display = ''
+        reprojectBadge()
       } else {
         badge.style.display = 'none'
       }
       invalidate()
     }
+
+    const onControlsChange = () => reprojectBadge()
+    controlsRef.current?.addEventListener('change', onControlsChange)
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') useViewerStore.getState().setMeasureMode(false)
@@ -1610,9 +1628,11 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       el.removeEventListener('pointerdown', onDown)
       el.removeEventListener('click', onClick)
       window.removeEventListener('keydown', onKey)
+      controlsRef.current?.removeEventListener('change', onControlsChange)
       disposeMeasureOverlay(overlay)
       measureOverlayRef.current = null
       badge.remove()
+      measureBadgeRef.current = null
       useViewerStore.getState().setMeasureDistanceMm(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1622,6 +1642,19 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   useEffect(() => {
     if (repairDialogOpen && measureMode) useViewerStore.getState().setMeasureMode(false)
   }, [repairDialogOpen, measureMode])
+
+  // Effect 10d/10e: Measure mode and hole-fill mode are mutually exclusive —
+  // arming one disarms the other so a single click cannot both fill a hole
+  // and place a measure point on the same canvas listener stack. Each effect
+  // depends only on the flag that is turning on, not the pair, so enabling
+  // one while the other is already on triggers exactly one disarm instead of
+  // both effects racing to switch each other off in the same commit.
+  useEffect(() => {
+    if (measureMode) useViewerStore.getState().setHoleFillMode(false)
+  }, [measureMode])
+  useEffect(() => {
+    if (holeFillMode) useViewerStore.getState().setMeasureMode(false)
+  }, [holeFillMode])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
