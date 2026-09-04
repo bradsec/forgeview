@@ -43,8 +43,8 @@ describe('ScaleSection', () => {
     const scaleModelBy = vi.fn()
     render(<ScaleSection viewerRef={{ current: { scaleModelBy } as never }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Fit to build volume' }))
-    // min(220/50, 220/20, 250/10) = 4.4
-    expect(scaleModelBy).toHaveBeenCalledWith(4.4, 'Scale to fit build volume')
+    // min(220/50, 220/20, 250/10) = 4.4, shaved slightly to stay strictly inside the plate
+    expect(scaleModelBy).toHaveBeenCalledWith(expect.closeTo(4.4, 5), 'Scale to fit build volume')
   })
 
   it('resets the build volume', async () => {

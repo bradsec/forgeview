@@ -27,7 +27,9 @@ describe('scaleMath', () => {
 
   it('computes scale-to-fit from the limiting axis', () => {
     const f = scaleToFitFactor({ width: 100, height: 50, depth: 25 }, { x: 200, y: 200, z: 200 })
-    expect(f).toBe(2) // width is limiting: 200/100
+    // width is limiting: 200/100 = 2, shaved slightly to stay strictly inside the plate
+    expect(f).toBeCloseTo(2, 5)
+    expect(f).toBeLessThan(2)
     expect(scaleToFitFactor({ width: 0, height: 1, depth: 1 }, { x: 1, y: 1, z: 1 })).toBeNaN()
   })
 })
