@@ -69,6 +69,11 @@ export interface Viewer3DHandle {
   moveModelBy: (delta: { x: number; y: number; z: number }) => void
   /** Rotate every model root by `deltaRad` (radians, added to current Euler XYZ) as one undoable edit. */
   rotateModelBy: (deltaRad: { x: number; y: number; z: number }) => void
+  /** Multiply every model root's `.scale` component-wise by `factors` (each
+   *  must be finite and > 0, else treated as 1 / untouched) as one undoable edit. */
+  scaleModelByAxes: (factors: { x: number; y: number; z: number }) => void
+  /** Negate one `.scale` component on every model root as one undoable edit. */
+  mirrorModel: (axis: 'x' | 'y' | 'z') => void
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -538,6 +543,57 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         apply: () => {
           modelRoots().forEach((r, i) => {
             if (prev[i]) r.rotation.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+    },
+    scaleModelByAxes: (factors: { x: number; y: number; z: number }) => {
+      const roots = modelRoots()
+      if (roots.length === 0) return
+      const fx = Number.isFinite(factors.x) && factors.x > 0 ? factors.x : 1
+      const fy = Number.isFinite(factors.y) && factors.y > 0 ? factors.y : 1
+      const fz = Number.isFinite(factors.z) && factors.z > 0 ? factors.z : 1
+      const prev = roots.map((r) => r.scale.clone())
+      roots.forEach((r) => {
+        r.scale.x *= fx
+        r.scale.y *= fy
+        r.scale.z *= fz
+      })
+      pushUndo({
+        label: 'Scale (free)',
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.scale.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+    },
+    mirrorModel: (axis: 'x' | 'y' | 'z') => {
+      const roots = modelRoots()
+      if (roots.length === 0) return
+      const prev = roots.map((r) => r.scale.clone())
+      roots.forEach((r) => {
+        r.scale[axis] *= -1
+      })
+      pushUndo({
+        label: `Mirror ${axis.toUpperCase()}`,
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.scale.copy(prev[i])
           })
           updateGeometryDetails()
           refreshSceneEnvironment()
