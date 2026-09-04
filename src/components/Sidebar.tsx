@@ -2,6 +2,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { ModelList } from './ModelList'
 import { PreparePanel } from './prepare/PreparePanel'
+import { UnitPrompt } from './prepare/UnitPrompt'
+import { DimensionsReadout } from './prepare/DimensionsReadout'
 import type { Viewer3DHandle } from './Viewer3D'
 
 const MIN_WIDTH = 140
@@ -258,6 +260,8 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
                 </dl>
               </>
             )}
+            <UnitPrompt viewerRef={viewerRef} />
+            <DimensionsReadout />
           </div>
         </div>
       ) : (
