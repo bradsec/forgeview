@@ -48,6 +48,18 @@ describe('PreparePanel', () => {
     expect(screen.getByRole('heading', { name: 'Scale' })).toBeTruthy()
   })
 
+  it('renders the Transform section', () => {
+    useViewerStore.setState({
+      geometryDetails: {
+        width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
+        boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+        watertight: true, modelUnitInMm: 1,
+      },
+    })
+    render(<PreparePanel viewerRef={{ current: null }} />)
+    expect(screen.getByRole('heading', { name: 'Transform' })).toBeTruthy()
+  })
+
   it('a Fix on a seal row opens the repair dialog', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
     render(<PreparePanel viewerRef={{ current: null }} />)
