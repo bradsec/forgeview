@@ -42,22 +42,30 @@ export function collectExportMeshes(root: THREE.Object3D): THREE.Mesh[] {
     meshes.push(mesh)
   }
 
-  root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh) || !child.geometry) return
-    // Make solid collapses the scene into one mesh and leaves attribute-less
-    // placeholder geometries behind; they hold nothing exportable.
-    const position = (child.geometry as THREE.BufferGeometry).getAttribute('position')
-    if (!position || position.count === 0) return
-    if (child instanceof THREE.InstancedMesh) {
-      const instanceMatrix = new THREE.Matrix4()
-      for (let index = 0; index < child.count; index++) {
-        child.getMatrixAt(index, instanceMatrix)
-        collect(child, new THREE.Matrix4().multiplyMatrices(child.matrixWorld, instanceMatrix), `[${index}]`)
+  const visit = (node: THREE.Object3D) => {
+    // Measure markers/line and hole-fill caps are real THREE.Mesh objects
+    // added to the scene as tagged overlay groups (measureOverlay.ts,
+    // holeFillOverlay.ts) — never bake them into an exported file.
+    if (node.userData.measureOverlay || node.userData.holeOverlay) return
+    if (node instanceof THREE.Mesh && node.geometry) {
+      // Make solid collapses the scene into one mesh and leaves attribute-less
+      // placeholder geometries behind; they hold nothing exportable.
+      const position = (node.geometry as THREE.BufferGeometry).getAttribute('position')
+      if (position && position.count > 0) {
+        if (node instanceof THREE.InstancedMesh) {
+          const instanceMatrix = new THREE.Matrix4()
+          for (let index = 0; index < node.count; index++) {
+            node.getMatrixAt(index, instanceMatrix)
+            collect(node, new THREE.Matrix4().multiplyMatrices(node.matrixWorld, instanceMatrix), `[${index}]`)
+          }
+        } else {
+          collect(node, node.matrixWorld)
+        }
       }
-      return
     }
-    collect(child, child.matrixWorld)
-  })
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
 
   return meshes
 }
