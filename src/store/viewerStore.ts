@@ -5,6 +5,8 @@ import type { ThemeMode } from '../themes'
 type ViewMode = 'solid' | 'wireframe' | 'points'
 export type MeasurementUnit = 'mm' | 'cm' | 'm' | 'in'
 
+export const DEFAULT_BUILD_VOLUME_MM = { x: 220, y: 220, z: 250 } as const
+
 export interface GeometryDetails {
   width: number
   height: number
@@ -129,6 +131,9 @@ interface ViewerState {
   sealApplied: boolean
   holeFillMode: boolean
   holeFillStatus: { loops: number; skippedMeshes: number } | null
+  measureMode: boolean
+  measureDistanceMm: number | null
+  buildVolumeMm: { x: number; y: number; z: number }
   splitParts: SplitPart[]
   setSplitParts: (parts: SplitPart[]) => void
   setSplitPartVisible: (id: string, visible: boolean) => void
@@ -140,6 +145,10 @@ interface ViewerState {
   setSealApplied: (v: boolean) => void
   setHoleFillMode: (on: boolean) => void
   setHoleFillStatus: (s: { loops: number; skippedMeshes: number } | null) => void
+  setMeasureMode: (on: boolean) => void
+  setMeasureDistanceMm: (mm: number | null) => void
+  setBuildVolumeMm: (v: { x: number; y: number; z: number }) => void
+  resetBuildVolumeMm: () => void
   /** Transient success note (e.g. export saved) shown in the status bar. */
   notice: string | null
   setNotice: (notice: string | null) => void
@@ -225,6 +234,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   sealApplied: false,
   holeFillMode: false,
   holeFillStatus: null,
+  measureMode: false,
+  measureDistanceMm: null,
+  buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM },
   splitParts: [],
   setSplitParts: (parts) => set({ splitParts: parts }),
   setSplitPartVisible: (id, visible) =>
@@ -239,6 +251,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSealApplied: (v) => set({ sealApplied: v }),
   setHoleFillMode: (on) => set({ holeFillMode: on }),
   setHoleFillStatus: (s) => set({ holeFillStatus: s }),
+  setMeasureMode: (on) =>
+    set(on ? { measureMode: true } : { measureMode: false, measureDistanceMm: null }),
+  setMeasureDistanceMm: (mm) => set({ measureDistanceMm: mm }),
+  setBuildVolumeMm: (v) => set({ buildVolumeMm: v }),
+  resetBuildVolumeMm: () => set({ buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM } }),
   notice: null,
   setNotice: (notice) => set({ notice }),
   theme: 'dark' as ThemeMode,
@@ -256,9 +273,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, splitParts: [], exportTargetId: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, splitParts: [], exportTargetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),

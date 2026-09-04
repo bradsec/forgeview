@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useViewerStore, LoadedModel, DirFileEntry } from './viewerStore'
+import { useViewerStore, LoadedModel, DirFileEntry, DEFAULT_BUILD_VOLUME_MM } from './viewerStore'
 
 describe('viewerStore', () => {
   beforeEach(() => {
@@ -437,5 +437,44 @@ describe('split parts', () => {
     useViewerStore.getState().setFile('/tmp/x.stl', 'x.stl', 'stl', 10)
     expect(useViewerStore.getState().splitParts).toEqual([])
     expect(useViewerStore.getState().exportTargetId).toBeNull()
+  })
+})
+
+describe('units + measure state', () => {
+  beforeEach(() => {
+    useViewerStore.setState({
+      measureMode: false,
+      measureDistanceMm: null,
+      buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM },
+    })
+  })
+
+  it('defaults', () => {
+    const s = useViewerStore.getState()
+    expect(s.measureMode).toBe(false)
+    expect(s.measureDistanceMm).toBeNull()
+    expect(s.buildVolumeMm).toEqual({ x: 220, y: 220, z: 250 })
+  })
+
+  it('turning measure off clears the distance', () => {
+    useViewerStore.getState().setMeasureMode(true)
+    useViewerStore.getState().setMeasureDistanceMm(42)
+    useViewerStore.getState().setMeasureMode(false)
+    expect(useViewerStore.getState().measureDistanceMm).toBeNull()
+  })
+
+  it('build volume set + reset', () => {
+    useViewerStore.getState().setBuildVolumeMm({ x: 300, y: 300, z: 400 })
+    expect(useViewerStore.getState().buildVolumeMm).toEqual({ x: 300, y: 300, z: 400 })
+    useViewerStore.getState().resetBuildVolumeMm()
+    expect(useViewerStore.getState().buildVolumeMm).toEqual({ x: 220, y: 220, z: 250 })
+  })
+
+  it('setFile clears measure state', () => {
+    useViewerStore.getState().setMeasureMode(true)
+    useViewerStore.getState().setMeasureDistanceMm(9)
+    useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
+    expect(useViewerStore.getState().measureMode).toBe(false)
+    expect(useViewerStore.getState().measureDistanceMm).toBeNull()
   })
 })
