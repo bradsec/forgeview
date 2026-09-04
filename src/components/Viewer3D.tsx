@@ -74,6 +74,12 @@ export interface Viewer3DHandle {
   scaleModelByAxes: (factors: { x: number; y: number; z: number }) => void
   /** Negate one `.scale` component on every model root as one undoable edit. */
   mirrorModel: (axis: 'x' | 'y' | 'z') => void
+  /** Translate every model root by the same world-Y delta so the union
+   *  bounding box's min-Y becomes 0, as one undoable edit. */
+  dropToFloor: () => void
+  /** Translate every model root by the same world X/Z delta so the union
+   *  bounding box's X/Z center becomes (0, 0); Y untouched. One undoable edit. */
+  centerOnPlate: () => void
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -594,6 +600,61 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         apply: () => {
           modelRoots().forEach((r, i) => {
             if (prev[i]) r.scale.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+    },
+    dropToFloor: () => {
+      const roots = modelRoots()
+      if (roots.length === 0) return
+      const box = new THREE.Box3()
+      for (const root of roots) box.expandByObject(root)
+      const deltaY = -box.min.y
+      const prev = roots.map((r) => r.position.clone())
+      roots.forEach((r) => {
+        r.position.y += deltaY
+      })
+      pushUndo({
+        label: 'Drop to floor',
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.position.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+    },
+    centerOnPlate: () => {
+      const roots = modelRoots()
+      if (roots.length === 0) return
+      const box = new THREE.Box3()
+      for (const root of roots) box.expandByObject(root)
+      const center = box.getCenter(new THREE.Vector3())
+      const deltaX = -center.x
+      const deltaZ = -center.z
+      const prev = roots.map((r) => r.position.clone())
+      roots.forEach((r) => {
+        r.position.x += deltaX
+        r.position.z += deltaZ
+      })
+      pushUndo({
+        label: 'Center on plate',
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.position.copy(prev[i])
           })
           updateGeometryDetails()
           refreshSceneEnvironment()
