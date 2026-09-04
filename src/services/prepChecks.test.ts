@@ -81,3 +81,35 @@ describe('prepChecks', () => {
     expect(prepChecks(leaky).find((c) => c.id === 'watertight')!.state).toBe('fail')
   })
 })
+
+describe('on-plate row', () => {
+  const base = {
+    width: 100, height: 100, depth: 100, vertices: 1, meshes: 1,
+    boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+    watertight: true, modelUnitInMm: 1,
+  }
+
+  it('passes when the model fits the plate', () => {
+    const rows = prepChecks(base, false, { x: 220, y: 220, z: 250 })
+    const row = rows.find((r) => r.id === 'onPlate')!
+    expect(row.state).toBe('pass')
+  })
+
+  it('fails with a scale fix when an axis exceeds the plate', () => {
+    const rows = prepChecks({ ...base, width: 300 }, false, { x: 220, y: 220, z: 250 })
+    const row = rows.find((r) => r.id === 'onPlate')!
+    expect(row.state).toBe('fail')
+    expect(row.fixId).toBe('scale')
+  })
+
+  it('respects modelUnitInMm', () => {
+    const rows = prepChecks({ ...base, width: 30, modelUnitInMm: 10 }, false, { x: 220, y: 220, z: 250 })
+    // 30 * 10 = 300 mm > 220
+    expect(rows.find((r) => r.id === 'onPlate')!.state).toBe('fail')
+  })
+
+  it('stays unavailable without a build volume', () => {
+    const rows = prepChecks(base, false)
+    expect(rows.find((r) => r.id === 'onPlate')!.state).toBe('unavailable')
+  })
+})

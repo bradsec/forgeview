@@ -36,7 +36,11 @@ function countRow(
 
 /** Ordered print-readiness rows derived from mesh health. Rows whose analysis
  * ships in a later sub-project always return 'unavailable' here. */
-export function prepChecks(details: GeometryDetails | null, sealApplied = false): PrepCheck[] {
+export function prepChecks(
+  details: GeometryDetails | null,
+  sealApplied = false,
+  buildVolumeMm?: { x: number; y: number; z: number },
+): PrepCheck[] {
   if (!details) {
     return [
       { id: 'watertight', label: 'Watertight' },
@@ -56,11 +60,19 @@ export function prepChecks(details: GeometryDetails | null, sealApplied = false)
     countRow('boundary', 'Open edges', details.boundaryEdges, 'open edge', 'open edges'),
     countRow('degenerate', 'Degenerate faces', details.degenerateFaces, 'degenerate face', 'degenerate faces'),
     countRow('duplicate', 'Duplicate faces', details.duplicateFaces, 'duplicate face', 'duplicate faces'),
-    ...ANALYSIS_ROWS.map((row) => ({
-      ...row,
-      state: 'unavailable' as const,
-      detail: 'Available in a later update',
-    })),
+    ...ANALYSIS_ROWS.map((row) => {
+      if (row.id === 'onPlate' && buildVolumeMm) {
+        const s = details.modelUnitInMm ?? 1
+        const w = details.width * s
+        const h = details.height * s
+        const d = details.depth * s
+        const fits = w <= buildVolumeMm.x && h <= buildVolumeMm.y && d <= buildVolumeMm.z
+        return fits
+          ? { ...row, state: 'pass' as const, detail: 'Within build volume' }
+          : { ...row, state: 'fail' as const, detail: 'Exceeds build volume', fixId: 'scale' }
+      }
+      return { ...row, state: 'unavailable' as const, detail: 'Available in a later update' }
+    }),
   ]
 
   if (!sealApplied) return rows
