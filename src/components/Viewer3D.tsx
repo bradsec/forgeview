@@ -65,6 +65,10 @@ export interface Viewer3DHandle {
   scaleModelBy: (factor: number, label: string) => void
   /** Clear the current measurement without leaving measure mode. */
   resetMeasure: () => void
+  /** Translate every model root by `delta` (raw geometry units) as one undoable edit. */
+  moveModelBy: (delta: { x: number; y: number; z: number }) => void
+  /** Rotate every model root by `deltaRad` (radians, added to current Euler XYZ) as one undoable edit. */
+  rotateModelBy: (deltaRad: { x: number; y: number; z: number }) => void
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -487,6 +491,62 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       ov.line.visible = false
       if (measureBadgeRef.current) measureBadgeRef.current.style.display = 'none'
       useViewerStore.getState().setMeasureDistanceMm(null)
+      invalidate()
+    },
+    moveModelBy: (delta: { x: number; y: number; z: number }) => {
+      const roots = modelRoots()
+      if (roots.length === 0) return
+      const dx = Number.isFinite(delta.x) ? delta.x : 0
+      const dy = Number.isFinite(delta.y) ? delta.y : 0
+      const dz = Number.isFinite(delta.z) ? delta.z : 0
+      const prev = roots.map((r) => r.position.clone())
+      roots.forEach((r) => {
+        r.position.x += dx
+        r.position.y += dy
+        r.position.z += dz
+      })
+      pushUndo({
+        label: 'Move',
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.position.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+    },
+    rotateModelBy: (deltaRad: { x: number; y: number; z: number }) => {
+      const roots = modelRoots()
+      if (roots.length === 0) return
+      const rx = Number.isFinite(deltaRad.x) ? deltaRad.x : 0
+      const ry = Number.isFinite(deltaRad.y) ? deltaRad.y : 0
+      const rz = Number.isFinite(deltaRad.z) ? deltaRad.z : 0
+      const prev = roots.map((r) => r.rotation.clone())
+      roots.forEach((r) => {
+        r.rotation.x += rx
+        r.rotation.y += ry
+        r.rotation.z += rz
+      })
+      pushUndo({
+        label: 'Rotate',
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.rotation.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
       invalidate()
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {

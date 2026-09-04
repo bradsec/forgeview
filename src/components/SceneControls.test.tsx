@@ -25,6 +25,8 @@ describe('SceneControls', () => {
         getModelDimensionsMm: vi.fn(),
         scaleModelBy: vi.fn(),
         resetMeasure: vi.fn(),
+        moveModelBy: vi.fn(),
+        rotateModelBy: vi.fn(),
         undoEdit: vi.fn(),
         splitByShell: vi.fn(),
         getSplitPart: vi.fn(),
