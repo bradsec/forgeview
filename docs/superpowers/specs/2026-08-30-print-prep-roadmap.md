@@ -230,6 +230,15 @@ Carry-forward into SP-2b (deferred from SP-2a final review):
   count is 0; kept deliberately (the `syncUndoLabels()` in that path
   self-heals a phantom-row click). Leave it.
 
+## SP-3 decomposition (2026-09-04)
+
+SP-3 (units + measure + transform) is split into two cycles:
+
+| # | Piece | Depends on | Status |
+|---|-------|-----------|--------|
+| SP-3a | Units + measure | — | SHIPPED, branch `worktree-sp3a-units-measure`, commits 5147f26..77cc00c. `src/services/unitConversion.ts`, `scaleMath.ts`, `measureOverlay.ts`, `UnitPrompt.tsx`, `DimensionsReadout.tsx`, `MeasureSection.tsx`, `ScaleSection.tsx` (components), `Viewer3D` handle additions for measure/scale, `prepChecks` wired for on-plate readiness. Spec: `2026-09-04-sp3a-units-measure-design.md`; plan: `../plans/2026-09-04-sp3a-units-measure.md`. |
+| SP-3b | Transform panel | — | Not started. Move / rotate / free-scale / mirror / drop-to-floor / center-on-plate. |
+
 ## Sources
 
 - Meshmixer 3D print prep: https://www.coohom.com/article/how-to-prepare-3d-models-for-print-in-meshmixer

@@ -20,6 +20,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
   fragments are dropped. Undo "Split by shell" from the history to recombine.
   Works on a single-mesh preview model (not multi-model mode, not textured or
   multi-material meshes).
+- **Units and measure** — import unit prompt for unitless formats (STL/OBJ/PLY),
+  bounding-box dimensions in mm/cm/in, point-to-point distance measure on the
+  model, scale to target length, scale to fit configurable build volume.
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation

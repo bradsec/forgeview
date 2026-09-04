@@ -14,6 +14,10 @@
   the viewport and cap just it, as its own undo step.
 - Prepare > Split: **Split by shell** — break a multi-body model into named,
   toggleable, individually exportable parts, as one undoable edit.
+- Prepare panel: real-world units and measure (SP-3a). Import unit prompt for
+  unitless formats, bounding-box dimensions in mm/cm/in, point-to-point
+  distance measure, scale-to-target and scale-to-build-volume, and the
+  On build plate readiness check.
 
 ## 1.7.2 - 2026-08-29
 
