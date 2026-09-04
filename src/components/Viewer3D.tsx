@@ -52,6 +52,12 @@ export interface Viewer3DHandle {
     signal?: AbortSignal,
   ) => Promise<RepairRunResult>
   getModelDimensions: () => THREE.Vector3 | null
+  /** Assign `modelUnitInMm` to every root that has none (unitless STL/OBJ/PLY). */
+  setModelUnit: (mm: number) => void
+  /** Union bounding-box size in millimetres, or null when no model is open. */
+  getModelDimensionsMm: () => THREE.Vector3 | null
+  /** Uniformly scale every model root by `factor` as one undoable edit. */
+  scaleModelBy: (factor: number, label: string) => void
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -412,6 +418,46 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const box = new THREE.Box3()
       for (const root of roots) box.expandByObject(root)
       return box.getSize(new THREE.Vector3())
+    },
+    setModelUnit: (mm: number) => {
+      let changed = false
+      for (const root of modelRoots()) {
+        if (typeof root.userData.modelUnitInMm !== 'number') {
+          root.userData.modelUnitInMm = mm
+          changed = true
+        }
+      }
+      if (changed) updateGeometryDetails()
+    },
+    getModelDimensionsMm: () => {
+      const roots = modelRoots()
+      if (roots.length === 0) return null
+      const box = new THREE.Box3()
+      for (const root of roots) box.expandByObject(root)
+      const size = box.getSize(new THREE.Vector3())
+      const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
+      return size.multiplyScalar(unit)
+    },
+    scaleModelBy: (factor: number, label: string) => {
+      const roots = modelRoots()
+      if (roots.length === 0 || !Number.isFinite(factor) || factor <= 0) return
+      const prev = roots.map((r) => r.scale.clone())
+      roots.forEach((r) => r.scale.multiplyScalar(factor))
+      pushUndo({
+        label,
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prev[i]) r.scale.copy(prev[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {
       // Nothing requested: return before any snapshot so no undo closure is
