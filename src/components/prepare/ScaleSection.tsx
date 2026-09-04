@@ -1,0 +1,137 @@
+import { useState } from 'react'
+import { useViewerStore } from '../../store/viewerStore'
+import { toMm } from '../../services/unitConversion'
+import { scaleToTargetFactor, scaleToFitFactor, isFactorInBounds } from '../../services/scaleMath'
+import type { Viewer3DHandle } from '../Viewer3D'
+
+type Axis = 'width' | 'height' | 'depth' | 'longest'
+
+export function ScaleSection({
+  viewerRef,
+}: {
+  viewerRef: React.RefObject<Viewer3DHandle | null>
+}) {
+  const details = useViewerStore((s) => s.geometryDetails)
+  const unit = useViewerStore((s) => s.measurementUnit)
+  const splitParts = useViewerStore((s) => s.splitParts)
+  const measureMode = useViewerStore((s) => s.measureMode)
+  const buildVolume = useViewerStore((s) => s.buildVolumeMm)
+  const [axis, setAxis] = useState<Axis>('longest')
+  const [target, setTarget] = useState('')
+
+  const locked = !details || splitParts.length > 0 || measureMode
+  const scale = details?.modelUnitInMm ?? 1
+  const dimsMm = details
+    ? { width: details.width * scale, height: details.height * scale, depth: details.depth * scale }
+    : null
+  const axisMm = dimsMm
+    ? axis === 'longest'
+      ? Math.max(dimsMm.width, dimsMm.height, dimsMm.depth)
+      : dimsMm[axis]
+    : 0
+
+  const targetNum = Number(target)
+  const targetFactor =
+    Number.isFinite(targetNum) && targetNum > 0 && axisMm > 0
+      ? scaleToTargetFactor(axisMm, toMm(targetNum, unit))
+      : Number.NaN
+  const targetOk = isFactorInBounds(targetFactor)
+
+  const fitFactor = dimsMm
+    ? scaleToFitFactor(dimsMm, { x: buildVolume.x, y: buildVolume.y, z: buildVolume.z })
+    : Number.NaN
+  const fitOk = isFactorInBounds(fitFactor)
+
+  const setVol = (k: 'x' | 'y' | 'z', raw: string) => {
+    const n = Number(raw)
+    useViewerStore.getState().setBuildVolumeMm({ ...buildVolume, [k]: Number.isFinite(n) ? n : 0 })
+  }
+
+  return (
+    <div id="prepare-scale">
+      <h3 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">Scale</h3>
+      {locked && (
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          {splitParts.length > 0
+            ? 'Recombine split parts before scaling.'
+            : measureMode
+              ? 'Stop measuring before scaling.'
+              : 'Open a model to scale.'}
+        </p>
+      )}
+      <div className="mt-3 flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Scale to target</span>
+          <div className="flex gap-2">
+            <select
+              aria-label="Target axis"
+              value={axis}
+              disabled={locked}
+              onChange={(e) => setAxis(e.target.value as Axis)}
+              className="bg-[var(--bg-button)] rounded px-2 py-1 text-sm"
+            >
+              <option value="width">Width</option>
+              <option value="height">Height</option>
+              <option value="depth">Depth</option>
+              <option value="longest">Longest edge</option>
+            </select>
+            <input
+              aria-label={`Target length (${unit})`}
+              inputMode="decimal"
+              value={target}
+              disabled={locked}
+              onChange={(e) => setTarget(e.target.value)}
+              className="w-24 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
+            />
+            <span className="self-center text-xs text-[var(--text-muted)]">{unit}</span>
+          </div>
+          {!locked && target !== '' && !targetOk && (
+            <p className="text-xs text-[var(--error)]">Enter a length that scales within range.</p>
+          )}
+          <button
+            type="button"
+            disabled={locked || !targetOk}
+            onClick={() => viewerRef.current?.scaleModelBy(targetFactor, 'Scale to target')}
+            className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
+          >
+            Apply
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
+            Scale to build volume (mm)
+          </span>
+          <div className="flex gap-2 items-center">
+            {(['x', 'y', 'z'] as const).map((k) => (
+              <input
+                key={k}
+                aria-label={`Build volume ${k}`}
+                inputMode="decimal"
+                value={String(buildVolume[k])}
+                disabled={locked}
+                onChange={(e) => setVol(k, e.target.value)}
+                className="w-16 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => useViewerStore.getState().resetBuildVolumeMm()}
+              className="text-xs text-[var(--text-muted)] underline"
+            >
+              Reset
+            </button>
+          </div>
+          <button
+            type="button"
+            disabled={locked || !fitOk}
+            onClick={() => viewerRef.current?.scaleModelBy(fitFactor, 'Scale to fit build volume')}
+            className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
+          >
+            Fit to build volume
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
