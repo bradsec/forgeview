@@ -18,6 +18,8 @@
   unitless formats, bounding-box dimensions in mm/cm/in, point-to-point
   distance measure, scale-to-target and scale-to-build-volume, and the
   On build plate readiness check.
+- Prepare > Transform: move, rotate, free-scale per axis, mirror, drop to floor,
+  center on plate. Each action is one undoable edit (SP-3b).
 
 ## 1.7.2 - 2026-08-29
 

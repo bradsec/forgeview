@@ -23,6 +23,8 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - **Units and measure** — import unit prompt for unitless formats (STL/OBJ/PLY),
   bounding-box dimensions in mm/cm/in, point-to-point distance measure on the
   model, scale to target length, scale to fit configurable build volume.
+- **Transform panel**: move, rotate, free scale per axis, mirror, drop to floor,
+  and center on plate. Each action is one undoable edit.
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation

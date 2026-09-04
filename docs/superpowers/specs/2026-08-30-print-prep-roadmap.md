@@ -232,12 +232,12 @@ Carry-forward into SP-2b (deferred from SP-2a final review):
 
 ## SP-3 decomposition (2026-09-04)
 
-SP-3 (units + measure + transform) is split into two cycles:
+SP-3 (units + measure + transform) is split into two cycles. **SP-3 is now complete** (both pieces shipped); next roadmap item is SP-4 (analysis heatmaps).
 
 | # | Piece | Depends on | Status |
 |---|-------|-----------|--------|
 | SP-3a | Units + measure | — | SHIPPED, branch `worktree-sp3a-units-measure`, commits 5147f26..77cc00c. `src/services/unitConversion.ts`, `scaleMath.ts`, `measureOverlay.ts`, `UnitPrompt.tsx`, `DimensionsReadout.tsx`, `MeasureSection.tsx`, `ScaleSection.tsx` (components), `Viewer3D` handle additions for measure/scale, `prepChecks` wired for on-plate readiness. Spec: `2026-09-04-sp3a-units-measure-design.md`; plan: `../plans/2026-09-04-sp3a-units-measure.md`. |
-| SP-3b | Transform panel | — | Not started. Move / rotate / free-scale / mirror / drop-to-floor / center-on-plate. |
+| SP-3b | Transform panel | — | SHIPPED, branch `worktree-sp3b-transform-panel`, commits 6264302..4d42b34. `Viewer3D` handle methods (`moveModelBy`, `rotateModelBy`, `scaleModelByAxes`, `mirrorModel`, `dropToFloor`, `centerOnPlate`), `TransformSection.tsx`, `PreparePanel.tsx` mount. Spec: `2026-09-05-sp3b-transform-panel-design.md`; plan: `../plans/2026-09-05-sp3b-transform-panel.md`. |
 
 ## Sources
 
