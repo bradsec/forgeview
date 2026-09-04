@@ -1,0 +1,73 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { TransformSection } from './TransformSection'
+import { useViewerStore } from '../../store/viewerStore'
+
+const details = {
+  width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
+  boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+  watertight: true, modelUnitInMm: 1,
+}
+
+describe('TransformSection', () => {
+  beforeEach(() =>
+    useViewerStore.setState({
+      geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,
+    }),
+  )
+
+  it('locks every control while split by shell', () => {
+    useViewerStore.setState({ splitParts: [{ id: 'a', name: 'a', triangleCount: 1, visible: true }] })
+    render(<TransformSection viewerRef={{ current: null }} />)
+    expect((screen.getByRole('button', { name: 'Apply move' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Mirror Y' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Drop to floor' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('disables Apply move until an axis has a value', async () => {
+    render(<TransformSection viewerRef={{ current: null }} />)
+    expect((screen.getByRole('button', { name: 'Apply move' }) as HTMLButtonElement).disabled).toBe(true)
+    await userEvent.type(screen.getByLabelText('Move x'), '5')
+    expect((screen.getByRole('button', { name: 'Apply move' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('converts move mm to a raw-unit delta, leaves untouched axes at 0, and resets the inputs', async () => {
+    const moveModelBy = vi.fn()
+    render(<TransformSection viewerRef={{ current: { moveModelBy } as never }} />)
+    await userEvent.type(screen.getByLabelText('Move x'), '10')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply move' }))
+    expect(moveModelBy).toHaveBeenCalledWith({ x: 10, y: 0, z: 0 })
+    expect((screen.getByLabelText('Move x') as HTMLInputElement).value).toBe('')
+  })
+
+  it('converts rotate degrees to radians', async () => {
+    const rotateModelBy = vi.fn()
+    render(<TransformSection viewerRef={{ current: { rotateModelBy } as never }} />)
+    await userEvent.type(screen.getByLabelText('Rotate y'), '90')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply rotate' }))
+    expect(rotateModelBy).toHaveBeenCalledWith({ x: 0, y: Math.PI / 2, z: 0 })
+  })
+
+  it('leaves blank scale axes at factor 1 and rejects a non-positive value', async () => {
+    const scaleModelByAxes = vi.fn()
+    render(<TransformSection viewerRef={{ current: { scaleModelByAxes } as never }} />)
+    await userEvent.type(screen.getByLabelText('Scale (free) y'), '2')
+    await userEvent.type(screen.getByLabelText('Scale (free) z'), '-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply scale' }))
+    expect(scaleModelByAxes).toHaveBeenCalledWith({ x: 1, y: 2, z: 1 })
+  })
+
+  it('mirror, drop to floor, and center on plate call their handle methods with no args', async () => {
+    const mirrorModel = vi.fn()
+    const dropToFloor = vi.fn()
+    const centerOnPlate = vi.fn()
+    render(<TransformSection viewerRef={{ current: { mirrorModel, dropToFloor, centerOnPlate } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Mirror Y' }))
+    expect(mirrorModel).toHaveBeenCalledWith('y')
+    await userEvent.click(screen.getByRole('button', { name: 'Drop to floor' }))
+    expect(dropToFloor).toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Center on plate' }))
+    expect(centerOnPlate).toHaveBeenCalled()
+  })
+})
