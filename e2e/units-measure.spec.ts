@@ -48,19 +48,23 @@ test.describe('SP-3a units + measure', () => {
     const readout = page.getByTestId('dimensions-readout').filter({ visible: true })
     const check = (id: string) => page.getByTestId(`check-${id}`).filter({ visible: true })
 
-    await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
 
     // 1. Details tab: the unit prompt and a mm dimensions readout are shown.
     await detailsTab.click()
     await expect(page.getByTestId('unit-prompt').filter({ visible: true })).toBeVisible()
     await expect(readout).toBeVisible()
-    await expect(readout).toContainText('mm')
+    // A <dd> dimension value, not just the ever-present mm/cm/in toggle chrome.
+    await expect(readout.getByText('10 mm', { exact: true }).first()).toBeVisible()
 
-    // 2. Switch the display unit to inches and back.
+    // 2. Switch the display unit to inches and back: the toggle registers and
+    // the <dd> values convert (10mm cube edge -> 10 / 25.4 -> 0.39 in).
     await readout.getByRole('button', { name: 'in', exact: true }).click()
-    await expect(readout).toContainText('in')
+    await expect(readout.getByRole('button', { name: 'in', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(readout.getByText('0.39 in', { exact: true }).first()).toBeVisible()
     await readout.getByRole('button', { name: 'mm', exact: true }).click()
-    await expect(readout).toContainText('mm')
+    await expect(readout.getByRole('button', { name: 'mm', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(readout.getByText('10 mm', { exact: true }).first()).toBeVisible()
 
     // 3. Measure the straight-line distance between two points on the cube.
     await prepareTab.click()
