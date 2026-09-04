@@ -25,6 +25,11 @@ import {
   type OverlayEntry,
 } from '../services/holeFillOverlay'
 import { splitByShell as splitGeometryByShell } from '../services/splitByShell'
+import {
+  buildMeasureOverlay, setMeasurePoint, measureDistance, pickSurfacePoint,
+  disposeMeasureOverlay, type MeasureOverlay,
+} from '../services/measureOverlay'
+import { fromMm, formatLength } from '../services/unitConversion'
 
 export interface RepairRunResult {
   label: string
@@ -58,6 +63,8 @@ export interface Viewer3DHandle {
   getModelDimensionsMm: () => THREE.Vector3 | null
   /** Uniformly scale every model root by `factor` as one undoable edit. */
   scaleModelBy: (factor: number, label: string) => void
+  /** Clear the current measurement without leaving measure mode. */
+  resetMeasure: () => void
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -158,6 +165,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     materials: ReturnType<typeof makeOverlayMaterials>
     badge: HTMLDivElement
   } | null>(null)
+  const measureOverlayRef = useRef<MeasureOverlay | null>(null)
   const invalidate = () => { framesToRenderRef.current = 3 }
 
   const modelRoots = () => [modelGroupRef.current, ...modelMapRef.current.values(), splitPartsGroupRef.current].filter((root): root is THREE.Object3D => Boolean(root))
@@ -294,6 +302,15 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     })
     meshes[0].material = solidMaterial
     return { meshes, originals, originalMaterial, solidMaterial, stats: result.stats }
+  }
+
+  const measureMarkerRadius = () => {
+    const roots = modelRoots()
+    if (roots.length === 0) return 0.01
+    const box = new THREE.Box3()
+    for (const root of roots) box.expandByObject(root)
+    const s = box.getSize(new THREE.Vector3())
+    return Math.max(Math.max(s.x, s.y, s.z) * 0.008, 1e-4)
   }
 
   const rebuildHoleOverlays = () => {
@@ -457,6 +474,17 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       })
       updateGeometryDetails()
       refreshSceneEnvironment()
+      invalidate()
+    },
+    resetMeasure: () => {
+      const ov = measureOverlayRef.current
+      if (!ov) return
+      ov.pointA = null
+      ov.pointB = null
+      ov.markerA.visible = false
+      ov.markerB.visible = false
+      ov.line.visible = false
+      useViewerStore.getState().setMeasureDistanceMm(null)
       invalidate()
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {
@@ -1520,6 +1548,80 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   useEffect(() => {
     if (repairDialogOpen && holeFillMode) useViewerStore.getState().setHoleFillMode(false)
   }, [repairDialogOpen, holeFillMode])
+
+  // Effect 10b: Measure mode — overlay lifecycle + pointer/click/key wiring.
+  const measureMode = useViewerStore((s) => s.measureMode)
+  useEffect(() => {
+    if (!measureMode) return
+    const el = rendererRef.current?.domElement
+    const scene = sceneRef.current
+    const mount = mountRef.current
+    if (!el || !scene || !mount) return
+
+    const overlay = buildMeasureOverlay(measureMarkerRadius())
+    scene.add(overlay.group)
+    measureOverlayRef.current = overlay
+
+    const badge = document.createElement('div')
+    badge.className =
+      'pointer-events-none absolute z-20 px-1.5 py-0.5 rounded text-[11px] ' +
+      'bg-[var(--bg-elevated,#1e1e28)] text-[var(--text-primary,#fff)] shadow'
+    badge.style.display = 'none'
+    mount.appendChild(badge)
+
+    const raycaster = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+    let downX = 0, downY = 0
+    const onDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY }
+
+    const onClick = (e: MouseEvent) => {
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 4) return // was a drag
+      const rect = el.getBoundingClientRect()
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(ndc, cameraRef.current!)
+      const p = pickSurfacePoint(withGeometry(modelMeshes()), raycaster)
+      if (!p) return
+      setMeasurePoint(overlay, p)
+      const unitInMm = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
+      const dist = measureDistance(overlay, unitInMm)
+      useViewerStore.getState().setMeasureDistanceMm(dist)
+      if (dist != null && overlay.pointA && overlay.pointB) {
+        const unit = useViewerStore.getState().measurementUnit
+        const mid = overlay.pointA.clone().lerp(overlay.pointB, 0.5).project(cameraRef.current!)
+        badge.textContent = formatLength(fromMm(dist, unit), unit)
+        badge.style.left = `${(mid.x * 0.5 + 0.5) * rect.width}px`
+        badge.style.top = `${(-mid.y * 0.5 + 0.5) * rect.height}px`
+        badge.style.display = ''
+      } else {
+        badge.style.display = 'none'
+      }
+      invalidate()
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') useViewerStore.getState().setMeasureMode(false)
+    }
+
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('click', onClick)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('click', onClick)
+      window.removeEventListener('keydown', onKey)
+      disposeMeasureOverlay(overlay)
+      measureOverlayRef.current = null
+      badge.remove()
+      useViewerStore.getState().setMeasureDistanceMm(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measureMode, rendererGen])
+
+  // Effect 10c: Auto-disarm measure when the Repair dialog opens
+  useEffect(() => {
+    if (repairDialogOpen && measureMode) useViewerStore.getState().setMeasureMode(false)
+  }, [repairDialogOpen, measureMode])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
