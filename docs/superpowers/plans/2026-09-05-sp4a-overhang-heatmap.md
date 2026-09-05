@@ -641,7 +641,7 @@ In `updateGeometryDetails()` (`Viewer3D.tsx:222-245`), after `const health =
 summariseHealth(...)` and before the `unitScales` computation, add:
 
 ```ts
-    const overhangThresholdDeg = useViewerStore.getState().overhangThresholdDeg
+    const overhangThreshold = useViewerStore.getState().overhangThresholdDeg
     let overhangFaceCount = 0
     for (const mesh of meshes) {
       mesh.updateWorldMatrix(true, false)
@@ -649,7 +649,7 @@ summariseHealth(...)` and before the `unitScales` computation, add:
       const worldGeo = geo.index ? geo.toNonIndexed() : geo.clone()
       worldGeo.applyMatrix4(mesh.matrixWorld)
       const posAttr = worldGeo.getAttribute('position') as THREE.BufferAttribute
-      overhangFaceCount += computeOverhangFaceMask(posAttr.array as Float32Array, overhangThresholdDeg).count
+      overhangFaceCount += computeOverhangFaceMask(posAttr.array as Float32Array, overhangThreshold).count
       worldGeo.dispose()
     }
 ```
