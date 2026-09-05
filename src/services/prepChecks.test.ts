@@ -5,7 +5,7 @@ import type { GeometryDetails } from '../store/viewerStore'
 const clean: GeometryDetails = {
   width: 10, height: 10, depth: 10, vertices: 100, meshes: 1,
   boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-  watertight: true, modelUnitInMm: null,
+  watertight: true, modelUnitInMm: null, overhangFaceCount: 0,
 }
 
 const ORDER = ['watertight', 'nonManifold', 'boundary', 'degenerate', 'duplicate', 'thickness', 'overhangs', 'onPlate']
@@ -86,7 +86,7 @@ describe('on-plate row', () => {
   const base = {
     width: 100, height: 100, depth: 100, vertices: 1, meshes: 1,
     boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-    watertight: true, modelUnitInMm: 1,
+    watertight: true, modelUnitInMm: 1, overhangFaceCount: 0,
   }
 
   it('passes when the model fits the plate', () => {

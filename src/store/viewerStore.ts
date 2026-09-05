@@ -19,6 +19,7 @@ export interface GeometryDetails {
   duplicateFaces: number
   watertight: boolean
   modelUnitInMm: number | null
+  overhangFaceCount: number
 }
 
 export interface LoadedModel {
@@ -133,6 +134,12 @@ interface ViewerState {
   holeFillStatus: { loops: number; skippedMeshes: number } | null
   measureMode: boolean
   measureDistanceMm: number | null
+  overhangMode: boolean
+  overhangThresholdDeg: number
+  overhangOverlayStatus: { meshCount: number; skippedMeshes: number } | null
+  setOverhangMode: (on: boolean) => void
+  setOverhangThresholdDeg: (deg: number) => void
+  setOverhangOverlayStatus: (status: { meshCount: number; skippedMeshes: number } | null) => void
   buildVolumeMm: { x: number; y: number; z: number }
   splitParts: SplitPart[]
   setSplitParts: (parts: SplitPart[]) => void
@@ -236,6 +243,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   holeFillStatus: null,
   measureMode: false,
   measureDistanceMm: null,
+  overhangMode: false,
+  overhangThresholdDeg: 45,
+  overhangOverlayStatus: null,
   buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM },
   splitParts: [],
   setSplitParts: (parts) => set({ splitParts: parts }),
@@ -254,6 +264,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setMeasureMode: (on) =>
     set(on ? { measureMode: true } : { measureMode: false, measureDistanceMm: null }),
   setMeasureDistanceMm: (mm) => set({ measureDistanceMm: mm }),
+  setOverhangMode: (on) => set({ overhangMode: on }),
+  setOverhangThresholdDeg: (deg) => set({ overhangThresholdDeg: deg }),
+  setOverhangOverlayStatus: (status) => set({ overhangOverlayStatus: status }),
   setBuildVolumeMm: (v) => set({ buildVolumeMm: v }),
   resetBuildVolumeMm: () => set({ buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM } }),
   notice: null,
@@ -273,9 +286,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, splitParts: [], exportTargetId: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, splitParts: [], exportTargetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),

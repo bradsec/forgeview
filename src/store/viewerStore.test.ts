@@ -297,7 +297,7 @@ describe('rightPanelTab', () => {
     useViewerStore.getState().setGeometryDetails({
       width: 1, height: 1, depth: 1, vertices: 3, meshes: 1,
       boundaryEdges: 3, nonManifoldEdges: 0, degenerateFaces: 2, duplicateFaces: 1,
-      watertight: false, modelUnitInMm: null,
+      watertight: false, modelUnitInMm: null, overhangFaceCount: 0,
     })
     const details = useViewerStore.getState().geometryDetails
     expect(details?.degenerateFaces).toBe(2)
@@ -476,5 +476,33 @@ describe('units + measure state', () => {
     useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
     expect(useViewerStore.getState().measureMode).toBe(false)
     expect(useViewerStore.getState().measureDistanceMm).toBeNull()
+  })
+})
+
+describe('overhang heatmap state', () => {
+  beforeEach(() =>
+    useViewerStore.setState({ overhangMode: false, overhangThresholdDeg: 45, overhangOverlayStatus: null }),
+  )
+
+  it('defaults', () => {
+    const s = useViewerStore.getState()
+    expect(s.overhangMode).toBe(false)
+    expect(s.overhangThresholdDeg).toBe(45)
+    expect(s.overhangOverlayStatus).toBeNull()
+  })
+
+  it('set actions', () => {
+    useViewerStore.getState().setOverhangMode(true)
+    expect(useViewerStore.getState().overhangMode).toBe(true)
+    useViewerStore.getState().setOverhangThresholdDeg(30)
+    expect(useViewerStore.getState().overhangThresholdDeg).toBe(30)
+    useViewerStore.getState().setOverhangOverlayStatus({ meshCount: 2, skippedMeshes: 1 })
+    expect(useViewerStore.getState().overhangOverlayStatus).toEqual({ meshCount: 2, skippedMeshes: 1 })
+  })
+
+  it('setFile clears overhangMode', () => {
+    useViewerStore.getState().setOverhangMode(true)
+    useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
+    expect(useViewerStore.getState().overhangMode).toBe(false)
   })
 })
