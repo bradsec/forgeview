@@ -6,6 +6,7 @@ import { PartsSection } from './PartsSection'
 import { MeasureSection } from './MeasureSection'
 import { ScaleSection } from './ScaleSection'
 import { TransformSection } from './TransformSection'
+import { AnalysisSection } from './AnalysisSection'
 import type { Viewer3DHandle } from '../Viewer3D'
 
 const FIX_HANDLERS: Record<string, () => void> = {
@@ -43,6 +44,7 @@ export function PreparePanel({
       <MeasureSection viewerRef={viewerRef} />
       <ScaleSection viewerRef={viewerRef} />
       <TransformSection viewerRef={viewerRef} />
+      <AnalysisSection />
     </div>
   )
 }
