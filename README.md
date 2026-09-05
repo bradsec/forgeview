@@ -25,6 +25,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
   model, scale to target length, scale to fit configurable build volume.
 - **Transform panel**: move, rotate, free scale per axis, mirror, drop to floor,
   and center on plate. Each action is one undoable edit.
+- **Overhang heatmap**: analyse and highlight faces past a configurable overhang
+  angle (default 45 degrees), directly in the viewport. Adjustable threshold in
+  the Prepare panel.
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation

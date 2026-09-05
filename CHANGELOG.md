@@ -20,6 +20,9 @@
   On build plate readiness check.
 - Prepare > Transform: move, rotate, free-scale per axis, mirror, drop to floor,
   center on plate. Each action is one undoable edit (SP-3b).
+- Prepare > Analysis: overhang heatmap with adjustable angle threshold (default
+  45 degrees). Highlights faces past the threshold angle in the viewport.
+  Readiness score card includes the Overhangs row (SP-4a).
 
 ## 1.7.2 - 2026-08-29
 

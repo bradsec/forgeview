@@ -239,6 +239,16 @@ SP-3 (units + measure + transform) is split into two cycles. **SP-3 is now compl
 | SP-3a | Units + measure | — | SHIPPED, branch `worktree-sp3a-units-measure`, commits 5147f26..77cc00c. `src/services/unitConversion.ts`, `scaleMath.ts`, `measureOverlay.ts`, `UnitPrompt.tsx`, `DimensionsReadout.tsx`, `MeasureSection.tsx`, `ScaleSection.tsx` (components), `Viewer3D` handle additions for measure/scale, `prepChecks` wired for on-plate readiness. Spec: `2026-09-04-sp3a-units-measure-design.md`; plan: `../plans/2026-09-04-sp3a-units-measure.md`. |
 | SP-3b | Transform panel | — | SHIPPED, branch `worktree-sp3b-transform-panel`, commits 6264302..4d42b34. `Viewer3D` handle methods (`moveModelBy`, `rotateModelBy`, `scaleModelByAxes`, `mirrorModel`, `dropToFloor`, `centerOnPlate`), `TransformSection.tsx`, `PreparePanel.tsx` mount. Spec: `2026-09-05-sp3b-transform-panel-design.md`; plan: `../plans/2026-09-05-sp3b-transform-panel.md`. |
 
+## SP-4 decomposition (2026-09-05)
+
+SP-4 (analysis heatmaps) is split into three cycles:
+
+| # | Piece | Depends on | Status |
+|---|-------|-----------|--------|
+| SP-4a | Overhang heatmap | — | SHIPPED, branch `worktree-sp4a-overhang-heatmap`, commits e641eb7..3a3c6f8. `src/services/overhangAnalysis.ts`, `overhangOverlay.ts`, `AnalysisSection.tsx`, `GeometryDetails` gains `overhangFaceCount`, `prepChecks` wired for Overhangs readiness row, `exporters.ts` excludes overlay tag, `Viewer3D.tsx` computes live count and owns overlay lifecycle. Spec: `2026-09-05-sp4a-overhang-heatmap-design.md`; plan: `../plans/2026-09-05-sp4a-overhang-heatmap.md`. |
+| SP-4b | Wall-thickness heatmap | — | Not started. Interior ray/SDF sample, colour faces below threshold in mm, report min + thin-region count. |
+| SP-4c | X-ray / clipping | — | Not started. Inspect interiors, verify Make solid / hollow results. |
+
 ## Sources
 
 - Meshmixer 3D print prep: https://www.coohom.com/article/how-to-prepare-3d-models-for-print-in-meshmixer
