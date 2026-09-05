@@ -130,6 +130,48 @@ describe('collectExportMeshes', () => {
 
     expect(() => collectExportMeshes(scene)).toThrow('morph-deformed')
   })
+
+  it('skips meshes in groups tagged with userData.measureOverlay', () => {
+    const scene = new THREE.Scene()
+    const overlayGroup = new THREE.Group()
+    overlayGroup.userData.measureOverlay = true
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial()
+    )
+    overlayGroup.add(mesh)
+    scene.add(overlayGroup)
+
+    expect(collectExportMeshes(scene)).toHaveLength(0)
+  })
+
+  it('skips meshes in groups tagged with userData.holeOverlay', () => {
+    const scene = new THREE.Scene()
+    const overlayGroup = new THREE.Group()
+    overlayGroup.userData.holeOverlay = true
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial()
+    )
+    overlayGroup.add(mesh)
+    scene.add(overlayGroup)
+
+    expect(collectExportMeshes(scene)).toHaveLength(0)
+  })
+
+  it('skips meshes in groups tagged with userData.overhangOverlay', () => {
+    const scene = new THREE.Scene()
+    const overlayGroup = new THREE.Group()
+    overlayGroup.userData.overhangOverlay = true
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial()
+    )
+    overlayGroup.add(mesh)
+    scene.add(overlayGroup)
+
+    expect(collectExportMeshes(scene)).toHaveLength(0)
+  })
 })
 
 describe('exportSTL', () => {
