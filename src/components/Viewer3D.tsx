@@ -31,6 +31,8 @@ import {
 } from '../services/measureOverlay'
 import { fromMm, formatLength } from '../services/unitConversion'
 import { isFactorInBounds } from '../services/scaleMath'
+import { computeOverhangFaceMask } from '../services/overhangAnalysis'
+import { buildOverhangOverlay, disposeOverhangOverlay } from '../services/overhangOverlay'
 
 export interface RepairRunResult {
   label: string
@@ -181,6 +183,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     materials: ReturnType<typeof makeOverlayMaterials>
     badge: HTMLDivElement
   } | null>(null)
+  const overhangOverlayRef = useRef<{ group: THREE.Group; hiddenMeshes: THREE.Mesh[] } | null>(null)
   const measureOverlayRef = useRef<MeasureOverlay | null>(null)
   const measureBadgeRef = useRef<HTMLDivElement | null>(null)
   const invalidate = () => { framesToRenderRef.current = 3 }
@@ -235,12 +238,23 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     for (const root of roots) box.expandByObject(root)
     const size = box.getSize(new THREE.Vector3())
     const health = summariseHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
+    const overhangThreshold = useViewerStore.getState().overhangThresholdDeg
+    let overhangFaceCount = 0
+    for (const mesh of meshes) {
+      mesh.updateWorldMatrix(true, false)
+      const geo = mesh.geometry as THREE.BufferGeometry
+      const worldGeo = geo.index ? geo.toNonIndexed() : geo.clone()
+      worldGeo.applyMatrix4(mesh.matrixWorld)
+      const posAttr = worldGeo.getAttribute('position') as THREE.BufferAttribute
+      overhangFaceCount += computeOverhangFaceMask(posAttr.array as Float32Array, overhangThreshold).count
+      worldGeo.dispose()
+    }
     const unitScales = roots.map((root) => root.userData.modelUnitInMm).filter((value): value is number => typeof value === 'number')
     const modelUnitInMm = unitScales.length === roots.length && unitScales.every((value) => value === unitScales[0])
       ? unitScales[0]
       : null
     useViewerStore.getState().setGeometryDetails({
-      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, overhangFaceCount: 0, ...health,
+      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, overhangFaceCount, ...health,
     })
   }
   /**
@@ -389,6 +403,30 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
     holeOverlayRef.current = null
     useViewerStore.getState().setHoleFillStatus(null)
+    invalidate()
+  }
+
+  const rebuildOverhangOverlay = () => {
+    const scene = sceneRef.current
+    if (!scene) return
+    teardownOverhangOverlay()
+    const meshes = withGeometry(modelMeshes())
+    const threshold = useViewerStore.getState().overhangThresholdDeg
+    const { group, hiddenMeshes, meshCount, skippedMeshes } = buildOverhangOverlay(meshes, threshold, isRepairable)
+    scene.add(group)
+    overhangOverlayRef.current = { group, hiddenMeshes }
+    useViewerStore.getState().setOverhangOverlayStatus({ meshCount, skippedMeshes })
+    invalidate()
+  }
+
+  const teardownOverhangOverlay = () => {
+    const cur = overhangOverlayRef.current
+    if (cur) {
+      disposeOverhangOverlay(cur.group)
+      for (const m of cur.hiddenMeshes) m.visible = true
+    }
+    overhangOverlayRef.current = null
+    useViewerStore.getState().setOverhangOverlayStatus(null)
     invalidate()
   }
 
@@ -1857,6 +1895,36 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   useEffect(() => {
     if (holeFillMode) useViewerStore.getState().setMeasureMode(false)
   }, [holeFillMode])
+
+  // Effect 12: Overhang heatmap — build/rebuild the recoloured overlay while
+  // armed. No pointer wiring: this is a read-only view, not a pick tool, so
+  // there is nothing to click.
+  const overhangMode = useViewerStore((s) => s.overhangMode)
+  const overhangThresholdDeg = useViewerStore((s) => s.overhangThresholdDeg)
+  useEffect(() => {
+    if (!overhangMode) return
+    const scene = sceneRef.current
+    if (!scene) return
+    rebuildOverhangOverlay()
+    return () => {
+      teardownOverhangOverlay()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overhangMode, overhangThresholdDeg, rendererGen])
+
+  // Effect 13: Auto-disarm the overhang heatmap when the Repair dialog opens
+  // — a repair can rewrite the geometry the overlay is a frozen copy of.
+  useEffect(() => {
+    if (repairDialogOpen && overhangMode) useViewerStore.getState().setOverhangMode(false)
+  }, [repairDialogOpen, overhangMode])
+
+  // Effect 14: Changing the overhang threshold recomputes the live readiness
+  // count even when the heatmap itself is not armed (Effect 12 already
+  // rebuilds the overlay on this same dependency when it IS armed).
+  useEffect(() => {
+    updateGeometryDetails()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overhangThresholdDeg])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
