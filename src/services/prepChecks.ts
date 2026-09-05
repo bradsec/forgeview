@@ -71,6 +71,12 @@ export function prepChecks(
           ? { ...row, state: 'pass' as const, detail: 'Within build volume' }
           : { ...row, state: 'fail' as const, detail: 'Exceeds build volume', fixId: 'scale' }
       }
+      if (row.id === 'overhangs') {
+        const count = details.overhangFaceCount
+        return count === 0
+          ? { ...row, state: 'pass' as const, detail: '0 overhang faces' }
+          : { ...row, state: 'warn' as const, detail: `${count} overhang face${count === 1 ? '' : 's'}` }
+      }
       return { ...row, state: 'unavailable' as const, detail: 'Available in a later update' }
     }),
   ]

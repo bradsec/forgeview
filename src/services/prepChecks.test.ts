@@ -34,7 +34,7 @@ describe('prepChecks', () => {
 
   it('keeps analysis rows unavailable even with a model', () => {
     const byId = Object.fromEntries(prepChecks(clean).map((c) => [c.id, c]))
-    for (const id of ['thickness', 'overhangs', 'onPlate']) {
+    for (const id of ['thickness', 'onPlate']) {
       expect(byId[id].state).toBe('unavailable')
       expect(byId[id].detail).toBe('Available in a later update')
       expect(byId[id].fixId).toBeUndefined()
@@ -111,5 +111,38 @@ describe('on-plate row', () => {
   it('stays unavailable without a build volume', () => {
     const rows = prepChecks(base, false)
     expect(rows.find((r) => r.id === 'onPlate')!.state).toBe('unavailable')
+  })
+})
+
+describe('overhangs row', () => {
+  const base = {
+    width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
+    boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+    watertight: true, modelUnitInMm: 1, overhangFaceCount: 0,
+  }
+
+  it('passes at zero overhang faces', () => {
+    const rows = prepChecks(base)
+    const row = rows.find((r) => r.id === 'overhangs')!
+    expect(row.state).toBe('pass')
+    expect(row.detail).toBe('0 overhang faces')
+    expect(row.fixId).toBeUndefined()
+  })
+
+  it('warns (not fails) at a nonzero count, pluralised correctly', () => {
+    const oneRow = prepChecks({ ...base, overhangFaceCount: 1 }).find((r) => r.id === 'overhangs')!
+    expect(oneRow.state).toBe('warn')
+    expect(oneRow.detail).toBe('1 overhang face')
+    expect(oneRow.fixId).toBeUndefined()
+
+    const manyRow = prepChecks({ ...base, overhangFaceCount: 5 }).find((r) => r.id === 'overhangs')!
+    expect(manyRow.state).toBe('warn')
+    expect(manyRow.detail).toBe('5 overhang faces')
+  })
+
+  it('is unaffected by the sealApplied remap', () => {
+    const row = prepChecks({ ...base, overhangFaceCount: 3 }, true).find((r) => r.id === 'overhangs')!
+    expect(row.state).toBe('warn')
+    expect(row.detail).toBe('3 overhang faces')
   })
 })
