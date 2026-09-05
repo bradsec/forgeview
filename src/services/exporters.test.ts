@@ -78,6 +78,32 @@ describe('collectExportMeshes', () => {
     expect(normal.z).toBeGreaterThan(0)
   })
 
+  it('reverses indexed winding for a mirrored mesh so faces still point outward', () => {
+    // Mirror X in the transform panel is the UI path that puts a mesh at a
+    // negative-determinant matrixWorld.
+    const scene = new THREE.Scene()
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial())
+    mesh.scale.x = -1
+    scene.add(mesh)
+
+    const [collected] = collectExportMeshes(scene)
+    const pos = collected.geometry.getAttribute('position')
+    const index = collected.geometry.index!
+    const outward: boolean[] = []
+    for (let offset = 0; offset < index.count; offset += 3) {
+      const a = new THREE.Vector3().fromBufferAttribute(pos, index.getX(offset))
+      const b = new THREE.Vector3().fromBufferAttribute(pos, index.getX(offset + 1))
+      const c = new THREE.Vector3().fromBufferAttribute(pos, index.getX(offset + 2))
+      // Box is centred on the origin, so an outward normal points away from it.
+      const centroid = a.clone().add(b).add(c).divideScalar(3)
+      const normal = b.sub(a).cross(c.sub(a))
+      outward.push(normal.dot(centroid) > 0)
+    }
+
+    expect(outward).toHaveLength(12)
+    expect(outward.every(Boolean)).toBe(true)
+  })
+
   it('expands every instance with its world transform', () => {
     const scene = new THREE.Scene()
     const instances = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial(), 2)
