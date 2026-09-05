@@ -286,9 +286,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, splitParts: [], exportTargetId: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, splitParts: [], exportTargetId: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, splitParts: [], exportTargetId: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, splitParts: [], exportTargetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),

@@ -22,7 +22,9 @@
   center on plate. Each action is one undoable edit (SP-3b).
 - Prepare > Analysis: overhang heatmap with adjustable angle threshold (default
   45 degrees). Highlights faces past the threshold angle in the viewport.
-  Readiness score card includes the Overhangs row (SP-4a).
+  Readiness score card includes the Overhangs row (SP-4a). The heatmap overlay
+  does not live-update while you move, rotate, scale, or split the model, toggle
+  it off and on to refresh.
 
 ## 1.7.2 - 2026-08-29
 
