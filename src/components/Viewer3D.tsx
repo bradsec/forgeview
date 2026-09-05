@@ -1901,6 +1901,22 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // there is nothing to click.
   const overhangMode = useViewerStore((s) => s.overhangMode)
   const overhangThresholdDeg = useViewerStore((s) => s.overhangThresholdDeg)
+
+  // Effect 10f/10g: Overhang heatmap and hole-fill are mutually exclusive,
+  // mirroring the Effect 10d/10e pattern. The heatmap hides the originals and
+  // freezes a recoloured copy, but the Raycaster still hits the hidden
+  // geometry, so an armed hole-fill could edit and push an undo entry for a
+  // mesh the frozen overlay never reflects. Each effect keys only on the flag
+  // turning on, so arming one while the other is on triggers exactly one
+  // disarm. (No interlock with measure: it raycasts the hidden originals at
+  // identical world positions and reads correctly.)
+  useEffect(() => {
+    if (overhangMode) useViewerStore.getState().setHoleFillMode(false)
+  }, [overhangMode])
+  useEffect(() => {
+    if (holeFillMode) useViewerStore.getState().setOverhangMode(false)
+  }, [holeFillMode])
+
   useEffect(() => {
     if (!overhangMode) return
     const scene = sceneRef.current
