@@ -16,13 +16,17 @@ export function buildOverhangOverlay(
 ): OverhangOverlayResult {
   const group = new THREE.Group()
   group.userData.overhangOverlay = true
-  const hiddenMeshes: THREE.Mesh[] = []
+  const toHide: THREE.Mesh[] = []
   let meshCount = 0
   let skippedMeshes = 0
   const highlight = new THREE.Color(highlightColor)
 
   for (const mesh of meshes) {
     if (!isEligible(mesh)) { skippedMeshes++; continue }
+    // A mesh the user hid (e.g. a split part toggled off in the Parts section)
+    // is not part of the heatmap. It is not "ineligible" either, so do not
+    // count it as skipped: just leave it alone.
+    if (!mesh.visible) continue
     mesh.updateWorldMatrix(true, false)
     const source = mesh.geometry as THREE.BufferGeometry
     const worldGeo = source.index ? source.toNonIndexed() : source.clone()
@@ -56,12 +60,16 @@ export function buildOverhangOverlay(
     )
     group.add(overlayMesh)
 
-    mesh.visible = false
-    hiddenMeshes.push(mesh)
+    toHide.push(mesh)
     meshCount++
   }
 
-  return { group, hiddenMeshes, meshCount, skippedMeshes }
+  // Hide the originals only after the whole loop succeeded. If a build throws
+  // mid-loop the caller never adopts the overlay, so leaving every original
+  // visible keeps the model recoverable.
+  for (const m of toHide) m.visible = false
+
+  return { group, hiddenMeshes: toHide, meshCount, skippedMeshes }
 }
 
 export function disposeOverhangOverlay(group: THREE.Group): void {
