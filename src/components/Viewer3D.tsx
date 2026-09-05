@@ -30,6 +30,7 @@ import {
   disposeMeasureOverlay, type MeasureOverlay,
 } from '../services/measureOverlay'
 import { fromMm, formatLength } from '../services/unitConversion'
+import { isFactorInBounds } from '../services/scaleMath'
 
 export interface RepairRunResult {
   label: string
@@ -242,15 +243,21 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, ...health,
     })
   }
-  const refreshSceneEnvironment = () => {
+  /**
+   * Reposition and resize the floor grid under the current model union box,
+   * leaving the camera where it is. Pure translations (move, drop to floor,
+   * center on plate) use this instead of the full refresh: a camera refit to a
+   * box of the same size just follows the model, which reads as no motion.
+   */
+  const rebuildGrid = (unionBox?: THREE.Box3) => {
     const roots = modelRoots()
     const scene = sceneRef.current
-    const camera = cameraRef.current
-    const controls = controlsRef.current
-    if (roots.length === 0 || !scene || !camera || !controls) return
-    fitAllModels(roots, camera, controls)
-    const box = new THREE.Box3()
-    for (const root of roots) box.expandByObject(root)
+    if (roots.length === 0 || !scene) return
+    let box = unionBox
+    if (!box) {
+      box = new THREE.Box3()
+      for (const root of roots) box.expandByObject(root)
+    }
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
     const maxDim = Math.max(size.x, size.y, size.z)
@@ -269,6 +276,17 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     grid.position.set(center.x, box.min.y, center.z)
     scene.add(grid)
     gridRef.current = grid
+  }
+  const refreshSceneEnvironment = () => {
+    const roots = modelRoots()
+    const scene = sceneRef.current
+    const camera = cameraRef.current
+    const controls = controlsRef.current
+    if (roots.length === 0 || !scene || !camera || !controls) return
+    fitAllModels(roots, camera, controls)
+    const box = new THREE.Box3()
+    for (const root of roots) box.expandByObject(root)
+    rebuildGrid(box)
   }
   const updateTriangleDetails = () => {
     if (modelGroupRef.current) useViewerStore.getState().setTriangleCount(countTriangles(modelGroupRef.current))
@@ -523,13 +541,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
             if (prev[i]) r.position.copy(prev[i])
           })
           updateGeometryDetails()
-          refreshSceneEnvironment()
+          rebuildGrid()
           invalidate()
         },
         discard: () => {},
       })
       updateGeometryDetails()
-      refreshSceneEnvironment()
+      rebuildGrid()
       invalidate()
     },
     rotateModelBy: (deltaRad: { x: number; y: number; z: number }) => {
@@ -538,17 +556,24 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const rx = Number.isFinite(deltaRad.x) ? deltaRad.x : 0
       const ry = Number.isFinite(deltaRad.y) ? deltaRad.y : 0
       const rz = Number.isFinite(deltaRad.z) ? deltaRad.z : 0
-      const prev = roots.map((r) => r.rotation.clone())
+      const prev = roots.map((r) => r.quaternion.clone())
+      // Compose the delta as world-axis quaternions rather than incrementing
+      // Euler angles: the default 'XYZ' order is singular at a +-90 degree Y
+      // angle, so after a Y 90 nudge an added Z angle no longer rotates about
+      // world Z (it aliases onto the body axis). Premultiply order for
+      // simultaneous multi-axis input is fixed at X, then Y, then Z; what
+      // matters is that no nudge round-trips through an Euler decomposition.
+      const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), rx)
+      const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry)
+      const qz = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rz)
       roots.forEach((r) => {
-        r.rotation.x += rx
-        r.rotation.y += ry
-        r.rotation.z += rz
+        r.quaternion.premultiply(qz).premultiply(qy).premultiply(qx)
       })
       pushUndo({
         label: 'Rotate',
         apply: () => {
           modelRoots().forEach((r, i) => {
-            if (prev[i]) r.rotation.copy(prev[i])
+            if (prev[i]) r.quaternion.copy(prev[i])
           })
           updateGeometryDetails()
           refreshSceneEnvironment()
@@ -563,9 +588,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     scaleModelByAxes: (factors: { x: number; y: number; z: number }) => {
       const roots = modelRoots()
       if (roots.length === 0) return
-      const fx = Number.isFinite(factors.x) && factors.x > 0 ? factors.x : 1
-      const fy = Number.isFinite(factors.y) && factors.y > 0 ? factors.y : 1
-      const fz = Number.isFinite(factors.z) && factors.z > 0 ? factors.z : 1
+      const fx = Number.isFinite(factors.x) && factors.x > 0 && isFactorInBounds(factors.x) ? factors.x : 1
+      const fy = Number.isFinite(factors.y) && factors.y > 0 && isFactorInBounds(factors.y) ? factors.y : 1
+      const fz = Number.isFinite(factors.z) && factors.z > 0 && isFactorInBounds(factors.z) ? factors.z : 1
       const prev = roots.map((r) => r.scale.clone())
       roots.forEach((r) => {
         r.scale.x *= fx
@@ -628,13 +653,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
             if (prev[i]) r.position.copy(prev[i])
           })
           updateGeometryDetails()
-          refreshSceneEnvironment()
+          rebuildGrid()
           invalidate()
         },
         discard: () => {},
       })
       updateGeometryDetails()
-      refreshSceneEnvironment()
+      rebuildGrid()
       invalidate()
     },
     centerOnPlate: () => {
@@ -657,13 +682,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
             if (prev[i]) r.position.copy(prev[i])
           })
           updateGeometryDetails()
-          refreshSceneEnvironment()
+          rebuildGrid()
           invalidate()
         },
         discard: () => {},
       })
       updateGeometryDetails()
-      refreshSceneEnvironment()
+      rebuildGrid()
       invalidate()
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {
