@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useViewerStore } from '../../store/viewerStore'
 import { toMm } from '../../services/unitConversion'
+import { isFactorInBounds } from '../../services/scaleMath'
 import type { Viewer3DHandle } from '../Viewer3D'
 
 type Axis = 'x' | 'y' | 'z'
@@ -13,6 +14,19 @@ function hasAnyAxisValue(values: AxisStrings): boolean {
   return AXES.some((axis) => {
     const raw = values[axis].trim()
     return raw !== '' && Number.isFinite(Number(raw))
+  })
+}
+
+/**
+ * Every axis the user actually filled in must be a scale factor the viewer can
+ * apply. An out-of-bounds factor can push the camera's near/far planes past
+ * broken, and an invalid one would silently clamp to 1 and push a no-op undo
+ * entry that evicts a real edit off the bounded stack.
+ */
+function allAxisScalesValid(values: AxisStrings): boolean {
+  return AXES.every((axis) => {
+    const raw = values[axis].trim()
+    return raw === '' || isFactorInBounds(Number(raw))
   })
 }
 
@@ -51,6 +65,7 @@ export function TransformSection({
   const moveHasAny = hasAnyAxisValue(move)
   const rotateHasAny = hasAnyAxisValue(rotate)
   const scaleHasAny = hasAnyAxisValue(scale)
+  const scaleAllValid = allAxisScalesValid(scale)
 
   const applyMove = () => {
     if (!moveHasAny) return
@@ -65,7 +80,7 @@ export function TransformSection({
     setRotate(BLANK)
   }
   const applyScale = () => {
-    if (!scaleHasAny) return
+    if (!scaleHasAny || !scaleAllValid) return
     const raw = parseAxisInputs(scale, (f) => f, 1)
     const safe = {
       x: raw.x > 0 ? raw.x : 1,
@@ -138,9 +153,12 @@ export function TransformSection({
         </button>
 
         {axisInputs('Scale (free)', scale, setScale, '×')}
+        {!locked && scaleHasAny && !scaleAllValid && (
+          <p className="text-xs text-[var(--error)]">Enter a scale factor within range.</p>
+        )}
         <button
           type="button"
-          disabled={locked || !scaleHasAny}
+          disabled={locked || !scaleHasAny || !scaleAllValid}
           onClick={applyScale}
           className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
         >

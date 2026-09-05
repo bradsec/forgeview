@@ -49,13 +49,35 @@ describe('TransformSection', () => {
     expect(rotateModelBy).toHaveBeenCalledWith({ x: 0, y: Math.PI / 2, z: 0 })
   })
 
-  it('leaves blank scale axes at factor 1 and rejects a non-positive value', async () => {
+  it('leaves blank scale axes at factor 1', async () => {
     const scaleModelByAxes = vi.fn()
     render(<TransformSection viewerRef={{ current: { scaleModelByAxes } as never }} />)
     await userEvent.type(screen.getByLabelText('Scale (free) y'), '2')
-    await userEvent.type(screen.getByLabelText('Scale (free) z'), '-1')
     await userEvent.click(screen.getByRole('button', { name: 'Apply scale' }))
     expect(scaleModelByAxes).toHaveBeenCalledWith({ x: 1, y: 2, z: 1 })
+  })
+
+  it('blocks Apply scale and explains when one axis is out of bounds', async () => {
+    const scaleModelByAxes = vi.fn()
+    render(<TransformSection viewerRef={{ current: { scaleModelByAxes } as never }} />)
+    await userEvent.type(screen.getByLabelText('Scale (free) y'), '2')
+    await userEvent.type(screen.getByLabelText('Scale (free) z'), '1e12')
+    expect((screen.getByRole('button', { name: 'Apply scale' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('Enter a scale factor within range.')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Apply scale' }))
+    expect(scaleModelByAxes).not.toHaveBeenCalled()
+  })
+
+  it('blocks Apply scale when every axis is a non-positive factor', async () => {
+    const scaleModelByAxes = vi.fn()
+    render(<TransformSection viewerRef={{ current: { scaleModelByAxes } as never }} />)
+    await userEvent.type(screen.getByLabelText('Scale (free) x'), '-1')
+    await userEvent.type(screen.getByLabelText('Scale (free) y'), '0')
+    await userEvent.type(screen.getByLabelText('Scale (free) z'), '-1')
+    expect((screen.getByRole('button', { name: 'Apply scale' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('Enter a scale factor within range.')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Apply scale' }))
+    expect(scaleModelByAxes).not.toHaveBeenCalled()
   })
 
   it('mirror, drop to floor, and center on plate call their handle methods with no args', async () => {
