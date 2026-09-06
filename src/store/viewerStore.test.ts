@@ -605,3 +605,22 @@ describe('x-ray and clip plane state', () => {
     expect(s.clipFlip).toBe(true)
   })
 })
+
+describe('build volume box state', () => {
+  beforeEach(() => useViewerStore.setState({ showBuildVolume: false }))
+
+  it('defaults to false', () => {
+    expect(useViewerStore.getState().showBuildVolume).toBe(false)
+  })
+
+  it('setShowBuildVolume flips it', () => {
+    useViewerStore.getState().setShowBuildVolume(true)
+    expect(useViewerStore.getState().showBuildVolume).toBe(true)
+  })
+
+  it('setFile does not reset it (sticky view preference)', () => {
+    useViewerStore.getState().setShowBuildVolume(true)
+    useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
+    expect(useViewerStore.getState().showBuildVolume).toBe(true)
+  })
+})
