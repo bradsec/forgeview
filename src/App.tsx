@@ -9,6 +9,7 @@ import { SceneControls } from './components/SceneControls'
 import { SceneContextMenu } from './components/SceneContextMenu'
 import { PreviewGrid } from './components/PreviewGrid'
 import { SettingsModal } from './components/SettingsModal'
+import { HelpModal } from './components/HelpModal'
 import { ExportDialog } from './components/ExportDialog'
 import { FolderAccessNotice } from './components/FolderAccessNotice'
 import { MobileDrawer } from './components/MobileDrawer'
@@ -34,6 +35,7 @@ export default function App() {
   const mobileDrawer = useViewerStore((s) => s.mobileDrawer)
   const setMobileDrawer = useViewerStore((s) => s.setMobileDrawer)
   const settingsOpen = useViewerStore((s) => s.settingsOpen)
+  const helpOpen = useViewerStore((s) => s.helpOpen)
   const repairDialogOpen = useViewerStore((s) => s.repairDialogOpen)
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
-      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || repairDialogOpen}>
+      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || repairDialogOpen || helpOpen}>
         <Toolbar />
         <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
@@ -112,6 +114,7 @@ export default function App() {
         <Sidebar mobile viewerRef={viewerRef} onUndoEdit={(steps) => viewerRef.current?.undoEdit(steps)} />
       </MobileDrawer>
       <SettingsModal />
+      <HelpModal />
       <ExportDialog viewerRef={viewerRef} />
       <RepairDialog viewerRef={viewerRef} />
       <FolderAccessNotice />
