@@ -559,3 +559,49 @@ describe('wall thickness heatmap state', () => {
     expect(useViewerStore.getState().minWallThicknessMm).toBe(0.4)
   })
 })
+
+describe('x-ray and clip plane state', () => {
+  beforeEach(() =>
+    useViewerStore.setState({
+      xrayMode: false, clipMode: false, clipAxis: 'y', clipOffset: 0.5, clipFlip: false,
+    }),
+  )
+
+  it('defaults', () => {
+    const s = useViewerStore.getState()
+    expect(s.xrayMode).toBe(false)
+    expect(s.clipMode).toBe(false)
+    expect(s.clipAxis).toBe('y')
+    expect(s.clipOffset).toBe(0.5)
+    expect(s.clipFlip).toBe(false)
+  })
+
+  it('set actions', () => {
+    useViewerStore.getState().setXrayMode(true)
+    useViewerStore.getState().setClipMode(true)
+    useViewerStore.getState().setClipAxis('x')
+    useViewerStore.getState().setClipOffset(0.2)
+    useViewerStore.getState().setClipFlip(true)
+    const s = useViewerStore.getState()
+    expect(s.xrayMode).toBe(true)
+    expect(s.clipMode).toBe(true)
+    expect(s.clipAxis).toBe('x')
+    expect(s.clipOffset).toBe(0.2)
+    expect(s.clipFlip).toBe(true)
+  })
+
+  it('setFile clears the two mode flags but keeps axis, offset, and flip', () => {
+    useViewerStore.getState().setXrayMode(true)
+    useViewerStore.getState().setClipMode(true)
+    useViewerStore.getState().setClipAxis('z')
+    useViewerStore.getState().setClipOffset(0.15)
+    useViewerStore.getState().setClipFlip(true)
+    useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
+    const s = useViewerStore.getState()
+    expect(s.xrayMode).toBe(false)
+    expect(s.clipMode).toBe(false)
+    expect(s.clipAxis).toBe('z')
+    expect(s.clipOffset).toBe(0.15)
+    expect(s.clipFlip).toBe(true)
+  })
+})
