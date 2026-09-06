@@ -590,10 +590,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (!scene) return
     teardownBuildVolumeOverlay()
     const theme = getTheme(useViewerStore.getState().theme)
-    const group = buildBuildVolumeOverlay(useViewerStore.getState().buildVolumeMm, {
-      edge: new THREE.Color(theme.accent).getHex(),
-      grid: theme.gridPrimary,
-    })
+    const v = useViewerStore.getState().buildVolumeMm
+    const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
+    const group = buildBuildVolumeOverlay(
+      { x: v.x / unit, y: v.y / unit, z: v.z / unit },
+      { edge: new THREE.Color(theme.accent).getHex(), grid: theme.gridPrimary },
+    )
     scene.add(group)
     buildVolumeOverlayRef.current = group
     invalidate()
@@ -2249,6 +2251,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // interlock: it never hides or edits the model.
   const showBuildVolume = useViewerStore((s) => s.showBuildVolume)
   const buildVolumeMm = useViewerStore((s) => s.buildVolumeMm)
+  const buildVolumeUnitMm = useViewerStore((s) => s.geometryDetails?.modelUnitInMm)
   useEffect(() => {
     if (!showBuildVolume) return
     rebuildBuildVolumeOverlay()
@@ -2256,7 +2259,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownBuildVolumeOverlay()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showBuildVolume, buildVolumeMm.x, buildVolumeMm.y, buildVolumeMm.z, rendererGen])
+  }, [showBuildVolume, buildVolumeMm.x, buildVolumeMm.y, buildVolumeMm.z, buildVolumeUnitMm, rendererGen])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.

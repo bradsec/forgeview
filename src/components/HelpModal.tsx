@@ -40,7 +40,7 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: 'Build volume',
-    body: 'Show build volume draws your configured printer volume as a wireframe box on the plate, centred on the origin with its base at Z zero. It is a fixed reference and does not move or scale the model. Set the size with the Scale to build volume fields, then use Center on plate and Drop to floor to bring the model onto it. The On plate readiness row reports whether it fits.',
+    body: 'Show build volume draws your configured printer volume as a wireframe box on the plate, centred on the origin with its base on the plate. It is a fixed reference and does not move or scale the model. Set the size with the Scale to build volume fields, then use Center on plate and Drop to floor to bring the model onto it. The On build plate readiness row reports whether it fits.',
   },
 ]
 

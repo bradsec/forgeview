@@ -44,8 +44,8 @@ export function collectExportMeshes(root: THREE.Object3D): THREE.Mesh[] {
 
   const visit = (node: THREE.Object3D) => {
     // Measure markers/line, hole-fill caps, overhang heatmap overlay,
-    // wall-thickness heatmap overlay, and build-volume box are real THREE.Mesh
-    // objects added to the scene as tagged overlay groups (measureOverlay.ts,
+    // wall-thickness heatmap overlay, and build-volume box are scene objects
+    // added as tagged overlay groups (measureOverlay.ts,
     // holeFillOverlay.ts, overhangOverlay.ts, wallThicknessOverlay.ts,
     // buildVolumeOverlay.ts) - never bake them into an exported file.
     if (node.userData.measureOverlay || node.userData.holeOverlay || node.userData.overhangOverlay || node.userData.wallThicknessOverlay || node.userData.buildVolumeOverlay) return
