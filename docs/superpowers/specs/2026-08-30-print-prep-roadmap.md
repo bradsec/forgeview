@@ -256,6 +256,16 @@ SP-4 (analysis heatmaps) is split into three cycles:
 
 **SP-4 (analysis heatmaps) is now complete** (all three cycles SP-4a/4b/4c shipped).
 
+## SP-5 decomposition (2026-09-07)
+
+SP-5 (auto-orient + build volume) is split into three cycles:
+
+| # | Piece | Depends on | Status |
+|---|-------|-----------|--------|
+| SP-5a | Build-volume box | — | SHIPPED, branch `worktree-sp5a-build-volume-box`, commits 7bf4198..c231a57. `src/store/viewerStore.ts` `showBuildVolume` flag, `src/services/buildVolumeOverlay.ts` (wireframe box + footprint grid group, tagged `userData.buildVolumeOverlay`), `src/components/Viewer3D.tsx` Effect 23 lifecycle (no interlock; scales the box by `geometryDetails.modelUnitInMm`), `src/services/exporters.ts` skip tag, `src/components/prepare/ScaleSection.tsx` Show build volume toggle, `src/components/HelpModal.tsx` entry, `e2e/build-volume-box.spec.ts`. Final review fix wave c231a57: divide the mm dimensions by `modelUnitInMm` so the box is the right size on glTF/DAE and non-mm 3MF (was drawn in raw mm). Spec: `2026-09-07-sp5a-build-volume-box-design.md`; plan: `../plans/2026-09-07-sp5a-build-volume-box.md`. |
+| SP-5b | Auto-orient | SP-5a | Not started. Search orientations to reduce overhang, support, and height; apply the best as an undoable transform. |
+| SP-5c | Bed layout | SP-5a | Not started. Grid-arrange the multi-model scene within the build-volume footprint. |
+
 ## SP-H: in-app feature help (cross-cutting)
 
 SP-H (in-app feature help): SHIPPED, branch `worktree-sph-in-app-help`, commits

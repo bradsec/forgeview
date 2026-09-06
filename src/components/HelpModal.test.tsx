@@ -20,6 +20,7 @@ describe('HelpModal', () => {
     expect(screen.getByRole('heading', { name: 'Overhang heatmap' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Wall thickness heatmap' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'X-ray and clip plane' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Build volume' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Measure' })).toBeTruthy()
   })
 

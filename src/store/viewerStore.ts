@@ -161,6 +161,8 @@ interface ViewerState {
   setClipAxis: (axis: 'x' | 'y' | 'z') => void
   setClipOffset: (t: number) => void
   setClipFlip: (on: boolean) => void
+  showBuildVolume: boolean
+  setShowBuildVolume: (on: boolean) => void
   buildVolumeMm: { x: number; y: number; z: number }
   splitParts: SplitPart[]
   setSplitParts: (parts: SplitPart[]) => void
@@ -277,6 +279,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   clipAxis: 'y',
   clipOffset: 0.5,
   clipFlip: false,
+  showBuildVolume: false,
   buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM },
   splitParts: [],
   setSplitParts: (parts) => set({ splitParts: parts }),
@@ -306,6 +309,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setClipAxis: (axis) => set({ clipAxis: axis }),
   setClipOffset: (t) => set({ clipOffset: t }),
   setClipFlip: (on) => set({ clipFlip: on }),
+  setShowBuildVolume: (on) => set({ showBuildVolume: on }),
   setBuildVolumeMm: (v) => set({ buildVolumeMm: v }),
   resetBuildVolumeMm: () => set({ buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM } }),
   notice: null,

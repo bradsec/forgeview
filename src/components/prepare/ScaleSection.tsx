@@ -16,6 +16,7 @@ export function ScaleSection({
   const splitParts = useViewerStore((s) => s.splitParts)
   const measureMode = useViewerStore((s) => s.measureMode)
   const buildVolume = useViewerStore((s) => s.buildVolumeMm)
+  const showBuildVolume = useViewerStore((s) => s.showBuildVolume)
   const [axis, setAxis] = useState<Axis>('longest')
   const [target, setTarget] = useState('')
   const [volStr, setVolStr] = useState<{ x: string; y: string; z: string }>({
@@ -130,6 +131,17 @@ export function ScaleSection({
               Reset
             </button>
           </div>
+          <button
+            type="button"
+            aria-pressed={showBuildVolume}
+            onClick={() => useViewerStore.getState().setShowBuildVolume(!showBuildVolume)}
+            className={
+              'mt-1 px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
+              (showBuildVolume ? 'bg-[var(--accent-button)] text-white' : 'bg-[var(--bg-button)]')
+            }
+          >
+            {showBuildVolume ? 'Hide build volume' : 'Show build volume'}
+          </button>
           <button
             type="button"
             disabled={locked || !fitOk}
