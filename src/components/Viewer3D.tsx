@@ -35,6 +35,7 @@ import { computeOverhangFaceMask } from '../services/overhangAnalysis'
 import { buildOverhangOverlay, disposeOverhangOverlay } from '../services/overhangOverlay'
 import { computeWallThicknessMask, WALL_THICKNESS_MAX_TRIANGLES } from '../services/wallThickness'
 import { buildWallThicknessOverlay, disposeWallThicknessOverlay } from '../services/wallThicknessOverlay'
+import { buildBuildVolumeOverlay, disposeBuildVolumeOverlay } from '../services/buildVolumeOverlay'
 
 export interface RepairRunResult {
   label: string
@@ -579,6 +580,28 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       mat.clipShadows = false
     }
     clipPlaneRef.current = null
+    invalidate()
+  }
+
+  const buildVolumeOverlayRef = useRef<THREE.Group | null>(null)
+
+  const rebuildBuildVolumeOverlay = () => {
+    const scene = sceneRef.current
+    if (!scene) return
+    teardownBuildVolumeOverlay()
+    const theme = getTheme(useViewerStore.getState().theme)
+    const group = buildBuildVolumeOverlay(useViewerStore.getState().buildVolumeMm, {
+      edge: new THREE.Color(theme.accent).getHex(),
+      grid: theme.gridPrimary,
+    })
+    scene.add(group)
+    buildVolumeOverlayRef.current = group
+    invalidate()
+  }
+
+  const teardownBuildVolumeOverlay = () => {
+    if (buildVolumeOverlayRef.current) disposeBuildVolumeOverlay(buildVolumeOverlayRef.current)
+    buildVolumeOverlayRef.current = null
     invalidate()
   }
 
@@ -2220,6 +2243,20 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (repairDialogOpen && xrayMode) useViewerStore.getState().setXrayMode(false)
     if (repairDialogOpen && clipMode) useViewerStore.getState().setClipMode(false)
   }, [repairDialogOpen, xrayMode, clipMode])
+
+  // Effect 23: Build-volume box - draw the configured printer volume as a
+  // wireframe box on the plate while shown. Static reference geometry, no
+  // interlock: it never hides or edits the model.
+  const showBuildVolume = useViewerStore((s) => s.showBuildVolume)
+  const buildVolumeMm = useViewerStore((s) => s.buildVolumeMm)
+  useEffect(() => {
+    if (!showBuildVolume) return
+    rebuildBuildVolumeOverlay()
+    return () => {
+      teardownBuildVolumeOverlay()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBuildVolume, buildVolumeMm.x, buildVolumeMm.y, buildVolumeMm.z, rendererGen])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
