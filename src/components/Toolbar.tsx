@@ -265,6 +265,7 @@ export function Toolbar() {
               <div className="menu-heading">File support</div>
               <div className="menu-note">STL, 3MF, OBJ, GLTF, GLB, PLY and DAE</div>
               <div className="menu-separator" role="separator" />
+              <MenuItem onClick={() => { close(); useViewerStore.getState().setHelpOpen(true) }}>Feature guide</MenuItem>
               <MenuItem onClick={() => { close(); setAboutOpen(true) }}>About Forgeview</MenuItem>
             </>
           )}

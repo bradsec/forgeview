@@ -93,4 +93,11 @@ describe('Toolbar application menus', () => {
     expect(screen.getByText('If you find this useful, please consider starring the repository. It helps others discover the project.')).toBeTruthy()
     expect(screen.getAllByRole('link')).toHaveLength(2)
   })
+
+  it('the Help menu opens the feature guide', async () => {
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'Help' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-help-menu')).getByRole('menuitem', { name: 'Feature guide' }))
+    expect(useViewerStore.getState().helpOpen).toBe(true)
+  })
 })
