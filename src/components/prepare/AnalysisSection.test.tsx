@@ -105,4 +105,14 @@ describe('AnalysisSection - wall thickness', () => {
     render(<AnalysisSection />)
     expect(screen.getByText('7 faces could not be sampled (open surface)')).toBeTruthy()
   })
+
+  it('shows the not-eligible note when meshes were skipped', () => {
+    useViewerStore.setState({
+      overhangMode: false,
+      wallThicknessMode: true,
+      wallThicknessOverlayStatus: { meshCount: 1, skippedMeshes: 2, unsampledFaces: 0 },
+    })
+    render(<AnalysisSection />)
+    expect(screen.getByText('2 meshes not eligible')).toBeTruthy()
+  })
 })

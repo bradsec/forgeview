@@ -263,8 +263,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     const unitForWall = modelUnitInMm ?? 1
     let totalTris = 0
     for (const mesh of meshes) {
-      const pa = (mesh.geometry as THREE.BufferGeometry).getAttribute('position') as THREE.BufferAttribute
-      totalTris += Math.floor(pa.count / 3)
+      const g = mesh.geometry as THREE.BufferGeometry
+      const count = g.index ? g.index.count : (g.getAttribute('position') as THREE.BufferAttribute).count
+      totalTris += Math.floor(count / 3)
     }
     let thinWallFaceCount: number | null = null
     if (totalTris <= WALL_THICKNESS_MAX_TRIANGLES) {
@@ -435,6 +436,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     const scene = sceneRef.current
     if (!scene) return
     teardownOverhangOverlay()
+    // C1: the sibling heatmap also hides originals; its effect cleanup is deferred past this flush, so restore synchronously here.
+    teardownWallThicknessOverlay()
     const meshes = withGeometry(modelMeshes())
     const threshold = useViewerStore.getState().overhangThresholdDeg
     const { group, hiddenMeshes, meshCount, skippedMeshes } = buildOverhangOverlay(meshes, threshold, isRepairable)
@@ -461,6 +464,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     const scene = sceneRef.current
     if (!scene) return
     teardownWallThicknessOverlay()
+    // C1: the sibling heatmap also hides originals; its effect cleanup is deferred past this flush, so restore synchronously here.
+    teardownOverhangOverlay()
     const meshes = withGeometry(modelMeshes())
     const minWallMm = useViewerStore.getState().minWallThicknessMm
     const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1

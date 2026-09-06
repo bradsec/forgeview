@@ -92,6 +92,11 @@ test.describe('Wall thickness heatmap', () => {
     await expect(
       page.getByRole('button', { name: 'Hide wall thickness heatmap' }).filter({ visible: true })
     ).toBeVisible()
+    // C1: the cross-heatmap switch must rebuild a non-empty overlay. No scene
+    // introspection hook exists, so assert the readiness row still reads warn
+    // right before export; the overlay mesh contents are covered by
+    // wallThicknessOverlay.test.ts.
+    await expect(check('thickness')).toHaveAttribute('data-state', 'warn')
     await page.getByRole('button', { name: 'File', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Export model as…' }).click()
     const dialog = page.getByRole('dialog', { name: 'Export model' })

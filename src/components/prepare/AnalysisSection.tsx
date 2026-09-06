@@ -99,6 +99,11 @@ export function AnalysisSection() {
             {wallThicknessOverlayStatus.unsampledFaces} face{wallThicknessOverlayStatus.unsampledFaces === 1 ? '' : 's'} could not be sampled (open surface)
           </p>
         )}
+        {wallThicknessMode && wallThicknessOverlayStatus && wallThicknessOverlayStatus.skippedMeshes > 0 && (
+          <p className="text-xs text-[var(--text-muted)]">
+            {wallThicknessOverlayStatus.skippedMeshes} mesh{wallThicknessOverlayStatus.skippedMeshes === 1 ? '' : 'es'} not eligible
+          </p>
+        )}
       </div>
     </div>
   )
