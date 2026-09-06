@@ -30,6 +30,10 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     title: 'Overhang heatmap',
     body: 'Highlights faces that point steeply downward past the overhang angle, the surfaces that would need print supports. The Overhangs readiness row uses the same threshold.',
   },
+  {
+    title: 'Wall thickness heatmap',
+    body: 'Highlights faces whose wall is thinner than the minimum you set (default 1.0 mm), measured by casting a ray straight into the solid from each face. The Thin walls readiness row uses the same minimum. Very large models are skipped for speed.',
+  },
 ]
 
 export function HelpModal() {
