@@ -34,6 +34,10 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     title: 'Wall thickness heatmap',
     body: 'Highlights faces whose wall is thinner than the minimum you set (default 1.0 mm), measured by casting a ray straight into the solid from each face. The Thin walls readiness row uses the same minimum. Very large models are skipped for speed.',
   },
+  {
+    title: 'X-ray and clip plane',
+    body: 'X-ray makes the model translucent so you can see interior walls and trapped voids. The clip plane hides everything on one side of an adjustable X, Y, or Z cut, showing a live cross-section. Use both to check what Make solid or hollow produced. They turn off automatically when a heatmap or hole-fill is armed.',
+  },
 ]
 
 export function HelpModal() {
