@@ -508,14 +508,20 @@ git commit -m "test: e2e feature guide opens from the Help menu and closes on Es
 ```
 
 - [ ] **Step 3: roadmap** - in
-  `docs/superpowers/specs/2026-08-30-print-prep-roadmap.md`, add a short
-  note near the SP-4 section (or a small "Cross-cutting" subsection): "SP-H
-  (in-app feature help): SHIPPED, branch `worktree-sph-in-app-help`,
-  commits `<range>` (fill from git log). `HelpModal.tsx` + `helpOpen`
-  store flag + Help-menu entry. Spec:
+  `docs/superpowers/specs/2026-08-30-print-prep-roadmap.md`:
+  (a) add a short note near the SP-4 section (or a small "Cross-cutting"
+  subsection): "SP-H (in-app feature help): SHIPPED, branch
+  `worktree-sph-in-app-help`, commits `<range>` (fill from git log).
+  `HelpModal.tsx` + `helpOpen` store flag + Help-menu entry. Spec:
   `2026-09-06-sph-in-app-help-design.md`; plan:
-  `../plans/2026-09-06-sph-in-app-help.md`. Convention: every subsequent SP
-  appends its `HELP_SECTIONS` entry."
+  `../plans/2026-09-06-sph-in-app-help.md`."
+  (b) add a standing-rule line to the "Locked decisions" section near the
+  top of the roadmap, so it is remembered regardless of context: **"Every
+  sub-project from SP-4b onward ships in the same cycle: code + unit tests
+  + a passing e2e; an appended `HELP_SECTIONS` entry in
+  `src/components/HelpModal.tsx` (the Help > Feature guide modal); and
+  updates to README, CHANGELOG, and this roadmap's SP decomposition table.
+  A feature is not done until its in-app help and docs match it."**
 
 - [ ] **Step 4: Sanity check**
 
