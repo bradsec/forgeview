@@ -28,6 +28,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - **Overhang heatmap** — analyse and highlight faces past a configurable overhang
   angle (default 45 degrees), directly in the viewport. Adjustable threshold in
   the Prepare panel.
+- **Wall thickness heatmap**: analyse and highlight faces thinner than a configurable
+  minimum (default 1.0 mm), using an inward ray per face. Adjustable threshold in
+  the Prepare panel. Large models are skipped for speed.
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation
