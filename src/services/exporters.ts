@@ -43,11 +43,12 @@ export function collectExportMeshes(root: THREE.Object3D): THREE.Mesh[] {
   }
 
   const visit = (node: THREE.Object3D) => {
-    // Measure markers/line, hole-fill caps, and overhang heatmap overlay are
-    // real THREE.Mesh objects added to the scene as tagged overlay groups
-    // (measureOverlay.ts, holeFillOverlay.ts, overhangOverlay.ts) — never bake
-    // them into an exported file.
-    if (node.userData.measureOverlay || node.userData.holeOverlay || node.userData.overhangOverlay) return
+    // Measure markers/line, hole-fill caps, overhang heatmap overlay, and
+    // wall-thickness heatmap overlay are real THREE.Mesh objects added to the
+    // scene as tagged overlay groups (measureOverlay.ts, holeFillOverlay.ts,
+    // overhangOverlay.ts, wallThicknessOverlay.ts) - never bake them into an
+    // exported file.
+    if (node.userData.measureOverlay || node.userData.holeOverlay || node.userData.overhangOverlay || node.userData.wallThicknessOverlay) return
     if (node instanceof THREE.Mesh && node.geometry) {
       // Make solid collapses the scene into one mesh and leaves attribute-less
       // placeholder geometries behind; they hold nothing exportable.
