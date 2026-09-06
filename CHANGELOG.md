@@ -28,6 +28,10 @@
 - Help menu: a Feature guide modal summarising every Prepare-panel tool
   (readiness checks, Repair, Split, Measure, Scale, Transform, Overhang
   heatmap). Each new feature adds its own entry.
+- Prepare panel: wall thickness heatmap (SP-4b). Colours faces thinner
+  than a configurable minimum (default 1.0 mm) using an inward ray per
+  face; the Thin walls readiness row is now live. Large models are
+  skipped for speed.
 
 ## 1.7.2 - 2026-08-29
 

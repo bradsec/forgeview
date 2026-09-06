@@ -7,7 +7,7 @@ import { useViewerStore } from '../../store/viewerStore'
 const details = {
   width: 1, height: 1, depth: 1, vertices: 3, meshes: 1,
   boundaryEdges: 6, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-  watertight: false, modelUnitInMm: null, overhangFaceCount: 0,
+  watertight: false, modelUnitInMm: null, overhangFaceCount: 0, thinWallFaceCount: 0,
 }
 
 beforeEach(() => {
@@ -40,7 +40,7 @@ describe('PreparePanel', () => {
       geometryDetails: {
         width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
         boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-        watertight: true, modelUnitInMm: 1, overhangFaceCount: 0,
+        watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
       },
     })
     render(<PreparePanel viewerRef={{ current: null }} />)
@@ -53,7 +53,7 @@ describe('PreparePanel', () => {
       geometryDetails: {
         width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
         boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-        watertight: true, modelUnitInMm: 1, overhangFaceCount: 0,
+        watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
       },
     })
     render(<PreparePanel viewerRef={{ current: null }} />)
@@ -65,7 +65,7 @@ describe('PreparePanel', () => {
       geometryDetails: {
         width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
         boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-        watertight: true, modelUnitInMm: 1, overhangFaceCount: 0,
+        watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
       },
     })
     render(<PreparePanel viewerRef={{ current: null }} />)
@@ -103,7 +103,7 @@ describe('PreparePanel undo history', () => {
   const details = {
     width: 1, height: 1, depth: 1, vertices: 3, meshes: 1,
     boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-    watertight: true, modelUnitInMm: null, overhangFaceCount: 0,
+    watertight: true, modelUnitInMm: null, overhangFaceCount: 0, thinWallFaceCount: 0,
   }
   beforeEach(() => {
     useViewerStore.setState({

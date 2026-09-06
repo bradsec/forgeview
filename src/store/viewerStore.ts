@@ -20,6 +20,8 @@ export interface GeometryDetails {
   watertight: boolean
   modelUnitInMm: number | null
   overhangFaceCount: number
+  /** null until the size-gated wall-thickness pass has run. */
+  thinWallFaceCount: number | null
 }
 
 export interface LoadedModel {
@@ -141,6 +143,14 @@ interface ViewerState {
   setOverhangMode: (on: boolean) => void
   setOverhangThresholdDeg: (deg: number) => void
   setOverhangOverlayStatus: (status: { meshCount: number; skippedMeshes: number } | null) => void
+  wallThicknessMode: boolean
+  minWallThicknessMm: number
+  wallThicknessOverlayStatus: { meshCount: number; skippedMeshes: number; unsampledFaces: number } | null
+  setWallThicknessMode: (on: boolean) => void
+  setMinWallThicknessMm: (mm: number) => void
+  setWallThicknessOverlayStatus: (
+    status: { meshCount: number; skippedMeshes: number; unsampledFaces: number } | null
+  ) => void
   buildVolumeMm: { x: number; y: number; z: number }
   splitParts: SplitPart[]
   setSplitParts: (parts: SplitPart[]) => void
@@ -249,6 +259,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   overhangMode: false,
   overhangThresholdDeg: 45,
   overhangOverlayStatus: null,
+  wallThicknessMode: false,
+  minWallThicknessMm: 1.0,
+  wallThicknessOverlayStatus: null,
   buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM },
   splitParts: [],
   setSplitParts: (parts) => set({ splitParts: parts }),
@@ -270,6 +283,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setOverhangMode: (on) => set({ overhangMode: on }),
   setOverhangThresholdDeg: (deg) => set({ overhangThresholdDeg: deg }),
   setOverhangOverlayStatus: (status) => set({ overhangOverlayStatus: status }),
+  setWallThicknessMode: (on) => set({ wallThicknessMode: on }),
+  setMinWallThicknessMm: (mm) => set({ minWallThicknessMm: mm }),
+  setWallThicknessOverlayStatus: (status) => set({ wallThicknessOverlayStatus: status }),
   setBuildVolumeMm: (v) => set({ buildVolumeMm: v }),
   resetBuildVolumeMm: () => set({ buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM } }),
   notice: null,
@@ -290,9 +306,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setHelpOpen: (open) => set({ helpOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, wallThicknessMode: false, wallThicknessOverlayStatus: null, splitParts: [], exportTargetId: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, wallThicknessMode: false, wallThicknessOverlayStatus: null, splitParts: [], exportTargetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),

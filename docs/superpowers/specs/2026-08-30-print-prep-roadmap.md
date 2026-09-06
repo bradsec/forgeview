@@ -251,7 +251,7 @@ SP-4 (analysis heatmaps) is split into three cycles:
 | # | Piece | Depends on | Status |
 |---|-------|-----------|--------|
 | SP-4a | Overhang heatmap | — | SHIPPED, branch `worktree-sp4a-overhang-heatmap`, commits e641eb7..3a3c6f8. `src/services/overhangAnalysis.ts`, `overhangOverlay.ts`, `AnalysisSection.tsx`, `GeometryDetails` gains `overhangFaceCount`, `prepChecks` wired for Overhangs readiness row, `exporters.ts` excludes overlay tag, `Viewer3D.tsx` computes live count and owns overlay lifecycle. Spec: `2026-09-05-sp4a-overhang-heatmap-design.md`; plan: `../plans/2026-09-05-sp4a-overhang-heatmap.md`. |
-| SP-4b | Wall-thickness heatmap | — | Not started. Interior ray/SDF sample, colour faces below threshold in mm, report min + thin-region count. |
+| SP-4b | Wall-thickness heatmap | — | SHIPPED, branch `worktree-sp4b-wall-thickness`, commits 4df392e..3af3b0a. `src/services/wallThickness.ts`, `wallThicknessOverlay.ts`, `three-mesh-bvh` 0.9.14 npm dep, `GeometryDetails` gains `thinWallFaceCount`, `prepChecks` wired for Thin walls readiness row, `exporters.ts` excludes overlay tag, `Viewer3D.tsx` computes live count (index-aware 250k size gate) and owns overlay lifecycle, `AnalysisSection.tsx` second tool, `HelpModal.tsx` entry. Final review fix wave 3af3b0a: sync sibling-heatmap teardown at the top of each `rebuild*Overlay` (cross-heatmap switch no longer builds an empty overlay), index-aware triangle count in the size gate, wall-thickness not-eligible note. Spec: `2026-09-06-sp4b-wall-thickness-heatmap-design.md`; plan: `../plans/2026-09-06-sp4b-wall-thickness-heatmap.md`. |
 | SP-4c | X-ray / clipping | — | Not started. Inspect interiors, verify Make solid / hollow results. |
 
 ## SP-H: in-app feature help (cross-cutting)

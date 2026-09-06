@@ -77,6 +77,14 @@ export function prepChecks(
           ? { ...row, state: 'pass' as const, detail: '0 overhang faces' }
           : { ...row, state: 'warn' as const, detail: `${count} overhang face${count === 1 ? '' : 's'}` }
       }
+      if (row.id === 'thickness') {
+        const count = details.thinWallFaceCount
+        return count === null
+          ? { ...row, state: 'unavailable' as const, detail: 'Too large to analyse' }
+          : count === 0
+            ? { ...row, state: 'pass' as const, detail: '0 thin-wall faces' }
+            : { ...row, state: 'warn' as const, detail: `${count} thin-wall face${count === 1 ? '' : 's'}` }
+      }
       return { ...row, state: 'unavailable' as const, detail: 'Available in a later update' }
     }),
   ]
