@@ -257,7 +257,7 @@ SP-4 (analysis heatmaps) is split into three cycles:
 ## SP-H: in-app feature help (cross-cutting)
 
 SP-H (in-app feature help): SHIPPED, branch `worktree-sph-in-app-help`, commits
-`fb4c1f8..da1012a`. `HelpModal.tsx` + `helpOpen` store flag + Help-menu entry.
+`fb4c1f8..c7984fd` (through this docs commit). `HelpModal.tsx` + `helpOpen` store flag + Help-menu entry.
 Spec: `2026-09-06-sph-in-app-help-design.md`; plan: `../plans/2026-09-06-sph-in-app-help.md`.
 
 ## Sources

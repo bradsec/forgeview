@@ -4,7 +4,7 @@ import { useViewerStore } from '../store/viewerStore'
 const HELP_SECTIONS: { title: string; body: string }[] = [
   {
     title: 'Readiness checks',
-    body: 'The card at the top of the Prepare panel runs each check against the open model and shows pass, warn, or needs-fix. Rows with a Fix button open the tool that resolves them.',
+    body: 'The card at the top of the Prepare panel runs each check against the open model and shows OK, Check, or Fix needed. Rows marked Fix needed have a Fix button that opens the tool that resolves them.',
   },
   {
     title: 'Repair',
