@@ -33,6 +33,8 @@ import { fromMm, formatLength } from '../services/unitConversion'
 import { isFactorInBounds } from '../services/scaleMath'
 import { computeOverhangFaceMask } from '../services/overhangAnalysis'
 import { buildOverhangOverlay, disposeOverhangOverlay } from '../services/overhangOverlay'
+import { computeWallThicknessMask, WALL_THICKNESS_MAX_TRIANGLES } from '../services/wallThickness'
+import { buildWallThicknessOverlay, disposeWallThicknessOverlay } from '../services/wallThicknessOverlay'
 
 export interface RepairRunResult {
   label: string
@@ -253,8 +255,31 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     const modelUnitInMm = unitScales.length === roots.length && unitScales.every((value) => value === unitScales[0])
       ? unitScales[0]
       : null
+    // Live thin-wall face count, size gated. The per face inward raycast in
+    // computeWallThicknessMask is O(faces log faces) per mesh, so above
+    // WALL_THICKNESS_MAX_TRIANGLES it is left null and the heatmap panel shows
+    // the model as too large to sample live.
+    const minWallMm = useViewerStore.getState().minWallThicknessMm
+    const unitForWall = modelUnitInMm ?? 1
+    let totalTris = 0
+    for (const mesh of meshes) {
+      const pa = (mesh.geometry as THREE.BufferGeometry).getAttribute('position') as THREE.BufferAttribute
+      totalTris += Math.floor(pa.count / 3)
+    }
+    let thinWallFaceCount: number | null = null
+    if (totalTris <= WALL_THICKNESS_MAX_TRIANGLES) {
+      thinWallFaceCount = 0
+      for (const mesh of meshes) {
+        mesh.updateWorldMatrix(true, false)
+        const g = mesh.geometry as THREE.BufferGeometry
+        const wg = g.index ? g.toNonIndexed() : g.clone()
+        wg.applyMatrix4(mesh.matrixWorld)
+        thinWallFaceCount += computeWallThicknessMask(wg, minWallMm, unitForWall).thinCount
+        wg.dispose()
+      }
+    }
     useViewerStore.getState().setGeometryDetails({
-      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, overhangFaceCount, thinWallFaceCount: null, ...health,
+      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, overhangFaceCount, thinWallFaceCount, ...health,
     })
   }
   /**
@@ -427,6 +452,34 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
     overhangOverlayRef.current = null
     useViewerStore.getState().setOverhangOverlayStatus(null)
+    invalidate()
+  }
+
+  const wallThicknessOverlayRef = useRef<{ group: THREE.Group; hiddenMeshes: THREE.Mesh[] } | null>(null)
+
+  const rebuildWallThicknessOverlay = () => {
+    const scene = sceneRef.current
+    if (!scene) return
+    teardownWallThicknessOverlay()
+    const meshes = withGeometry(modelMeshes())
+    const minWallMm = useViewerStore.getState().minWallThicknessMm
+    const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
+    const { group, hiddenMeshes, meshCount, skippedMeshes, unsampledFaces } =
+      buildWallThicknessOverlay(meshes, minWallMm, unit, isRepairable)
+    scene.add(group)
+    wallThicknessOverlayRef.current = { group, hiddenMeshes }
+    useViewerStore.getState().setWallThicknessOverlayStatus({ meshCount, skippedMeshes, unsampledFaces })
+    invalidate()
+  }
+
+  const teardownWallThicknessOverlay = () => {
+    const cur = wallThicknessOverlayRef.current
+    if (cur) {
+      disposeWallThicknessOverlay(cur.group)
+      for (const m of cur.hiddenMeshes) m.visible = true
+    }
+    wallThicknessOverlayRef.current = null
+    useViewerStore.getState().setWallThicknessOverlayStatus(null)
     invalidate()
   }
 
@@ -1911,10 +1964,16 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // disarm. (No interlock with measure: it raycasts the hidden originals at
   // identical world positions and reads correctly.)
   useEffect(() => {
-    if (overhangMode) useViewerStore.getState().setHoleFillMode(false)
+    if (overhangMode) {
+      useViewerStore.getState().setHoleFillMode(false)
+      useViewerStore.getState().setWallThicknessMode(false)
+    }
   }, [overhangMode])
   useEffect(() => {
-    if (holeFillMode) useViewerStore.getState().setOverhangMode(false)
+    if (holeFillMode) {
+      useViewerStore.getState().setOverhangMode(false)
+      useViewerStore.getState().setWallThicknessMode(false)
+    }
   }, [holeFillMode])
 
   useEffect(() => {
@@ -1941,6 +2000,47 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     updateGeometryDetails()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overhangThresholdDeg])
+
+  // Effect 10h..10j: three-way mutual exclusion. Only one of the overhang
+  // heatmap, the wall-thickness heatmap, and hole-fill may be armed at once -
+  // each hides the model's originals and/or attaches a canvas listener, so two
+  // armed at once produce a stale overlay or a hidden-geometry edit. Each
+  // effect keys only on the flag turning on, mirroring Effect 10d/10e, so it
+  // only ever disarms and converges without a render loop. The additive
+  // setWallThicknessMode(false) calls in the overhang and hole-fill effects
+  // above cover the other two directions.
+  const wallThicknessMode = useViewerStore((s) => s.wallThicknessMode)
+  const minWallThicknessMm = useViewerStore((s) => s.minWallThicknessMm)
+  useEffect(() => {
+    if (wallThicknessMode) {
+      useViewerStore.getState().setOverhangMode(false)
+      useViewerStore.getState().setHoleFillMode(false)
+    }
+  }, [wallThicknessMode])
+
+  // Effect 15: Wall-thickness heatmap — build/rebuild while armed. No pointer
+  // wiring (read-only view).
+  useEffect(() => {
+    if (!wallThicknessMode) return
+    const scene = sceneRef.current
+    if (!scene) return
+    rebuildWallThicknessOverlay()
+    return () => {
+      teardownWallThicknessOverlay()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallThicknessMode, minWallThicknessMm, rendererGen])
+
+  // Effect 16: Auto-disarm the wall-thickness heatmap when the Repair dialog opens.
+  useEffect(() => {
+    if (repairDialogOpen && wallThicknessMode) useViewerStore.getState().setWallThicknessMode(false)
+  }, [repairDialogOpen, wallThicknessMode])
+
+  // Effect 17: Recompute the live thin-wall count when the minimum changes.
+  useEffect(() => {
+    updateGeometryDetails()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minWallThicknessMm])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
