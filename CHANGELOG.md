@@ -32,6 +32,10 @@
   than a configurable minimum (default 1.0 mm) using an inward ray per
   face; the Thin walls readiness row is now live. Large models are
   skipped for speed.
+- Prepare panel: X-ray and clip plane (SP-4c). X-ray makes the model
+  translucent; the clip plane hides one side of an adjustable X, Y, or Z
+  cut for a live cross-section. Both are mutually exclusive with the
+  overhang and wall-thickness heatmaps and hole-fill.
 
 ## 1.7.2 - 2026-08-29
 
