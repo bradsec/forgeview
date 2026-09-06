@@ -38,6 +38,10 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     title: 'X-ray and clip plane',
     body: 'X-ray makes the model translucent so you can see interior walls and trapped voids. The clip plane hides everything on one side of an adjustable X, Y, or Z cut, showing a live cross-section. Use both to check what Make solid or hollow produced. They turn off automatically when a heatmap or hole-fill is armed.',
   },
+  {
+    title: 'Build volume',
+    body: 'Show build volume draws your configured printer volume as a wireframe box on the plate, centred on the origin with its base at Z zero. It is a fixed reference and does not move or scale the model. Set the size with the Scale to build volume fields, then use Center on plate and Drop to floor to bring the model onto it. The On plate readiness row reports whether it fits.',
+  },
 ]
 
 export function HelpModal() {
