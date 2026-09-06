@@ -2018,7 +2018,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
   }, [wallThicknessMode])
 
-  // Effect 15: Wall-thickness heatmap — build/rebuild while armed. No pointer
+  // Effect 15: Wall-thickness heatmap, build/rebuild while armed. No pointer
   // wiring (read-only view).
   useEffect(() => {
     if (!wallThicknessMode) return
