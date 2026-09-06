@@ -21,6 +21,11 @@ one starts.
   plain TS.
 - Ship one sub-project at a time, each fully tested and released on the
   existing v1.x cadence.
+- Every sub-project from SP-4b onward ships in the same cycle: code + unit tests
+  + a passing e2e; an appended `HELP_SECTIONS` entry in
+  `src/components/HelpModal.tsx` (the Help > Feature guide modal); and updates to
+  README, CHANGELOG, and this roadmap's SP decomposition table. A feature is not
+  done until its in-app help and docs match it.
 
 ## Current state (v1.7.2)
 
@@ -248,6 +253,12 @@ SP-4 (analysis heatmaps) is split into three cycles:
 | SP-4a | Overhang heatmap | — | SHIPPED, branch `worktree-sp4a-overhang-heatmap`, commits e641eb7..3a3c6f8. `src/services/overhangAnalysis.ts`, `overhangOverlay.ts`, `AnalysisSection.tsx`, `GeometryDetails` gains `overhangFaceCount`, `prepChecks` wired for Overhangs readiness row, `exporters.ts` excludes overlay tag, `Viewer3D.tsx` computes live count and owns overlay lifecycle. Spec: `2026-09-05-sp4a-overhang-heatmap-design.md`; plan: `../plans/2026-09-05-sp4a-overhang-heatmap.md`. |
 | SP-4b | Wall-thickness heatmap | — | Not started. Interior ray/SDF sample, colour faces below threshold in mm, report min + thin-region count. |
 | SP-4c | X-ray / clipping | — | Not started. Inspect interiors, verify Make solid / hollow results. |
+
+## SP-H: in-app feature help (cross-cutting)
+
+SP-H (in-app feature help): SHIPPED, branch `worktree-sph-in-app-help`, commits
+`fb4c1f8..da1012a`. `HelpModal.tsx` + `helpOpen` store flag + Help-menu entry.
+Spec: `2026-09-06-sph-in-app-help-design.md`; plan: `../plans/2026-09-06-sph-in-app-help.md`.
 
 ## Sources
 

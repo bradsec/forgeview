@@ -25,6 +25,9 @@
   Readiness score card includes the Overhangs row (SP-4a). The heatmap overlay
   does not live-update while you move, rotate, scale, or split the model, toggle
   it off and on to refresh.
+- Help menu: a Feature guide modal summarising every Prepare-panel tool
+  (readiness checks, Repair, Split, Measure, Scale, Transform, Overhang
+  heatmap). Each new feature adds its own entry.
 
 ## 1.7.2 - 2026-08-29
 

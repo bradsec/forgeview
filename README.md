@@ -32,6 +32,7 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation
 - In-app format help, About information, and repository/version status footer
+- Help > Feature guide: an in-app summary of every Prepare-panel tool
 - Orbit, pan, zoom controls plus a view cube and keyboard-accessible standard view snaps
 - Solid, wireframe, and points view modes
 - Perspective and orthographic projection
