@@ -1021,6 +1021,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         throw new Error('Nothing to split: the model is a single connected shell')
       }
 
+      // Restore any X-ray / clip material state before it is cloned into the
+      // part materials, then disarm the store flags. The lifecycle effect
+      // cleanup is deferred past this handler, so the teardown must run here.
+      teardownXray()
+      teardownClip()
+
       mesh.updateWorldMatrix(true, false)
       const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3()
       mesh.matrixWorld.decompose(pos, quat, scl)
@@ -1071,6 +1077,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         },
         discard: () => { disposeModel(original, scene) },
       })
+
+      useViewerStore.getState().setXrayMode(false)
+      useViewerStore.getState().setClipMode(false)
 
       for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
       updateTriangleDetails()
@@ -2206,7 +2215,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   }, [clipMode])
 
   // Effect 20: the Repair dialog swaps geometry and materials, so the X-ray
-  // restore list would dangle. Disarm on open. (Clip is added here in Task 3.)
+  // restore list would dangle. Disarm on open.
   useEffect(() => {
     if (repairDialogOpen && xrayMode) useViewerStore.getState().setXrayMode(false)
     if (repairDialogOpen && clipMode) useViewerStore.getState().setClipMode(false)

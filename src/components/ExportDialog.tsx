@@ -89,6 +89,13 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
       root = viewerRef.current?.getScene()
       if (!root) { store.setError('Export needs an open 3D view'); return }
     }
+    // X-ray writes transparent/opacity onto the live materials and GLTFExporter
+    // serializes those (alphaMode BLEND), so a GLB exported while X-ray is armed
+    // is translucent everywhere. Disarm the inspect aids for the duration of the
+    // export and re-arm in finally. STL/OBJ/PLY/3MF are geometry-only and the
+    // clip plane is never serialized, but disarming both keeps this simple.
+    const wasXray = store.xrayMode
+    const wasClip = store.clipMode
     setBusy(true)
     store.setError(null)
     let meshes: import('three').Mesh[] = []
@@ -98,6 +105,13 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
       setPhase('Collecting scene meshes')
       await nextPaint()
       const { collectExportMeshes, exportMeshes } = await import('../services/exporters')
+      if (wasXray || wasClip) {
+        store.setXrayMode(false)
+        store.setClipMode(false)
+        // Double-rAF: let React flush the X-ray / clip lifecycle-effect
+        // cleanups so the live materials are restored before they are collected.
+        await nextPaint()
+      }
       meshes = collectExportMeshes(root)
       setPhase(`Serializing ${format} data`)
       await nextPaint()
@@ -118,6 +132,8 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
         const { disposeExportMeshes } = await import('../services/exporters')
         disposeExportMeshes(meshes)
       }
+      if (wasXray) store.setXrayMode(true)
+      if (wasClip) store.setClipMode(true)
       setBusy(false)
       setPhase(null)
     }

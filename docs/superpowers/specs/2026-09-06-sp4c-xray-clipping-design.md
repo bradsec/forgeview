@@ -32,9 +32,12 @@ adds scene objects, neither writes to exported files.
   preferences (same choice as `minWallThicknessMm` in SP-4b).
 - An X-ray edge-highlight / Fresnel shader. Plain `transparent` + lowered
   `opacity` is enough to see through.
-- Stripping X-ray opacity from exported mesh formats. STL (the primary
-  format) carries no material; OBJ / 3MF / glTF read geometry only through
-  `collectExportMeshes`, so the exported file is unaffected regardless.
+- Stripping X-ray opacity from exported mesh formats. STL / OBJ / PLY / 3MF
+  carry geometry only through `collectExportMeshes`, so those exports are
+  unaffected regardless. GLB / glTF is the one exception (GLTFExporter writes
+  `opacity` + `alphaMode` BLEND): `ExportDialog.runExport` disarms X-ray for
+  the duration of an export and re-arms it afterward, so no format-specific
+  opacity stripping is needed.
 
 ## Architecture
 

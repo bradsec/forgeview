@@ -19,6 +19,31 @@ function cubeStl(): string {
   return out + 'endsolid cube\n'
 }
 
+/** ASCII STL of two axis-aligned 10mm cubes, the second offset +30 on X:
+ *  one solid, two disconnected shells, so Split by shell yields two parts. */
+function twoCubesStl(): string {
+  const cube = (ox: number) => {
+    const s = 10
+    const v = [
+      [ox, 0, 0], [ox + s, 0, 0], [ox + s, s, 0], [ox, s, 0],
+      [ox, 0, s], [ox + s, 0, s], [ox + s, s, s], [ox, s, s],
+    ]
+    const tris = [
+      [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+      [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+      [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4],
+    ]
+    let out = ''
+    for (const [a, b, c] of tris) {
+      out += 'facet normal 0 0 0\nouter loop\n'
+      for (const i of [a, b, c]) out += `vertex ${v[i][0]} ${v[i][1]} ${v[i][2]}\n`
+      out += 'endloop\nendfacet\n'
+    }
+    return out
+  }
+  return `solid two\n${cube(0)}${cube(30)}endsolid two\n`
+}
+
 async function dropStl(page: Page, stl: string, name: string): Promise<void> {
   await page.goto('/')
   await page.evaluate(
@@ -89,5 +114,29 @@ test.describe('X-ray and clip plane', () => {
     await dialog.getByRole('button', { name: 'Export', exact: true }).click()
     const download = await downloadPromise
     expect(download.suggestedFilename()).toBe('cube.stl')
+
+    // I2: the export disarms X-ray around collectExportMeshes and re-arms it in
+    // finally, so the toggle is back to "Hide X-ray" once the download resolves.
+    await expect(page.getByRole('button', { name: 'Hide X-ray' }).filter({ visible: true })).toBeVisible()
+  })
+
+  test('split by shell auto-disarms an armed x-ray', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Inspect flow verified on desktop')
+    test.setTimeout(120_000)
+
+    await dropStl(page, twoCubesStl(), 'two.stl')
+    await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+
+    await page.getByRole('button', { name: 'Show X-ray' }).filter({ visible: true }).click()
+    await expect(page.getByRole('button', { name: 'Hide X-ray' }).filter({ visible: true })).toBeVisible()
+
+    const splitBtn = page.getByRole('button', { name: 'Split by shell', exact: true }).filter({ visible: true })
+    await expect(splitBtn).toBeEnabled()
+    await splitBtn.click()
+
+    await expect(page.getByTestId('split-parts').filter({ visible: true }).getByRole('listitem')).toHaveCount(2)
+    // C1: the split restores and disarms X-ray before cloning the part
+    // materials, so the toggle is back to "Show X-ray".
+    await expect(page.getByRole('button', { name: 'Show X-ray' }).filter({ visible: true })).toBeVisible()
   })
 })
