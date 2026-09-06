@@ -186,6 +186,20 @@ describe('collectExportMeshes', () => {
 
     expect(collectExportMeshes(scene)).toHaveLength(0)
   })
+
+  it('skips meshes in groups tagged with userData.buildVolumeOverlay', () => {
+    const scene = new THREE.Scene()
+    const overlayGroup = new THREE.Group()
+    overlayGroup.userData.buildVolumeOverlay = true
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial()
+    )
+    overlayGroup.add(mesh)
+    scene.add(overlayGroup)
+
+    expect(collectExportMeshes(scene)).toHaveLength(0)
+  })
 })
 
 describe('exportSTL', () => {
