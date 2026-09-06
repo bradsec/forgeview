@@ -54,3 +54,33 @@ describe('ScaleSection', () => {
     expect(useViewerStore.getState().buildVolumeMm).toEqual({ x: 220, y: 220, z: 250 })
   })
 })
+
+describe('ScaleSection - build volume box toggle', () => {
+  beforeEach(() =>
+    useViewerStore.setState({
+      geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,
+      buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM }, showBuildVolume: false,
+    }),
+  )
+
+  it('toggles showBuildVolume from the button', async () => {
+    render(<ScaleSection viewerRef={{ current: null }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Show build volume' }))
+    expect(useViewerStore.getState().showBuildVolume).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Hide build volume' }))
+    expect(useViewerStore.getState().showBuildVolume).toBe(false)
+  })
+
+  it('reflects the current store state as aria-pressed', () => {
+    useViewerStore.setState({ showBuildVolume: true })
+    render(<ScaleSection viewerRef={{ current: null }} />)
+    const btn = screen.getByRole('button', { name: 'Hide build volume' })
+    expect(btn.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('shows the toggle with no model open', () => {
+    useViewerStore.setState({ geometryDetails: null })
+    render(<ScaleSection viewerRef={{ current: null }} />)
+    expect(screen.getByRole('button', { name: 'Show build volume' })).toBeTruthy()
+  })
+})
