@@ -36,6 +36,10 @@
   translucent; the clip plane hides one side of an adjustable X, Y, or Z
   cut for a live cross-section. Both are mutually exclusive with the
   overhang and wall-thickness heatmaps and hole-fill.
+- Prepare panel: build-volume box (SP-5a). Show build volume draws the
+  configured printer volume as a wireframe box on the plate. It is a fixed
+  reference and does not move or scale the model; the On plate readiness
+  row reports fit.
 
 ## 1.7.2 - 2026-08-29
 
