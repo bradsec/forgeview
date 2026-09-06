@@ -7,7 +7,7 @@ import { useViewerStore } from '../../store/viewerStore'
 const details = (over: Partial<ReturnType<typeof useViewerStore.getState>['geometryDetails'] & object> = {}) => ({
   width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
   boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
-  watertight: false, modelUnitInMm: null, overhangFaceCount: 0, ...over,
+  watertight: false, modelUnitInMm: null, overhangFaceCount: 0, thinWallFaceCount: 0, ...over,
 })
 
 describe('UnitPrompt', () => {

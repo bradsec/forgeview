@@ -297,7 +297,7 @@ describe('rightPanelTab', () => {
     useViewerStore.getState().setGeometryDetails({
       width: 1, height: 1, depth: 1, vertices: 3, meshes: 1,
       boundaryEdges: 3, nonManifoldEdges: 0, degenerateFaces: 2, duplicateFaces: 1,
-      watertight: false, modelUnitInMm: null, overhangFaceCount: 0,
+      watertight: false, modelUnitInMm: null, overhangFaceCount: 0, thinWallFaceCount: 0,
     })
     const details = useViewerStore.getState().geometryDetails
     expect(details?.degenerateFaces).toBe(2)
@@ -525,5 +525,37 @@ describe('help modal state', () => {
     useViewerStore.getState().setHelpOpen(true)
     useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
     expect(useViewerStore.getState().helpOpen).toBe(true)
+  })
+})
+
+describe('wall thickness heatmap state', () => {
+  beforeEach(() =>
+    useViewerStore.setState({ wallThicknessMode: false, minWallThicknessMm: 1.0, wallThicknessOverlayStatus: null }),
+  )
+
+  it('defaults', () => {
+    const s = useViewerStore.getState()
+    expect(s.wallThicknessMode).toBe(false)
+    expect(s.minWallThicknessMm).toBe(1.0)
+    expect(s.wallThicknessOverlayStatus).toBeNull()
+  })
+
+  it('set actions', () => {
+    useViewerStore.getState().setWallThicknessMode(true)
+    expect(useViewerStore.getState().wallThicknessMode).toBe(true)
+    useViewerStore.getState().setMinWallThicknessMm(0.6)
+    expect(useViewerStore.getState().minWallThicknessMm).toBe(0.6)
+    useViewerStore.getState().setWallThicknessOverlayStatus({ meshCount: 1, skippedMeshes: 0, unsampledFaces: 3 })
+    expect(useViewerStore.getState().wallThicknessOverlayStatus).toEqual({ meshCount: 1, skippedMeshes: 0, unsampledFaces: 3 })
+  })
+
+  it('setFile clears wallThicknessMode and status but not the threshold', () => {
+    useViewerStore.getState().setWallThicknessMode(true)
+    useViewerStore.getState().setWallThicknessOverlayStatus({ meshCount: 1, skippedMeshes: 0, unsampledFaces: 0 })
+    useViewerStore.getState().setMinWallThicknessMm(0.4)
+    useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
+    expect(useViewerStore.getState().wallThicknessMode).toBe(false)
+    expect(useViewerStore.getState().wallThicknessOverlayStatus).toBeNull()
+    expect(useViewerStore.getState().minWallThicknessMm).toBe(0.4)
   })
 })

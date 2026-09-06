@@ -254,7 +254,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       ? unitScales[0]
       : null
     useViewerStore.getState().setGeometryDetails({
-      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, overhangFaceCount, ...health,
+      width: size.x, height: size.y, depth: size.z, meshes: meshes.length, modelUnitInMm, overhangFaceCount, thinWallFaceCount: null, ...health,
     })
   }
   /**

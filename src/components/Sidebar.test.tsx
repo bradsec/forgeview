@@ -30,7 +30,7 @@ describe('Sidebar geometry details', () => {
   const details = {
     width: 1, height: 1, depth: 1, meshes: 1, modelUnitInMm: null,
     vertices: 10, boundaryEdges: 9, nonManifoldEdges: 2, degenerateFaces: 0, duplicateFaces: 0, watertight: false,
-    overhangFaceCount: 0,
+    overhangFaceCount: 0, thinWallFaceCount: 0,
   }
 
   beforeEach(() => {
