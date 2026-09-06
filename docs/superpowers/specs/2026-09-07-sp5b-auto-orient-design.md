@@ -84,16 +84,24 @@ export function computeBestOrientation(
    The first entry is the current orientation, so its cost is the baseline.
 4. For each candidate down-vector `d` (unit):
    - `cosThreshold = Math.cos(thresholdDeg * Math.PI / 180)`.
-   - Single face loop:
-     - `nd = nx*d.x + ny*d.y + nz*d.z`. The face points "down" relative to
-       `d` when `nd > cosThreshold` (normal within `thresholdDeg` of `d`).
-       Add its area to `overhangArea` when so.
-     - Track `minH` / `maxH` over the 3 vertices as `dot(vertex, d_up)` where
-       `d_up = -d` (height along the build axis). `height = maxH - minH`.
-     - Bed contact: a face whose 3 vertices are all within `contactEps` of
-       `minH` (measured along `d_up`) and with `nd > 0.985` (facing almost
-       straight down) - add its area to `contactArea`. `contactEps =
-       max(height * 1e-3, 1e-4)`.
+   - First a vertex pass for the height extent: `minH` / `maxH` over every
+     vertex as `dot(vertex, d_up)` where `d_up = -d`. `height = maxH - minH`;
+     `contactEps = max(height * 1e-3, 1e-4)`.
+   - Then a face loop:
+     - `nd = nx*d.x + ny*d.y + nz*d.z`.
+     - Bed contact: a face is resting on the plate for this candidate when
+       `nd > 0.985` (facing almost straight down) AND all 3 vertices are
+       within `contactEps` of `minH` along `d_up`. Add its area to
+       `contactArea`.
+     - Support-needing overhang: a face counts when `nd > cosThreshold`
+       (normal within `thresholdDeg` of `d`) AND it is NOT a bed-contact
+       face. Add its area to `overhangArea`. A face resting flat on the
+       plate points straight down but needs no support, so excluding the
+       contact set is what makes "rest it flat" the low-overhang answer
+       instead of "stand it on edge". This is deliberately a different
+       measure from the floor-inclusive count the Overhangs readiness row
+       shows; the number reported to the user is "overhang area needing
+       support".
    - `overhangFraction = totalArea > 0 ? overhangArea / totalArea : 0`.
    - `contactFraction = totalArea > 0 ? contactArea / totalArea : 0`.
    - `heightNorm = boundingDiag > 0 ? height / boundingDiag : 0` where
@@ -246,27 +254,33 @@ Append to `HELP_SECTIONS`, after "Build volume":
 
 ### e2e (`e2e/auto-orient.spec.ts`)
 
-Mirror `e2e/build-volume-box.spec.ts` conventions. Fixture: a thin plate
-tilted about 35 degrees from horizontal, so its whole underside is a
-downward-facing overhang at the default 45-degree... no: 35 from horizontal
-means the face normal is 35 from vertical, well inside a 45-degree
-threshold, so the underside counts as overhang. Auto-orient should rotate
-it flat, dropping the Overhangs row from a nonzero count to zero.
+Mirror `e2e/build-volume-box.spec.ts` conventions.
 
-Concretely, a two-triangle quad with vertices lifted on one edge:
-
-```
-(0,0,0) (10,7,0) (10,7,10) (0,0,10)   // tilted plate, ~35 deg
-```
+**Fixture:** a closed thin slab tilted about 35 degrees from horizontal.
+Its large underside is a support-needing overhang (tilted, not resting on
+the plate), so auto-orient rotates it flat. The Overhangs readiness row
+(floor-inclusive) will NOT reach zero for a closed solid resting on a face,
+so the e2e does not assert `pass`; it asserts the Transform note and an
+undo round-trip on the row's count.
 
 Scenario:
-1. Drop the tilted-plate STL, open Prepare.
-2. `check('overhangs')` has `data-state="warn"` (nonzero overhang faces).
+1. Drop the tilted-slab STL, open Prepare.
+2. `check('overhangs')` is present; capture its detail text (`N overhang face(s)`).
 3. Click "Auto-orient".
-4. `check('overhangs')` now `data-state="pass"` and contains "0 overhang faces".
-5. The Transform section shows a note matching `/Overhang area \d+% to \d+%/`.
-6. Undo (the app's undo control - read how other e2e specs trigger it, e.g.
-   `make-solid` or `transform-panel` specs) restores `data-state="warn"`.
+4. The Transform section shows a note matching `/Overhang area \d+% to \d+%/`,
+   and parsing it, `before >= after` (the search never rotates to a worse
+   orientation).
+5. `check('overhangs')` is still present with a `\d+ overhang face` detail
+   (the recompute did not crash or go unavailable), and its count differs
+   from step 2 (the model was reoriented and re-measured).
+6. Undo (read `e2e/transform-panel.spec.ts` for the real Undo control)
+   restores the step-2 count exactly.
+
+If the tilted slab happens to score `noop` (the search found nothing
+better), tilt it more or thin it so the underside dominates the area and a
+flat rest is clearly cheaper. The gate is: Auto-orient runs, returns an
+`applied` outcome with a sane before/after, and undo restores the prior
+state.
 
 ### Docs
 
