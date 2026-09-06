@@ -488,6 +488,41 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     invalidate()
   }
 
+  const xrayRef = useRef<
+    { mat: THREE.Material; transparent: boolean; opacity: number; depthWrite: boolean }[] | null
+  >(null)
+
+  const applyXray = () => {
+    teardownXray()
+    const seen = new Set<THREE.Material>()
+    const saved: { mat: THREE.Material; transparent: boolean; opacity: number; depthWrite: boolean }[] = []
+    for (const mesh of withGeometry(modelMeshes())) {
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      for (const mat of mats) {
+        if (!mat || seen.has(mat)) continue
+        seen.add(mat)
+        saved.push({ mat, transparent: mat.transparent, opacity: mat.opacity, depthWrite: mat.depthWrite })
+        mat.transparent = true
+        mat.opacity = 0.32
+        mat.depthWrite = false
+        mat.needsUpdate = true
+      }
+    }
+    xrayRef.current = saved
+    invalidate()
+  }
+
+  const teardownXray = () => {
+    for (const s of xrayRef.current ?? []) {
+      s.mat.transparent = s.transparent
+      s.mat.opacity = s.opacity
+      s.mat.depthWrite = s.depthWrite
+      s.mat.needsUpdate = true
+    }
+    xrayRef.current = null
+    invalidate()
+  }
+
   const applyLoopFill = (entry: OverlayEntry) => {
     const mesh = entry.mesh
     const before = withGeometry(modelMeshes())
@@ -1972,12 +2007,14 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (overhangMode) {
       useViewerStore.getState().setHoleFillMode(false)
       useViewerStore.getState().setWallThicknessMode(false)
+      useViewerStore.getState().setXrayMode(false)
     }
   }, [overhangMode])
   useEffect(() => {
     if (holeFillMode) {
       useViewerStore.getState().setOverhangMode(false)
       useViewerStore.getState().setWallThicknessMode(false)
+      useViewerStore.getState().setXrayMode(false)
     }
   }, [holeFillMode])
 
@@ -2016,10 +2053,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // above cover the other two directions.
   const wallThicknessMode = useViewerStore((s) => s.wallThicknessMode)
   const minWallThicknessMm = useViewerStore((s) => s.minWallThicknessMm)
+  const xrayMode = useViewerStore((s) => s.xrayMode)
   useEffect(() => {
     if (wallThicknessMode) {
       useViewerStore.getState().setOverhangMode(false)
       useViewerStore.getState().setHoleFillMode(false)
+      useViewerStore.getState().setXrayMode(false)
     }
   }, [wallThicknessMode])
 
@@ -2046,6 +2085,36 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     updateGeometryDetails()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minWallThicknessMm])
+
+  // Effect 18: X-ray - lower the model materials' opacity while armed, restore
+  // on disarm. Pure material state, no geometry or scene-object change.
+  useEffect(() => {
+    if (!xrayMode) return
+    applyXray()
+    return () => {
+      teardownXray()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xrayMode, rendererGen])
+
+  // Effect 19: X-ray and clip are mutually exclusive with the geometry-swapping
+  // modes (overhang heatmap, wall-thickness heatmap, hole-fill), which hide the
+  // originals - a translucent or clipped hidden mesh shows nothing. X-ray and
+  // clip may be on together. Each effect keys on one flag and only disarms, so
+  // the set converges in one pass with no combined dependency and no re-arm.
+  useEffect(() => {
+    if (xrayMode) {
+      useViewerStore.getState().setOverhangMode(false)
+      useViewerStore.getState().setWallThicknessMode(false)
+      useViewerStore.getState().setHoleFillMode(false)
+    }
+  }, [xrayMode])
+
+  // Effect 20: the Repair dialog swaps geometry and materials, so the X-ray
+  // restore list would dangle. Disarm on open. (Clip is added here in Task 3.)
+  useEffect(() => {
+    if (repairDialogOpen && xrayMode) useViewerStore.getState().setXrayMode(false)
+  }, [repairDialogOpen, xrayMode])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
