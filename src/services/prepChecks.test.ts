@@ -32,13 +32,12 @@ describe('prepChecks', () => {
     }
   })
 
-  it('keeps analysis rows unavailable even with a model', () => {
+  it('keeps onPlate unavailable without a build volume', () => {
     const byId = Object.fromEntries(prepChecks(clean).map((c) => [c.id, c]))
-    for (const id of ['thickness', 'onPlate']) {
-      expect(byId[id].state).toBe('unavailable')
-      expect(byId[id].detail).toBe('Available in a later update')
-      expect(byId[id].fixId).toBeUndefined()
-    }
+    const onPlate = byId['onPlate']
+    expect(onPlate.state).toBe('unavailable')
+    expect(onPlate.detail).toBe('Available in a later update')
+    expect(onPlate.fixId).toBeUndefined()
   })
 
   it('fails and offers seal for a leaky non-manifold model', () => {
@@ -144,5 +143,34 @@ describe('overhangs row', () => {
     const row = prepChecks({ ...base, overhangFaceCount: 3 }, true).find((r) => r.id === 'overhangs')!
     expect(row.state).toBe('warn')
     expect(row.detail).toBe('3 overhang faces')
+  })
+})
+
+describe('thin walls row', () => {
+  const base = {
+    width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
+    boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+    watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
+  }
+
+  it('unavailable when the count is null', () => {
+    const row = prepChecks({ ...base, thinWallFaceCount: null }).find((r) => r.id === 'thickness')!
+    expect(row.state).toBe('unavailable')
+    expect(row.detail).toBe('Too large to analyse')
+  })
+
+  it('passes at zero', () => {
+    const row = prepChecks(base).find((r) => r.id === 'thickness')!
+    expect(row.state).toBe('pass')
+    expect(row.detail).toBe('0 thin-wall faces')
+    expect(row.fixId).toBeUndefined()
+  })
+
+  it('warns (not fails) at a nonzero count, pluralised', () => {
+    const one = prepChecks({ ...base, thinWallFaceCount: 1 }).find((r) => r.id === 'thickness')!
+    expect(one.state).toBe('warn')
+    expect(one.detail).toBe('1 thin-wall face')
+    const many = prepChecks({ ...base, thinWallFaceCount: 4 }).find((r) => r.id === 'thickness')!
+    expect(many.detail).toBe('4 thin-wall faces')
   })
 })
