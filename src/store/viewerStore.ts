@@ -124,6 +124,7 @@ interface ViewerState {
   performancePreset: QualityPreset
   performanceOverrides: PerformanceOverrides
   settingsOpen: boolean
+  helpOpen: boolean
   exportOpen: boolean
   setExportOpen: (open: boolean) => void
   repairDialogOpen: boolean
@@ -170,6 +171,7 @@ interface ViewerState {
   ) => void
   resetPerformanceOverrides: () => void
   setSettingsOpen: (open: boolean) => void
+  setHelpOpen: (open: boolean) => void
   setExplorerVisible: (visible: boolean) => void
   setSidebarVisible: (visible: boolean) => void
   setActiveFile: (path: string | null) => void
@@ -233,6 +235,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   performancePreset: 'high' as QualityPreset,
   performanceOverrides: {} as PerformanceOverrides,
   settingsOpen: false,
+  helpOpen: false,
   exportOpen: false,
   setExportOpen: (open) => set({ exportOpen: open }),
   repairDialogOpen: false,
@@ -284,6 +287,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   resetPerformanceOverrides: () =>
     set({ performancePreset: 'high', performanceOverrides: {} }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setHelpOpen: (open) => set({ helpOpen: open }),
 
   setFile: (path, name, ext, size) =>
     set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, splitParts: [], exportTargetId: null }),

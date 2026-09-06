@@ -506,3 +506,24 @@ describe('overhang heatmap state', () => {
     expect(useViewerStore.getState().overhangMode).toBe(false)
   })
 })
+
+describe('help modal state', () => {
+  beforeEach(() => useViewerStore.setState({ helpOpen: false }))
+
+  it('defaults to closed', () => {
+    expect(useViewerStore.getState().helpOpen).toBe(false)
+  })
+
+  it('setHelpOpen toggles it', () => {
+    useViewerStore.getState().setHelpOpen(true)
+    expect(useViewerStore.getState().helpOpen).toBe(true)
+    useViewerStore.getState().setHelpOpen(false)
+    expect(useViewerStore.getState().helpOpen).toBe(false)
+  })
+
+  it('is not cleared by setFile', () => {
+    useViewerStore.getState().setHelpOpen(true)
+    useViewerStore.getState().setFile('/m.stl', 'm.stl', '.stl', 1)
+    expect(useViewerStore.getState().helpOpen).toBe(true)
+  })
+})
