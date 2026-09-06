@@ -523,6 +523,65 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     invalidate()
   }
 
+  const clipPlaneRef = useRef<{ plane: THREE.Plane; mats: THREE.Material[] } | null>(null)
+
+  const computeClipPlane = (): THREE.Plane | null => {
+    const roots = modelRoots()
+    if (roots.length === 0) return null
+    const box = new THREE.Box3()
+    for (const r of roots) {
+      r.updateWorldMatrix(true, true)
+      box.expandByObject(r)
+    }
+    if (box.isEmpty()) return null
+    const axis = useViewerStore.getState().clipAxis
+    const t = useViewerStore.getState().clipOffset
+    const flip = useViewerStore.getState().clipFlip
+    const cut = THREE.MathUtils.lerp(box.min[axis], box.max[axis], t)
+    // THREE.Plane keeps the half-space where normal.dot(p) + constant >= 0.
+    // normal = +axis, constant = -cut keeps p[axis] >= cut. flip negates both,
+    // which keeps p[axis] <= cut instead.
+    const normal = new THREE.Vector3(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0)
+    if (flip) normal.negate()
+    return new THREE.Plane(normal, flip ? cut : -cut)
+  }
+
+  const applyClip = () => {
+    const plane = computeClipPlane()
+    if (!plane) {
+      teardownClip()
+      return
+    }
+    const cur = clipPlaneRef.current
+    if (cur) {
+      cur.plane.copy(plane)
+    } else {
+      const mats: THREE.Material[] = []
+      const seen = new Set<THREE.Material>()
+      for (const mesh of withGeometry(modelMeshes())) {
+        const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+        for (const mat of list) {
+          if (!mat || seen.has(mat)) continue
+          seen.add(mat)
+          mat.clippingPlanes = [plane]
+          mat.clipShadows = true
+          mats.push(mat)
+        }
+      }
+      clipPlaneRef.current = { plane, mats }
+    }
+    invalidate()
+  }
+
+  const teardownClip = () => {
+    for (const mat of clipPlaneRef.current?.mats ?? []) {
+      mat.clippingPlanes = null
+      mat.clipShadows = false
+    }
+    clipPlaneRef.current = null
+    invalidate()
+  }
+
   const applyLoopFill = (entry: OverlayEntry) => {
     const mesh = entry.mesh
     const before = withGeometry(modelMeshes())
@@ -1077,6 +1136,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // Cap initial DPR — HiDPI 3x-4x quadruples fill cost; settings can raise it
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(container.clientWidth, container.clientHeight)
+    renderer.localClippingEnabled = true
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.2
     container.appendChild(renderer.domElement)
@@ -1593,6 +1653,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       }
       newRenderer.setPixelRatio(settings.pixelRatio)
       newRenderer.setSize(container.clientWidth, container.clientHeight)
+      newRenderer.localClippingEnabled = true
       newRenderer.toneMapping = settings.toneMapping
       newRenderer.toneMappingExposure = settings.toneMappingExposure
 
@@ -2008,6 +2069,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       useViewerStore.getState().setHoleFillMode(false)
       useViewerStore.getState().setWallThicknessMode(false)
       useViewerStore.getState().setXrayMode(false)
+      useViewerStore.getState().setClipMode(false)
     }
   }, [overhangMode])
   useEffect(() => {
@@ -2015,6 +2077,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       useViewerStore.getState().setOverhangMode(false)
       useViewerStore.getState().setWallThicknessMode(false)
       useViewerStore.getState().setXrayMode(false)
+      useViewerStore.getState().setClipMode(false)
     }
   }, [holeFillMode])
 
@@ -2054,11 +2117,16 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   const wallThicknessMode = useViewerStore((s) => s.wallThicknessMode)
   const minWallThicknessMm = useViewerStore((s) => s.minWallThicknessMm)
   const xrayMode = useViewerStore((s) => s.xrayMode)
+  const clipMode = useViewerStore((s) => s.clipMode)
+  const clipAxis = useViewerStore((s) => s.clipAxis)
+  const clipOffset = useViewerStore((s) => s.clipOffset)
+  const clipFlip = useViewerStore((s) => s.clipFlip)
   useEffect(() => {
     if (wallThicknessMode) {
       useViewerStore.getState().setOverhangMode(false)
       useViewerStore.getState().setHoleFillMode(false)
       useViewerStore.getState().setXrayMode(false)
+      useViewerStore.getState().setClipMode(false)
     }
   }, [wallThicknessMode])
 
@@ -2097,6 +2165,25 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xrayMode, rendererGen])
 
+  // Effect 21: Clip plane - assign an axis-aligned THREE.Plane to the model
+  // materials while armed, clear it on disarm.
+  useEffect(() => {
+    if (!clipMode) return
+    applyClip()
+    return () => {
+      teardownClip()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipMode, rendererGen])
+
+  // Effect 22: Recompute the plane in place when axis, position, or side
+  // changes. applyClip's reuse branch just moves the existing plane, so a
+  // slider drag is not a material-array churn.
+  useEffect(() => {
+    if (clipMode) applyClip()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipAxis, clipOffset, clipFlip])
+
   // Effect 19: X-ray and clip are mutually exclusive with the geometry-swapping
   // modes (overhang heatmap, wall-thickness heatmap, hole-fill), which hide the
   // originals - a translucent or clipped hidden mesh shows nothing. X-ray and
@@ -2110,11 +2197,20 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
   }, [xrayMode])
 
+  useEffect(() => {
+    if (clipMode) {
+      useViewerStore.getState().setOverhangMode(false)
+      useViewerStore.getState().setWallThicknessMode(false)
+      useViewerStore.getState().setHoleFillMode(false)
+    }
+  }, [clipMode])
+
   // Effect 20: the Repair dialog swaps geometry and materials, so the X-ray
   // restore list would dangle. Disarm on open. (Clip is added here in Task 3.)
   useEffect(() => {
     if (repairDialogOpen && xrayMode) useViewerStore.getState().setXrayMode(false)
-  }, [repairDialogOpen, xrayMode])
+    if (repairDialogOpen && clipMode) useViewerStore.getState().setClipMode(false)
+  }, [repairDialogOpen, xrayMode, clipMode])
 
   // Effect 11: Split-by-shell part visibility — sync store flags onto the live
   // part meshes. Keyed on the store array the SplitPanel toggles.
