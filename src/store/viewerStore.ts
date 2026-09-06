@@ -151,6 +151,16 @@ interface ViewerState {
   setWallThicknessOverlayStatus: (
     status: { meshCount: number; skippedMeshes: number; unsampledFaces: number } | null
   ) => void
+  xrayMode: boolean
+  clipMode: boolean
+  clipAxis: 'x' | 'y' | 'z'
+  clipOffset: number
+  clipFlip: boolean
+  setXrayMode: (on: boolean) => void
+  setClipMode: (on: boolean) => void
+  setClipAxis: (axis: 'x' | 'y' | 'z') => void
+  setClipOffset: (t: number) => void
+  setClipFlip: (on: boolean) => void
   buildVolumeMm: { x: number; y: number; z: number }
   splitParts: SplitPart[]
   setSplitParts: (parts: SplitPart[]) => void
@@ -262,6 +272,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
   wallThicknessMode: false,
   minWallThicknessMm: 1.0,
   wallThicknessOverlayStatus: null,
+  xrayMode: false,
+  clipMode: false,
+  clipAxis: 'y',
+  clipOffset: 0.5,
+  clipFlip: false,
   buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM },
   splitParts: [],
   setSplitParts: (parts) => set({ splitParts: parts }),
@@ -286,6 +301,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setWallThicknessMode: (on) => set({ wallThicknessMode: on }),
   setMinWallThicknessMm: (mm) => set({ minWallThicknessMm: mm }),
   setWallThicknessOverlayStatus: (status) => set({ wallThicknessOverlayStatus: status }),
+  setXrayMode: (on) => set({ xrayMode: on }),
+  setClipMode: (on) => set({ clipMode: on }),
+  setClipAxis: (axis) => set({ clipAxis: axis }),
+  setClipOffset: (t) => set({ clipOffset: t }),
+  setClipFlip: (on) => set({ clipFlip: on }),
   setBuildVolumeMm: (v) => set({ buildVolumeMm: v }),
   resetBuildVolumeMm: () => set({ buildVolumeMm: { ...DEFAULT_BUILD_VOLUME_MM } }),
   notice: null,
@@ -306,9 +326,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setHelpOpen: (open) => set({ helpOpen: open }),
 
   setFile: (path, name, ext, size) =>
-    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, wallThicknessMode: false, wallThicknessOverlayStatus: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: path, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: null, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, wallThicknessMode: false, wallThicknessOverlayStatus: null, xrayMode: false, clipMode: false, splitParts: [], exportTargetId: null }),
   setFileFromBuffer: (name, ext, size, buffer) =>
-    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, wallThicknessMode: false, wallThicknessOverlayStatus: null, splitParts: [], exportTargetId: null }),
+    set({ filePath: name, fileName: name, fileExtension: ext, fileSize: size, fileBuffer: buffer, error: null, mainView: '3d', viewMode: 'solid', triangleCount: null, geometryDetails: null, canUndoEdit: false, undoLabels: [], sealApplied: false, holeFillMode: false, holeFillStatus: null, measureMode: false, measureDistanceMm: null, overhangMode: false, overhangOverlayStatus: null, wallThicknessMode: false, wallThicknessOverlayStatus: null, xrayMode: false, clipMode: false, splitParts: [], exportTargetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLoading: (loading) => set({ isLoading: loading }),
   setProgressStatus: (status) => set({ progressStatus: status }),

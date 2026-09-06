@@ -31,6 +31,7 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - **Wall thickness heatmap**: analyse and highlight faces thinner than a configurable
   minimum (default 1.0 mm), using an inward ray per face. Adjustable threshold in
   the Prepare panel. Large models are skipped for speed.
+- **X-ray and clip plane**: make the model translucent to inspect interiors, and adjust an axis-aligned clipping plane to hide one side of an X, Y, or Z cut for a live cross-section. Both tools are mutually exclusive with the overhang and wall-thickness heatmaps and hole-fill.
 - Stage-by-stage progress feedback while reading and parsing large files and while serializing and saving exports
 - Details include vertices, mesh count, boundary edges, and non-manifold edges
 - Compact app menu, left Explorer, right tabbed Details / Prepare panel, and bottom camera navigation

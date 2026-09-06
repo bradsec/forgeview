@@ -15,6 +15,12 @@ export function AnalysisSection() {
   const [minWallStr, setMinWallStr] = useState(String(minWallThicknessMm))
   const tooLarge = hasModel && thinWallFaceCount === null
 
+  const xrayMode = useViewerStore((s) => s.xrayMode)
+  const clipMode = useViewerStore((s) => s.clipMode)
+  const clipAxis = useViewerStore((s) => s.clipAxis)
+  const clipOffset = useViewerStore((s) => s.clipOffset)
+  const clipFlip = useViewerStore((s) => s.clipFlip)
+
   const onThresholdChange = (raw: string) => {
     setThresholdStr(raw)
     const n = Number(raw)
@@ -33,7 +39,7 @@ export function AnalysisSection() {
         Analysis
       </h3>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
-        Highlight downward-facing overhangs and thin walls.
+        Highlight downward-facing overhangs and thin walls, or look inside with X-ray and a clip plane.
       </p>
       <div className="mt-3 flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -103,6 +109,81 @@ export function AnalysisSection() {
           <p className="text-xs text-[var(--text-muted)]">
             {wallThicknessOverlayStatus.skippedMeshes} mesh{wallThicknessOverlayStatus.skippedMeshes === 1 ? '' : 'es'} not eligible
           </p>
+        )}
+        <button
+          type="button"
+          disabled={!hasModel}
+          aria-pressed={xrayMode}
+          onClick={() => useViewerStore.getState().setXrayMode(!xrayMode)}
+          className={
+            'px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
+            (xrayMode ? 'bg-[var(--accent-button)] text-white' : 'bg-[var(--bg-button)]')
+          }
+        >
+          {xrayMode ? 'Hide X-ray' : 'Show X-ray'}
+        </button>
+        <button
+          type="button"
+          disabled={!hasModel}
+          aria-pressed={clipMode}
+          onClick={() => useViewerStore.getState().setClipMode(!clipMode)}
+          className={
+            'px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
+            (clipMode ? 'bg-[var(--accent-button)] text-white' : 'bg-[var(--bg-button)]')
+          }
+        >
+          {clipMode ? 'Hide clip plane' : 'Show clip plane'}
+        </button>
+        {clipMode && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Clip axis</span>
+              {(['x', 'y', 'z'] as const).map((ax) => (
+                <button
+                  key={ax}
+                  type="button"
+                  disabled={!hasModel}
+                  aria-pressed={clipAxis === ax}
+                  onClick={() => useViewerStore.getState().setClipAxis(ax)}
+                  className={
+                    'px-2 py-1 rounded text-sm disabled:opacity-50 ' +
+                    (clipAxis === ax ? 'bg-[var(--accent-button)] text-white' : 'bg-[var(--bg-button)]')
+                  }
+                >
+                  {ax.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Clip position</span>
+              <input
+                aria-label="Clip position"
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={clipOffset}
+                disabled={!hasModel}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  if (Number.isFinite(n)) useViewerStore.getState().setClipOffset(n)
+                }}
+                className="flex-1"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={!hasModel}
+              aria-pressed={clipFlip}
+              onClick={() => useViewerStore.getState().setClipFlip(!clipFlip)}
+              className={
+                'px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
+                (clipFlip ? 'bg-[var(--accent-button)] text-white' : 'bg-[var(--bg-button)]')
+              }
+            >
+              Flip side
+            </button>
+          </div>
         )}
       </div>
     </div>
