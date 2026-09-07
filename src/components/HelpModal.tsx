@@ -42,6 +42,10 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     title: 'Build volume',
     body: 'Show build volume draws your configured printer volume as a wireframe box on the plate, centred on the origin with its base on the plate. It is a fixed reference and does not move or scale the model. Set the size with the Scale to build volume fields, then use Center on plate and Drop to floor to bring the model onto it. The On build plate readiness row reports whether it fits.',
   },
+  {
+    title: 'Auto-orient',
+    body: 'Auto-orient tries many rest orientations and picks the one with the least downward-facing overhang area, breaking ties by a lower height and more bed contact. It rotates the model, drops it to the floor, and centres it on the plate as one undoable step, then reports the overhang-area change. Very large models are skipped for speed.',
+  },
 ]
 
 export function HelpModal() {
