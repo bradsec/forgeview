@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AnalysisSection } from './AnalysisSection'
@@ -18,21 +18,21 @@ describe('AnalysisSection', () => {
   )
 
   it('disables the toggle and threshold input without a model', () => {
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect((screen.getByRole('button', { name: 'Show overhang heatmap' }) as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByLabelText('Overhang angle') as HTMLInputElement).disabled).toBe(true)
   })
 
   it('toggles overhang mode', async () => {
     useViewerStore.setState({ geometryDetails: details })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Show overhang heatmap' }))
     expect(useViewerStore.getState().overhangMode).toBe(true)
   })
 
   it('updates the threshold on a valid value', async () => {
     useViewerStore.setState({ geometryDetails: details })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     const input = screen.getByLabelText('Overhang angle')
     await userEvent.clear(input)
     await userEvent.type(input, '30')
@@ -41,7 +41,7 @@ describe('AnalysisSection', () => {
 
   it('ignores an invalid (non-positive) threshold value', async () => {
     useViewerStore.setState({ geometryDetails: details })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     const input = screen.getByLabelText('Overhang angle')
     await userEvent.clear(input)
     await userEvent.type(input, '-5')
@@ -54,7 +54,7 @@ describe('AnalysisSection', () => {
       overhangMode: true,
       overhangOverlayStatus: { meshCount: 1, skippedMeshes: 2 },
     })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect(screen.getByText('2 meshes not eligible')).toBeTruthy()
   })
 })
@@ -74,13 +74,13 @@ describe('AnalysisSection - wall thickness', () => {
   )
 
   it('toggles wall thickness mode', async () => {
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Show wall thickness heatmap' }))
     expect(useViewerStore.getState().wallThicknessMode).toBe(true)
   })
 
   it('commits a valid min-wall value and rejects <= 0', async () => {
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     const input = screen.getByLabelText('Min wall')
     await userEvent.clear(input)
     await userEvent.type(input, '0.6')
@@ -92,7 +92,7 @@ describe('AnalysisSection - wall thickness', () => {
 
   it('disables the toggle and shows a note when the model is too large', () => {
     useViewerStore.setState({ geometryDetails: { ...details, thinWallFaceCount: null } })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect((screen.getByRole('button', { name: 'Show wall thickness heatmap' }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText('Model too large for wall-thickness analysis')).toBeTruthy()
   })
@@ -102,7 +102,7 @@ describe('AnalysisSection - wall thickness', () => {
       wallThicknessMode: true,
       wallThicknessOverlayStatus: { meshCount: 1, skippedMeshes: 0, unsampledFaces: 7 },
     })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect(screen.getByText('7 faces could not be sampled (open surface)')).toBeTruthy()
   })
 
@@ -112,7 +112,7 @@ describe('AnalysisSection - wall thickness', () => {
       wallThicknessMode: true,
       wallThicknessOverlayStatus: { meshCount: 1, skippedMeshes: 2, unsampledFaces: 0 },
     })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect(screen.getByText('2 meshes not eligible')).toBeTruthy()
   })
 })
@@ -133,13 +133,13 @@ describe('AnalysisSection - inspect (x-ray and clip)', () => {
   )
 
   it('toggles x-ray', async () => {
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'Show X-ray' }))
     expect(useViewerStore.getState().xrayMode).toBe(true)
   })
 
   it('shows the clip controls only while clip is armed', async () => {
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect(screen.queryByLabelText('Clip position')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Show clip plane' }))
     expect(useViewerStore.getState().clipMode).toBe(true)
@@ -150,7 +150,7 @@ describe('AnalysisSection - inspect (x-ray and clip)', () => {
 
   it('commits axis, position, and flip changes', async () => {
     useViewerStore.setState({ clipMode: true })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     await userEvent.click(screen.getByRole('button', { name: 'X' }))
     expect(useViewerStore.getState().clipAxis).toBe('x')
     fireEvent.change(screen.getByLabelText('Clip position'), { target: { value: '0.25' } })
@@ -161,8 +161,59 @@ describe('AnalysisSection - inspect (x-ray and clip)', () => {
 
   it('disables both toggles without a model', () => {
     useViewerStore.setState({ geometryDetails: null })
-    render(<AnalysisSection />)
+    render(<AnalysisSection viewerRef={{ current: null }} />)
     expect((screen.getByRole('button', { name: 'Show X-ray' }) as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByRole('button', { name: 'Show clip plane' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+})
+
+describe('AnalysisSection - plane cut', () => {
+  const details = {
+    width: 10, height: 10, depth: 10, vertices: 1, meshes: 1,
+    boundaryEdges: 0, nonManifoldEdges: 0, degenerateFaces: 0, duplicateFaces: 0,
+    watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
+  }
+  beforeEach(() =>
+    useViewerStore.setState({
+      geometryDetails: details, clipMode: true, loadedModels: [], splitParts: [],
+    }),
+  )
+
+  it('calls cutAtPlane and shows nothing extra on success', async () => {
+    const cutAtPlane = vi.fn().mockResolvedValue({ status: 'cut' })
+    render(<AnalysisSection viewerRef={{ current: { cutAtPlane } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Cut at plane' }))
+    expect(cutAtPlane).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('The cut plane does not pass through the model')).toBeNull()
+    expect((screen.getByRole('button', { name: 'Cut at plane' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('shows the reason when the cut is ineligible', async () => {
+    const cutAtPlane = vi.fn().mockResolvedValue({ status: 'ineligible', reason: 'Undo the current split first' })
+    render(<AnalysisSection viewerRef={{ current: { cutAtPlane } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Cut at plane' }))
+    expect(await screen.findByText('Undo the current split first')).toBeTruthy()
+  })
+
+  it('shows a message when the plane misses the model', async () => {
+    const cutAtPlane = vi.fn().mockResolvedValue({ status: 'empty' })
+    render(<AnalysisSection viewerRef={{ current: { cutAtPlane } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Cut at plane' }))
+    expect(await screen.findByText('The cut plane does not pass through the model')).toBeTruthy()
+  })
+
+  it('clears a stale cut note when the plane is re-aimed', async () => {
+    const cutAtPlane = vi.fn().mockResolvedValue({ status: 'empty' })
+    render(<AnalysisSection viewerRef={{ current: { cutAtPlane } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Cut at plane' }))
+    expect(await screen.findByText('The cut plane does not pass through the model')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Clip position'), { target: { value: '0.25' } })
+    expect(screen.queryByText('The cut plane does not pass through the model')).toBeNull()
+  })
+
+  it('disables the button while multi-model or already split', () => {
+    useViewerStore.setState({ loadedModels: [{ id: 'a', path: 'a', name: 'a', extension: '.stl', sizeBytes: 1, triangleCount: 1 }] })
+    render(<AnalysisSection viewerRef={{ current: null }} />)
+    expect((screen.getByRole('button', { name: 'Cut at plane' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
