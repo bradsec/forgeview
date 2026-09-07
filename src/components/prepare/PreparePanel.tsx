@@ -44,7 +44,7 @@ export function PreparePanel({
       <MeasureSection viewerRef={viewerRef} />
       <ScaleSection viewerRef={viewerRef} />
       <TransformSection viewerRef={viewerRef} />
-      <AnalysisSection />
+      <AnalysisSection viewerRef={viewerRef} />
     </div>
   )
 }

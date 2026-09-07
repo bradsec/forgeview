@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useViewerStore } from '../../store/viewerStore'
+import type { Viewer3DHandle } from '../Viewer3D'
 
-export function AnalysisSection() {
+export function AnalysisSection({
+  viewerRef,
+}: {
+  viewerRef: React.RefObject<Viewer3DHandle | null>
+}) {
   const hasModel = useViewerStore((s) => s.geometryDetails !== null)
   const overhangMode = useViewerStore((s) => s.overhangMode)
   const storeThreshold = useViewerStore((s) => s.overhangThresholdDeg)
@@ -20,6 +25,23 @@ export function AnalysisSection() {
   const clipAxis = useViewerStore((s) => s.clipAxis)
   const clipOffset = useViewerStore((s) => s.clipOffset)
   const clipFlip = useViewerStore((s) => s.clipFlip)
+  const multiModel = useViewerStore((s) => s.loadedModels.length > 0)
+  const isSplit = useViewerStore((s) => s.splitParts.length > 0)
+  const [cutBusy, setCutBusy] = useState(false)
+  const [cutNote, setCutNote] = useState<string | null>(null)
+
+  const runCut = async () => {
+    setCutBusy(true)
+    setCutNote(null)
+    try {
+      const r = await viewerRef.current?.cutAtPlane()
+      if (!r) return
+      if (r.status === 'ineligible') setCutNote(r.reason)
+      else if (r.status === 'empty') setCutNote('The cut plane does not pass through the model')
+    } finally {
+      setCutBusy(false)
+    }
+  }
 
   const onThresholdChange = (raw: string) => {
     setThresholdStr(raw)
@@ -183,6 +205,15 @@ export function AnalysisSection() {
             >
               Flip side
             </button>
+            <button
+              type="button"
+              disabled={!hasModel || multiModel || isSplit || cutBusy}
+              onClick={runCut}
+              className="px-3 py-1.5 rounded bg-[var(--accent-button)] text-white text-sm self-start disabled:opacity-50"
+            >
+              {cutBusy ? 'Cutting…' : 'Cut at plane'}
+            </button>
+            {cutNote && <p className="text-xs text-[var(--text-muted)]">{cutNote}</p>}
           </div>
         )}
       </div>
