@@ -28,6 +28,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 - **Auto-orient**: search rest orientations and rotate the model to the one
   with the least downward-facing overhang area, then drop it to the floor and
   center it on the plate as a single undoable step. Large models are skipped.
+- **Arrange on plate**: shelf-pack every model in the scene into a grid on the
+  plate within the build-volume footprint and drop each in one undoable step.
+  Models too large for the footprint are left alone and reported.
 - **Overhang heatmap** — analyse and highlight faces past a configurable overhang
   angle (default 45 degrees), directly in the viewport. Adjustable threshold in
   the Prepare panel.
