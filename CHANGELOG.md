@@ -40,6 +40,11 @@
   configured printer volume as a wireframe box on the plate. It is a fixed
   reference and does not move or scale the model; the On plate readiness
   row reports fit.
+- Prepare panel: auto-orient (SP-5b). One button searches rest orientations
+  (the model's own face normals plus a spherical sweep) and rotates the
+  model to the one with the least downward-facing overhang area, then drops
+  it to the floor and centres it on the plate as a single undoable step.
+  Large models are skipped.
 
 ## 1.7.2 - 2026-08-29
 
