@@ -53,4 +53,19 @@ test.describe('Bed layout', () => {
     await undoHistory.getByRole('button', { name: /Arrange on plate/i }).click()
     await expect(page.getByTestId('undo-history').filter({ visible: true })).toHaveCount(0)
   })
+
+  test('reports and does nothing when the model is larger than the build volume', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Bed layout flow verified on desktop')
+    test.setTimeout(120_000)
+
+    // 300 mm wide exceeds the default 220 mm footprint on X.
+    await dropStl(page, boxStl(300, 20, 300), 'big.stl')
+    await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+
+    await page.getByRole('button', { name: 'Arrange on plate' }).filter({ visible: true }).click()
+
+    await expect(page.getByText('Nothing fits the build volume').filter({ visible: true })).toBeVisible()
+    // no move, no undo entry
+    await expect(page.getByTestId('undo-history').filter({ visible: true })).toHaveCount(0)
+  })
 })

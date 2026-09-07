@@ -82,6 +82,7 @@ export function TransformSection({
     viewerRef.current?.rotateModelBy(delta)
     setRotate(BLANK)
     setOrientNote(null) // a manual rotate invalidates the auto-orient figure
+    setLayoutNote(null) // and shifts the footprint, so the arrangement too
   }
   const runAutoOrient = () => {
     const r = viewerRef.current?.autoOrient()
@@ -93,7 +94,8 @@ export function TransformSection({
   const runArrange = () => {
     const r = viewerRef.current?.arrangeOnPlate()
     if (!r || r.status === 'empty') return
-    if (r.placed === r.total) setLayoutNote(`Arranged ${r.total} model${r.total === 1 ? '' : 's'}`)
+    if (r.placed === 0) setLayoutNote('Nothing fits the build volume')
+    else if (r.placed === r.total) setLayoutNote(`Arranged ${r.total} model${r.total === 1 ? '' : 's'}`)
     else setLayoutNote(`Arranged ${r.placed} of ${r.total}, the rest do not fit`)
   }
   const applyScale = () => {
@@ -106,6 +108,7 @@ export function TransformSection({
     }
     viewerRef.current?.scaleModelByAxes(safe)
     setScale(BLANK)
+    setLayoutNote(null) // a resize changes the footprint, invalidating the layout
   }
 
   const axisInputs = (
@@ -190,7 +193,7 @@ export function TransformSection({
                 key={axis}
                 type="button"
                 disabled={locked}
-                onClick={() => { viewerRef.current?.mirrorModel(axis); setOrientNote(null) }}
+                onClick={() => { viewerRef.current?.mirrorModel(axis); setOrientNote(null); setLayoutNote(null) }}
                 className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
               >
                 Mirror {axis.toUpperCase()}

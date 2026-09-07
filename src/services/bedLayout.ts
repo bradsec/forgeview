@@ -39,7 +39,12 @@ export function computeBedLayout(
   let rowMaxD = 0
 
   for (const it of sorted) {
-    if (it.w > bed.x) { unplaced.push(it.id); continue }
+    // A non-finite footprint (e.g. a NaN vertex in a malformed mesh) would
+    // slip past every comparison as "placed" and poison the centring shift.
+    if (!Number.isFinite(it.w) || !Number.isFinite(it.d) || it.w > bed.x) {
+      unplaced.push(it.id)
+      continue
+    }
     if (cursorX > 0 && cursorX + it.w > bed.x) {
       cursorX = 0
       cursorZ += rowMaxD + gap

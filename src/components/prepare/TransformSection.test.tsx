@@ -147,6 +147,13 @@ describe('TransformSection - arrange on plate', () => {
     expect(screen.queryByText(/Arranged/)).toBeNull()
   })
 
+  it('reports when nothing fits the build volume', async () => {
+    const arrangeOnPlate = vi.fn(() => ({ status: 'arranged', placed: 0, total: 2 }))
+    render(<TransformSection viewerRef={{ current: { arrangeOnPlate } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Arrange on plate' }))
+    expect(screen.getByText('Nothing fits the build volume')).toBeTruthy()
+  })
+
   it('disables the button while locked', () => {
     useViewerStore.setState({ splitParts: [{ id: 'a', name: 'a', triangleCount: 1, visible: true }] })
     render(<TransformSection viewerRef={{ current: null }} />)

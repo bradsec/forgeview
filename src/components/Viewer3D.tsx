@@ -1026,6 +1026,12 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         bed,
         gap,
       )
+      // Nothing fits the footprint: do not move anything and do not push a
+      // no-op undo entry that would evict a real edit off the bounded stack.
+      if (placements.length === 0) {
+        return { status: 'arranged' as const, placed: 0, total: roots.length }
+      }
+
       const byId = new Map(info.map((i) => [i.r.uuid, i]))
       // Key the restore by uuid so undo does not depend on the root list being
       // derived with the same filter or in the same order.

@@ -72,4 +72,37 @@ describe('computeBedLayout', () => {
   it('returns empty for no items', () => {
     expect(computeBedLayout([], { x: 100, z: 100 }, 5)).toEqual({ placements: [], unplaced: [] })
   })
+
+  it('still reports unplaced ids when nothing can be placed', () => {
+    const r = computeBedLayout(
+      [{ id: 'a', w: 500, d: 10 }, { id: 'b', w: 500, d: 10 }],
+      { x: 200, z: 200 },
+      5,
+    )
+    expect(r.placements).toEqual([])
+    expect(r.unplaced.sort()).toEqual(['a', 'b'])
+  })
+
+  it('breaks equal-key ties by input order', () => {
+    const items = [
+      { id: 'first', w: 20, d: 20 },
+      { id: 'second', w: 20, d: 20 },
+      { id: 'third', w: 20, d: 20 },
+    ]
+    const r = computeBedLayout(items, { x: 200, z: 200 }, 5)
+    expect(r.placements.map((p) => p.id)).toEqual(['first', 'second', 'third'])
+  })
+
+  it('treats a non-finite footprint as unplaced instead of poisoning the layout', () => {
+    const r = computeBedLayout(
+      [{ id: 'bad', w: Number.NaN, d: 10 }, { id: 'ok', w: 20, d: 20 }],
+      { x: 200, z: 200 },
+      5,
+    )
+    expect(r.unplaced).toEqual(['bad'])
+    expect(r.placements).toHaveLength(1)
+    expect(r.placements[0].id).toBe('ok')
+    expect(Number.isFinite(r.placements[0].cx)).toBe(true)
+    expect(Number.isFinite(r.placements[0].cz)).toBe(true)
+  })
 })
