@@ -38,6 +38,7 @@ import { buildWallThicknessOverlay, disposeWallThicknessOverlay } from '../servi
 import { buildBuildVolumeOverlay, disposeBuildVolumeOverlay } from '../services/buildVolumeOverlay'
 import { computeBestOrientation } from '../services/autoOrient'
 import { computeBedLayout } from '../services/bedLayout'
+import { cutByPlane } from '../services/planeCut'
 
 export interface RepairRunResult {
   label: string
@@ -56,6 +57,11 @@ export type AutoOrientOutcome =
 
 export type ArrangeOutcome =
   | { status: 'arranged'; placed: number; total: number }
+  | { status: 'empty' }
+
+export type PlaneCutOutcome =
+  | { status: 'cut' }
+  | { status: 'ineligible'; reason: string }
   | { status: 'empty' }
 
 export interface Viewer3DHandle {
@@ -105,6 +111,7 @@ export interface Viewer3DHandle {
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
   splitByShell: () => { parts: number; droppedFragments: number }
+  cutAtPlane: () => Promise<PlaneCutOutcome>
   getSplitPart: (id: string) => THREE.Mesh | undefined
 }
 
@@ -1272,6 +1279,104 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         rendererRef.current.render(sceneRef.current, cameraRef.current)
       }
       return { parts: res.parts.length, droppedFragments: res.droppedFragments }
+    },
+
+    cutAtPlane: async (): Promise<PlaneCutOutcome> => {
+      const scene = sceneRef.current
+      if (!scene) return { status: 'ineligible', reason: 'Plane cut needs an open 3D view' }
+      if (useViewerStore.getState().loadedModels.length > 0)
+        return { status: 'ineligible', reason: 'Plane cut works on a single open model' }
+      const original = modelGroupRef.current
+      if (!original) return { status: 'ineligible', reason: 'Plane cut works on a single open model' }
+      if (splitPartsGroupRef.current)
+        return { status: 'ineligible', reason: 'Undo the current split first' }
+
+      const meshes = withGeometry(modelMeshes()).filter(isRepairable)
+      if (meshes.length !== 1)
+        return { status: 'ineligible', reason: 'Plane cut needs a single-mesh model with one material' }
+
+      const plane = computeClipPlane()
+      if (!plane) return { status: 'ineligible', reason: 'Set a cut plane first' }
+
+      const mesh = meshes[0]
+      mesh.updateWorldMatrix(true, false)
+      const g = mesh.geometry as THREE.BufferGeometry
+      const wg = g.index ? g.toNonIndexed() : g.clone()
+      wg.applyMatrix4(mesh.matrixWorld)
+      const soup = (wg.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
+
+      // THREE.Plane keeps normal.dot(p) + constant >= 0; manifold trimByPlane
+      // keeps dot(normal, p) - offset >= 0, so offset = -constant.
+      let res: { partA: Float32Array; partB: Float32Array }
+      try {
+        res = await cutByPlane(
+          soup,
+          [plane.normal.x, plane.normal.y, plane.normal.z],
+          -plane.constant,
+        )
+      } catch (err) {
+        wg.dispose()
+        return { status: 'ineligible', reason: err instanceof Error ? err.message : 'Plane cut failed' }
+      }
+      wg.dispose()
+
+      // The plane missed the model, or shaved nothing off one side.
+      if (res.partA.length < 9 || res.partB.length < 9) return { status: 'empty' }
+
+      // Restore any X-ray / clip material state before it is cloned into the
+      // part materials, then disarm the store flags (deferred effect cleanup).
+      teardownXray()
+      teardownClip()
+
+      const theme = getTheme(useViewerStore.getState().theme)
+      const base = baseModelName()
+      const srcMat = mesh.material as THREE.Material
+      const group = new THREE.Group()
+      group.userData.splitGroup = true
+
+      const partMeta: { id: string; name: string; triangleCount: number; visible: boolean }[] = []
+      for (const [i, part] of [res.partA, res.partB].entries()) {
+        const geo = new THREE.BufferGeometry()
+        geo.setAttribute('position', new THREE.BufferAttribute(part, 3))
+        geo.computeVertexNormals()
+        const mat = srcMat.clone() as THREE.Material & { color?: THREE.Color }
+        if (mat.color instanceof THREE.Color && mat.color.getHex() === 0xB0B0B0) mat.color.setHex(theme.modelColor)
+        // The soup is already world space, so the part mesh sits at identity.
+        const partMesh = new THREE.Mesh(geo, mat)
+        const id = crypto.randomUUID()
+        partMesh.userData.splitPartId = id
+        partMesh.name = `${base} — part ${i + 1}`
+        group.add(partMesh)
+        splitPartsRef.current.set(id, partMesh)
+        partMeta.push({ id, name: partMesh.name, triangleCount: part.length / 9, visible: true })
+      }
+
+      scene.remove(original)
+      modelGroupRef.current = undefined
+      scene.add(group)
+      splitPartsGroupRef.current = group
+      useViewerStore.getState().setSplitParts(partMeta)
+
+      pushUndo({
+        label: 'Plane cut',
+        apply: () => {
+          teardownSplitParts()
+          scene.add(original)
+          modelGroupRef.current = original
+          useViewerStore.getState().setSplitParts([])
+        },
+        discard: () => { disposeModel(original, scene) },
+      })
+
+      useViewerStore.getState().setXrayMode(false)
+      useViewerStore.getState().setClipMode(false)
+
+      for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
+      updateTriangleDetails()
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+      return { status: 'cut' }
     },
 
     undoEdit: (steps = 1) => {
