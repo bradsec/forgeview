@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useViewerStore } from '../../store/viewerStore'
 import type { Viewer3DHandle } from '../Viewer3D'
 
@@ -29,6 +29,9 @@ export function AnalysisSection({
   const isSplit = useViewerStore((s) => s.splitParts.length > 0)
   const [cutBusy, setCutBusy] = useState(false)
   const [cutNote, setCutNote] = useState<string | null>(null)
+
+  // A stale cut note should not linger while the user re-aims the plane.
+  useEffect(() => setCutNote(null), [clipMode, clipAxis, clipOffset, clipFlip])
 
   const runCut = async () => {
     setCutBusy(true)

@@ -18,12 +18,14 @@ function getWorker(): Worker {
       if (type === 'result') p.resolve({ partA: e.data.partA, partB: e.data.partB })
       else p.reject(new Error(e.data.message ?? 'Plane cut failed'))
     }
-    worker.onerror = (e) => {
-      for (const p of pending.values()) p.reject(new Error(e.message || 'Plane cut worker crashed'))
+    const crash = (message: string) => {
+      for (const p of pending.values()) p.reject(new Error(message))
       pending.clear()
       worker?.terminate()
       worker = null
     }
+    worker.onerror = (e) => crash(e.message || 'Plane cut worker crashed')
+    worker.onmessageerror = () => crash('Plane cut worker message could not be deserialised')
   }
   return worker
 }
@@ -39,6 +41,11 @@ export function cutByPlane(
   const buf = positions.slice().buffer
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject })
-    getWorker().postMessage({ id, positions: buf, normal, offset }, [buf])
+    try {
+      getWorker().postMessage({ id, positions: buf, normal, offset }, [buf])
+    } catch (err) {
+      pending.delete(id)
+      reject(err instanceof Error ? err : new Error(String(err)))
+    }
   })
 }

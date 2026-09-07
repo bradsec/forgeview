@@ -40,7 +40,7 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: 'Plane cut',
-    body: 'With the clip plane shown, Cut at plane slices the model into two watertight shells along that plane. The pieces appear in the Parts section, where you can hide, export, or delete each one. It needs a single-mesh model; run Repair first if the model is not a closed solid. One undoable step.',
+    body: 'With the clip plane shown, Cut at plane slices the model into two watertight shells along that plane. The pieces appear in the Parts section, where you can hide, export, or delete each one. It needs a single-mesh model; run Repair first if the model is not a closed solid. The pieces are flat-shaded and the cut is not available in multi-model mode. One undoable step.',
   },
   {
     title: 'Build volume',

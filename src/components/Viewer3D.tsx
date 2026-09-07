@@ -1291,8 +1291,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       if (splitPartsGroupRef.current)
         return { status: 'ineligible', reason: 'Undo the current split first' }
 
-      const meshes = withGeometry(modelMeshes()).filter(isRepairable)
-      if (meshes.length !== 1)
+      const withGeo = withGeometry(modelMeshes())
+      const meshes = withGeo.filter(isRepairable)
+      if (withGeo.length !== 1 || meshes.length !== 1)
         return { status: 'ineligible', reason: 'Plane cut needs a single-mesh model with one material' }
 
       const plane = computeClipPlane()
@@ -1301,6 +1302,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const mesh = meshes[0]
       mesh.updateWorldMatrix(true, false)
       const g = mesh.geometry as THREE.BufferGeometry
+      const worldMatrix0 = mesh.matrixWorld.elements.slice()
       const wg = g.index ? g.toNonIndexed() : g.clone()
       wg.applyMatrix4(mesh.matrixWorld)
       const soup = (wg.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
@@ -1319,6 +1321,20 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         return { status: 'ineligible', reason: err instanceof Error ? err.message : 'Plane cut failed' }
       }
       wg.dispose()
+
+      // The cut ran off a snapshot; if the open model changed under it (a new
+      // file, a transform, an undo) the captured original/mesh/soup are stale.
+      if (
+        sceneRef.current !== scene ||
+        modelGroupRef.current !== original ||
+        splitPartsGroupRef.current != null ||
+        useViewerStore.getState().loadedModels.length > 0 ||
+        !modelMeshes().includes(mesh) ||
+        mesh.geometry !== g ||
+        mesh.matrixWorld.elements.some((v, i) => v !== worldMatrix0[i])
+      ) {
+        return { status: 'ineligible', reason: 'The open model changed while the cut was running' }
+      }
 
       // The plane missed the model, or shaved nothing off one side.
       if (res.partA.length < 9 || res.partB.length < 9) return { status: 'empty' }

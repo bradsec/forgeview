@@ -7,7 +7,11 @@ import { weldSoup, meshToSoup } from './manifoldBridge'
 const scope = self as DedicatedWorkerGlobalScope
 let wasmPromise: Promise<ManifoldToplevel> | null = null
 const getWasm = () => {
-  if (!wasmPromise) wasmPromise = Module({ locateFile: () => wasmUrl }).then((w) => { w.setup(); return w })
+  if (!wasmPromise) {
+    wasmPromise = Module({ locateFile: () => wasmUrl })
+      .then((w) => { w.setup(); return w })
+      .catch((e) => { wasmPromise = null; throw e })
+  }
   return wasmPromise
 }
 
@@ -39,14 +43,20 @@ scope.onmessage = async (e: MessageEvent<CutRequest>) => {
       scope.postMessage({ id, type: 'error', message: 'The model is not a closed solid. Run Repair, then try the cut again.' })
       return
     }
-    const a = solid.trimByPlane(normal, offset)
-    const b = solid.trimByPlane([-normal[0], -normal[1], -normal[2]], -offset)
-    solid.delete()
-    const ma = a.getMesh(); const mb = b.getMesh()
-    a.delete(); b.delete()
-    const partA = meshToSoup(ma.vertProperties, ma.triVerts, ma.numProp)
-    const partB = meshToSoup(mb.vertProperties, mb.triVerts, mb.numProp)
-    scope.postMessage({ id, type: 'result', partA, partB }, [partA.buffer, partB.buffer])
+    let a: InstanceType<typeof Manifold> | undefined
+    let b: InstanceType<typeof Manifold> | undefined
+    try {
+      a = solid.trimByPlane(normal, offset)
+      b = solid.trimByPlane([-normal[0], -normal[1], -normal[2]], -offset)
+      const ma = a.getMesh(); const mb = b.getMesh()
+      const partA = meshToSoup(ma.vertProperties, ma.triVerts, ma.numProp)
+      const partB = meshToSoup(mb.vertProperties, mb.triVerts, mb.numProp)
+      scope.postMessage({ id, type: 'result', partA, partB }, [partA.buffer, partB.buffer])
+    } finally {
+      solid.delete()
+      a?.delete()
+      b?.delete()
+    }
   } catch (err) {
     scope.postMessage({ id, type: 'error', message: err instanceof Error ? err.message : String(err) })
   }

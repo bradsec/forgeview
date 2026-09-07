@@ -202,6 +202,15 @@ describe('AnalysisSection - plane cut', () => {
     expect(await screen.findByText('The cut plane does not pass through the model')).toBeTruthy()
   })
 
+  it('clears a stale cut note when the plane is re-aimed', async () => {
+    const cutAtPlane = vi.fn().mockResolvedValue({ status: 'empty' })
+    render(<AnalysisSection viewerRef={{ current: { cutAtPlane } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Cut at plane' }))
+    expect(await screen.findByText('The cut plane does not pass through the model')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Clip position'), { target: { value: '0.25' } })
+    expect(screen.queryByText('The cut plane does not pass through the model')).toBeNull()
+  })
+
   it('disables the button while multi-model or already split', () => {
     useViewerStore.setState({ loadedModels: [{ id: 'a', path: 'a', name: 'a', extension: '.stl', sizeBytes: 1, triangleCount: 1 }] })
     render(<AnalysisSection viewerRef={{ current: null }} />)

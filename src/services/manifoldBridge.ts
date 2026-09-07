@@ -3,15 +3,22 @@
  *  coincident vertex. Manifold needs shared vertices along shared edges. */
 export function weldSoup(soup: Float32Array): { vertProperties: Float32Array; triVerts: Uint32Array } {
   const triCount = Math.floor(soup.length / 9)
-  // grid ~ 1e-5 of a unit; scale by the bbox so it is relative
-  let min = Infinity, max = -Infinity
-  for (let i = 0; i < soup.length; i++) {
-    const v = soup[i]
-    if (v < min) min = v
-    if (v > max) max = v
+  // grid relative to the bbox diagonal so the weld tolerance tracks model size
+  // and is not inflated by a large offset from the origin
+  let minX = Infinity, minY = Infinity, minZ = Infinity
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity
+  for (let i = 0; i + 2 < soup.length; i += 3) {
+    const x = soup[i], y = soup[i + 1], z = soup[i + 2]
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+    if (z < minZ) minZ = z
+    if (z > maxZ) maxZ = z
   }
-  const span = Math.max(max - min, 1)
-  const q = span * 1e-6
+  const dx = maxX - minX, dy = maxY - minY, dz = maxZ - minZ
+  const diag = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  const q = Math.max(diag, 1) * 1e-6
   const key = (x: number, y: number, z: number) =>
     Math.round(x / q) + ',' + Math.round(y / q) + ',' + Math.round(z / q)
 
