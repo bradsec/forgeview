@@ -948,8 +948,13 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const prevPos = roots.map((r) => r.position.clone())
 
       roots.forEach((r) => r.quaternion.premultiply(q))
+      // A tight world box: expandByObject on rotated geometry only fits the
+      // rotated local AABB, which is loose. Walk the baked vertices instead.
       const box = new THREE.Box3()
-      for (const r of roots) box.expandByObject(r)
+      for (const mesh of withGeometry(modelMeshes())) {
+        mesh.updateWorldMatrix(true, false)
+        box.expandByObject(mesh, true)
+      }
       const dy = -box.min.y
       const center = box.getCenter(new THREE.Vector3())
       roots.forEach((r) => {
