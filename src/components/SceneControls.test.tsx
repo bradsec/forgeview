@@ -32,6 +32,7 @@ describe('SceneControls', () => {
         dropToFloor: vi.fn(),
         centerOnPlate: vi.fn(),
         autoOrient: vi.fn(),
+        arrangeOnPlate: vi.fn(),
         undoEdit: vi.fn(),
         splitByShell: vi.fn(),
         getSplitPart: vi.fn(),

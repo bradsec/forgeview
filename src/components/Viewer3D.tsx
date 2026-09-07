@@ -37,6 +37,7 @@ import { computeWallThicknessMask, WALL_THICKNESS_MAX_TRIANGLES } from '../servi
 import { buildWallThicknessOverlay, disposeWallThicknessOverlay } from '../services/wallThicknessOverlay'
 import { buildBuildVolumeOverlay, disposeBuildVolumeOverlay } from '../services/buildVolumeOverlay'
 import { computeBestOrientation } from '../services/autoOrient'
+import { computeBedLayout } from '../services/bedLayout'
 
 export interface RepairRunResult {
   label: string
@@ -51,6 +52,10 @@ export type AutoOrientOutcome =
   | { status: 'applied'; beforePct: number; afterPct: number }
   | { status: 'noop' }
   | { status: 'skipped' }
+  | { status: 'empty' }
+
+export type ArrangeOutcome =
+  | { status: 'arranged'; placed: number; total: number }
   | { status: 'empty' }
 
 export interface Viewer3DHandle {
@@ -94,6 +99,8 @@ export interface Viewer3DHandle {
    *  bounding box's X/Z center becomes (0, 0); Y untouched. One undoable edit. */
   centerOnPlate: () => void
   autoOrient: () => AutoOrientOutcome
+  /** Shelf-pack the scene's models into a grid on the plate as one undoable step. */
+  arrangeOnPlate: () => ArrangeOutcome
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -986,6 +993,67 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         beforePct: Math.round(res.overhangFractionBefore * 100),
         afterPct: Math.round(res.overhangFractionAfter * 100),
       }
+    },
+    arrangeOnPlate: () => {
+      // The scene's independent models: the single-file preview root plus every
+      // multi-model entry. NOT the split-parts group (that is one model's
+      // pieces; the Transform lock already blocks the button while split).
+      const roots = [modelGroupRef.current, ...modelMapRef.current.values()]
+        .filter((r): r is THREE.Object3D => Boolean(r))
+        .filter((r) => {
+          let has = false
+          r.traverse((c) => {
+            if (c instanceof THREE.Mesh && (c.geometry as THREE.BufferGeometry).getAttribute('position')?.count) has = true
+          })
+          return has
+        })
+      if (roots.length === 0) return { status: 'empty' as const }
+
+      const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
+      const bvol = useViewerStore.getState().buildVolumeMm
+      const bed = { x: bvol.x / unit, z: bvol.z / unit }
+      const gap = Math.max(3 / unit, bed.x * 1e-3)
+
+      const info = roots.map((r) => {
+        const box = new THREE.Box3().expandByObject(r, true)
+        const size = box.getSize(new THREE.Vector3())
+        const centre = box.getCenter(new THREE.Vector3())
+        return { r, w: size.x, d: size.z, cx: centre.x, cz: centre.z, minY: box.min.y }
+      })
+
+      const { placements } = computeBedLayout(
+        info.map((i) => ({ id: i.r.uuid, w: i.w, d: i.d })),
+        bed,
+        gap,
+      )
+      const byId = new Map(info.map((i) => [i.r.uuid, i]))
+      const prevPos = roots.map((r) => r.position.clone())
+
+      for (const p of placements) {
+        const i = byId.get(p.id)
+        if (!i) continue
+        i.r.position.x += p.cx - i.cx
+        i.r.position.z += p.cz - i.cz
+        i.r.position.y += -i.minY
+      }
+
+      pushUndo({
+        label: 'Arrange on plate',
+        apply: () => {
+          const live = [modelGroupRef.current, ...modelMapRef.current.values()]
+            .filter((r): r is THREE.Object3D => Boolean(r))
+          live.forEach((r, idx) => { if (prevPos[idx]) r.position.copy(prevPos[idx]) })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+
+      return { status: 'arranged' as const, placed: placements.length, total: roots.length }
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {
       // Nothing requested: return before any snapshot so no undo closure is
