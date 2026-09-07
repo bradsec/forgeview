@@ -1027,7 +1027,9 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         gap,
       )
       const byId = new Map(info.map((i) => [i.r.uuid, i]))
-      const prevPos = roots.map((r) => r.position.clone())
+      // Key the restore by uuid so undo does not depend on the root list being
+      // derived with the same filter or in the same order.
+      const prevPos = new Map(roots.map((r) => [r.uuid, r.position.clone()]))
 
       for (const p of placements) {
         const i = byId.get(p.id)
@@ -1040,9 +1042,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       pushUndo({
         label: 'Arrange on plate',
         apply: () => {
-          const live = [modelGroupRef.current, ...modelMapRef.current.values()]
-            .filter((r): r is THREE.Object3D => Boolean(r))
-          live.forEach((r, idx) => { if (prevPos[idx]) r.position.copy(prevPos[idx]) })
+          for (const r of [modelGroupRef.current, ...modelMapRef.current.values()]) {
+            const prev = r && prevPos.get(r.uuid)
+            if (prev) r.position.copy(prev)
+          }
           updateGeometryDetails()
           refreshSceneEnvironment()
           invalidate()
