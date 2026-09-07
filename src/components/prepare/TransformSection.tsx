@@ -61,6 +61,7 @@ export function TransformSection({
   const [move, setMove] = useState<AxisStrings>(BLANK)
   const [rotate, setRotate] = useState<AxisStrings>(BLANK)
   const [scale, setScale] = useState<AxisStrings>(BLANK)
+  const [orientNote, setOrientNote] = useState<string | null>(null)
 
   const moveHasAny = hasAnyAxisValue(move)
   const rotateHasAny = hasAnyAxisValue(rotate)
@@ -78,6 +79,14 @@ export function TransformSection({
     const delta = parseAxisInputs(rotate, (deg) => (deg * Math.PI) / 180, 0)
     viewerRef.current?.rotateModelBy(delta)
     setRotate(BLANK)
+    setOrientNote(null) // a manual rotate invalidates the auto-orient figure
+  }
+  const runAutoOrient = () => {
+    const r = viewerRef.current?.autoOrient()
+    if (!r || r.status === 'empty') return
+    if (r.status === 'skipped') { setOrientNote('Model too large to auto-orient'); return }
+    if (r.status === 'noop') { setOrientNote('Already well oriented'); return }
+    setOrientNote(`Overhang area ${r.beforePct}% to ${r.afterPct}%`)
   }
   const applyScale = () => {
     if (!scaleHasAny || !scaleAllValid) return
@@ -173,7 +182,7 @@ export function TransformSection({
                 key={axis}
                 type="button"
                 disabled={locked}
-                onClick={() => viewerRef.current?.mirrorModel(axis)}
+                onClick={() => { viewerRef.current?.mirrorModel(axis); setOrientNote(null) }}
                 className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
               >
                 Mirror {axis.toUpperCase()}
@@ -199,7 +208,16 @@ export function TransformSection({
           >
             Center on plate
           </button>
+          <button
+            type="button"
+            disabled={locked}
+            onClick={runAutoOrient}
+            className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
+          >
+            Auto-orient
+          </button>
         </div>
+        {orientNote && <p className="text-xs text-[var(--text-muted)]">{orientNote}</p>}
       </div>
     </div>
   )

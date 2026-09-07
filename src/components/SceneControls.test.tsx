@@ -31,6 +31,7 @@ describe('SceneControls', () => {
         mirrorModel: vi.fn(),
         dropToFloor: vi.fn(),
         centerOnPlate: vi.fn(),
+        autoOrient: vi.fn(),
         undoEdit: vi.fn(),
         splitByShell: vi.fn(),
         getSplitPart: vi.fn(),

@@ -25,6 +25,9 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
   model, scale to target length, scale to fit configurable build volume.
 - **Transform panel**: move, rotate, free scale per axis, mirror, drop to floor,
   and center on plate. Each action is one undoable edit.
+- **Auto-orient**: search rest orientations and rotate the model to the one
+  with the least downward-facing overhang area, then drop it to the floor and
+  center it on the plate as a single undoable step. Large models are skipped.
 - **Overhang heatmap** — analyse and highlight faces past a configurable overhang
   angle (default 45 degrees), directly in the viewport. Adjustable threshold in
   the Prepare panel.

@@ -305,6 +305,14 @@ state.
   current orientation.** Deterministic, dependency-free, dense enough for a
   rest-orientation search. No convex hull, no gradient descent (local
   minima, non-determinism).
+  **SUPERSEDED during implementation (commit 0aa22db).** A 128-point lattice
+  is too sparse: it rarely lands within the contact-normal tolerance of a
+  real resting face, so a flat rest is mis-scored as full overhang and the
+  search prefers a tall zero-overhang orientation. The shipped candidate set
+  is the model's own face normals (de-duplicated on a ~1 degree grid,
+  largest total coplanar area first, capped at 64) plus a 64-point Fibonacci
+  sweep for shapes with no good flat face. Still deterministic and
+  dependency-free.
 - **R2. Cost = 1.0 * overhangAreaFraction + 0.2 * heightNorm - 0.15 *
   contactAreaFraction.** Overhang area dominates (support material and
   surface finish); height and bed contact are tie-breakers. Weights are

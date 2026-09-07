@@ -10,13 +10,13 @@ const details = {
   watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
 }
 
-describe('TransformSection', () => {
-  beforeEach(() =>
-    useViewerStore.setState({
-      geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,
-    }),
-  )
+beforeEach(() =>
+  useViewerStore.setState({
+    geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,
+  }),
+)
 
+describe('TransformSection', () => {
   it('locks every control while split by shell', () => {
     useViewerStore.setState({ splitParts: [{ id: 'a', name: 'a', triangleCount: 1, visible: true }] })
     render(<TransformSection viewerRef={{ current: null }} />)
@@ -91,5 +91,35 @@ describe('TransformSection', () => {
     expect(dropToFloor).toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Center on plate' }))
     expect(centerOnPlate).toHaveBeenCalled()
+  })
+})
+
+describe('TransformSection - auto-orient', () => {
+  it('calls autoOrient and shows the before/after note', async () => {
+    const autoOrient = vi.fn(() => ({ status: 'applied', beforePct: 60, afterPct: 5 }))
+    render(<TransformSection viewerRef={{ current: { autoOrient } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-orient' }))
+    expect(autoOrient).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Overhang area 60% to 5%')).toBeTruthy()
+  })
+
+  it('shows the too-large note when the search was skipped', async () => {
+    const autoOrient = vi.fn(() => ({ status: 'skipped' }))
+    render(<TransformSection viewerRef={{ current: { autoOrient } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-orient' }))
+    expect(screen.getByText('Model too large to auto-orient')).toBeTruthy()
+  })
+
+  it('shows the already-oriented note on a no-op', async () => {
+    const autoOrient = vi.fn(() => ({ status: 'noop' }))
+    render(<TransformSection viewerRef={{ current: { autoOrient } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-orient' }))
+    expect(screen.getByText('Already well oriented')).toBeTruthy()
+  })
+
+  it('disables the button while locked', () => {
+    useViewerStore.setState({ splitParts: [{ id: 'a', name: 'a', triangleCount: 1, visible: true }] })
+    render(<TransformSection viewerRef={{ current: null }} />)
+    expect((screen.getByRole('button', { name: 'Auto-orient' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

@@ -36,6 +36,7 @@ import { buildOverhangOverlay, disposeOverhangOverlay } from '../services/overha
 import { computeWallThicknessMask, WALL_THICKNESS_MAX_TRIANGLES } from '../services/wallThickness'
 import { buildWallThicknessOverlay, disposeWallThicknessOverlay } from '../services/wallThicknessOverlay'
 import { buildBuildVolumeOverlay, disposeBuildVolumeOverlay } from '../services/buildVolumeOverlay'
+import { computeBestOrientation } from '../services/autoOrient'
 
 export interface RepairRunResult {
   label: string
@@ -45,6 +46,12 @@ export interface RepairRunResult {
    * attributes the simple stages would strip. Seal still collapses them. */
   skippedMeshes: number
 }
+
+export type AutoOrientOutcome =
+  | { status: 'applied'; beforePct: number; afterPct: number }
+  | { status: 'noop' }
+  | { status: 'skipped' }
+  | { status: 'empty' }
 
 export interface Viewer3DHandle {
   snapToView: (direction: ViewDirection) => void
@@ -86,6 +93,7 @@ export interface Viewer3DHandle {
   /** Translate every model root by the same world X/Z delta so the union
    *  bounding box's X/Z center becomes (0, 0); Y untouched. One undoable edit. */
   centerOnPlate: () => void
+  autoOrient: () => AutoOrientOutcome
   undoEdit: (steps?: number) => void
   /** Split the single open mesh into one mesh per connected shell. Throws an
    * Error with a user-facing message when not applicable. */
@@ -238,7 +246,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       return
     }
     const box = new THREE.Box3()
-    for (const root of roots) box.expandByObject(root)
+    // precise: a rotated model's loose local-AABB fit is wrong; walk vertices.
+    for (const root of roots) box.expandByObject(root, true)
     const size = box.getSize(new THREE.Vector3())
     const health = summariseHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
     const overhangThreshold = useViewerStore.getState().overhangThresholdDeg
@@ -297,7 +306,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     let box = unionBox
     if (!box) {
       box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
     }
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
@@ -326,7 +335,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (roots.length === 0 || !scene || !camera || !controls) return
     fitAllModels(roots, camera, controls)
     const box = new THREE.Box3()
-    for (const root of roots) box.expandByObject(root)
+    for (const root of roots) box.expandByObject(root, true)
     rebuildGrid(box)
   }
   const updateTriangleDetails = () => {
@@ -682,7 +691,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const roots = modelRoots()
       if (roots.length === 0) return null
       const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
       return box.getSize(new THREE.Vector3())
     },
     setModelUnit: (mm: number) => {
@@ -699,7 +708,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const roots = modelRoots()
       if (roots.length === 0) return null
       const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
       const size = box.getSize(new THREE.Vector3())
       const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
       return size.multiplyScalar(unit)
@@ -905,6 +914,78 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       updateGeometryDetails()
       rebuildGrid()
       invalidate()
+    },
+    autoOrient: () => {
+      const roots = modelRoots()
+      if (roots.length === 0) return { status: 'empty' as const }
+
+      const meshes = withGeometry(modelMeshes())
+      const chunks: Float32Array[] = []
+      for (const mesh of meshes) {
+        mesh.updateWorldMatrix(true, false)
+        const g = mesh.geometry as THREE.BufferGeometry
+        const wg = g.index ? g.toNonIndexed() : g.clone()
+        wg.applyMatrix4(mesh.matrixWorld)
+        chunks.push((wg.getAttribute('position') as THREE.BufferAttribute).array as Float32Array)
+        wg.dispose()
+      }
+      const total = chunks.reduce((n, c) => n + c.length, 0)
+      if (total === 0) return { status: 'empty' as const }
+      const positions = new Float32Array(total)
+      let off = 0
+      for (const c of chunks) { positions.set(c, off); off += c.length }
+
+      const threshold = useViewerStore.getState().overhangThresholdDeg
+      const res = computeBestOrientation(positions, threshold)
+      if (res.skipped) return { status: 'skipped' as const }
+
+      const q = new THREE.Quaternion(
+        res.quaternion[0], res.quaternion[1], res.quaternion[2], res.quaternion[3],
+      )
+      const isIdentity = q.x === 0 && q.y === 0 && q.z === 0 && Math.abs(q.w) === 1
+      if (isIdentity) return { status: 'noop' as const }
+
+      const prevQuat = roots.map((r) => r.quaternion.clone())
+      const prevPos = roots.map((r) => r.position.clone())
+
+      roots.forEach((r) => r.quaternion.premultiply(q))
+      // A tight world box: expandByObject on rotated geometry only fits the
+      // rotated local AABB, which is loose. Walk the baked vertices instead.
+      const box = new THREE.Box3()
+      for (const mesh of withGeometry(modelMeshes())) {
+        mesh.updateWorldMatrix(true, false)
+        box.expandByObject(mesh, true)
+      }
+      const dy = -box.min.y
+      const center = box.getCenter(new THREE.Vector3())
+      roots.forEach((r) => {
+        r.position.y += dy
+        r.position.x += -center.x
+        r.position.z += -center.z
+      })
+
+      pushUndo({
+        label: 'Auto-orient',
+        apply: () => {
+          modelRoots().forEach((r, i) => {
+            if (prevQuat[i]) r.quaternion.copy(prevQuat[i])
+            if (prevPos[i]) r.position.copy(prevPos[i])
+          })
+          updateGeometryDetails()
+          refreshSceneEnvironment()
+          invalidate()
+        },
+        discard: () => {},
+      })
+      updateGeometryDetails()
+      refreshSceneEnvironment()
+      invalidate()
+
+      return {
+        status: 'applied' as const,
+        beforePct: Math.round(res.overhangFractionBefore * 100),
+        afterPct: Math.round(res.overhangFractionAfter * 100),
+      }
     },
     runRepair: async (stageIds, sealOpts, onProgress, signal) => {
       // Nothing requested: return before any snapshot so no undo closure is
