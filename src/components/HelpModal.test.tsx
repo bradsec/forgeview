@@ -22,6 +22,7 @@ describe('HelpModal', () => {
     expect(screen.getByRole('heading', { name: 'X-ray and clip plane' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Build volume' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Auto-orient' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Arrange on plate' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Measure' })).toBeTruthy()
   })
 

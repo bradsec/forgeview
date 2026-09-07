@@ -45,6 +45,10 @@
   model to the one with the least downward-facing overhang area, then drops
   it to the floor and centres it on the plate as a single undoable step.
   Large models are skipped.
+- Prepare panel: bed layout (SP-5c). Arrange on plate shelf-packs every
+  model in the scene into a grid inside the build-volume footprint and
+  drops each to the plate as one undoable step. Models too large for the
+  footprint are left alone and reported.
 
 ## 1.7.2 - 2026-08-29
 

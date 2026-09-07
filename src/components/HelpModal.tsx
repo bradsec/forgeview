@@ -46,6 +46,10 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     title: 'Auto-orient',
     body: 'Auto-orient tries many rest orientations and picks the one with the least downward-facing overhang area, breaking ties by a lower height and more bed contact. It rotates the model, drops it to the floor, and centres it on the plate as one undoable step, then reports the overhang-area change. That percentage is a surface-area fraction and excludes faces resting on the plate, so it is not the same number as the Overhangs readiness count. Very large models are skipped for speed.',
   },
+  {
+    title: 'Arrange on plate',
+    body: 'Arrange on plate lays every model in the scene out in a grid inside the build volume footprint and drops each to the plate, as one undoable step. It only moves models, it does not rotate or scale them. Models too large for the footprint are left where they are and reported.',
+  },
 ]
 
 export function HelpModal() {
