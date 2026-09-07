@@ -268,6 +268,18 @@ SP-5 (auto-orient + build volume) is split into three cycles:
 
 SP-5 (auto-orient + build volume) is now complete: SP-5a build-volume box, SP-5b auto-orient, SP-5c bed layout all shipped.
 
+## SP-6 decomposition (2026-09-07)
+
+SP-6 (boolean + plane cut, catalogue 5 and 6) is split into two cycles. The
+`manifold-3d` wasm integration (worker, wasm asset loading under Vite and
+Tauri, mesh-to-Manifold bridge, manual `.delete()` memory management) is the
+hard part, so it lands in SP-6a where the feature on top of it is small.
+
+| # | Piece | Depends on | New deps | Status |
+|---|-------|-----------|----------|--------|
+| SP-6a | manifold-3d integration + plane cut | SP-3 (mm), SP-5a (build volume box for the cut-plane UI) | `manifold-3d` | Not started. Load the wasm in a worker, bridge a BufferGeometry to a `Manifold`, and ship an axis-aligned plane cut via `trimByPlane` (guaranteed watertight, auto-capped). Keep-one-side or split-into-two-shells. One undoable "Plane cut" edit. |
+| SP-6b | Boolean union / subtract / intersect | SP-6a | none extra | Not started. `a.union(b)` / `a.subtract(b)` / `a.intersect(b)` between two scene models, reusing SP-6a's worker + bridge. |
+
 ## SP-H: in-app feature help (cross-cutting)
 
 SP-H (in-app feature help): SHIPPED, branch `worktree-sph-in-app-help`, commits
