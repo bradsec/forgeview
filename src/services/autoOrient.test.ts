@@ -68,8 +68,9 @@ describe('computeBestOrientation', () => {
     expect(Number.isFinite(r.overhangFractionBefore)).toBe(true)
   })
 
-  it('candidatesEvaluated is the candidate count plus the current orientation', () => {
+  it('evaluates the Fibonacci sweep, the face-normal candidates, and the current orientation', () => {
     const r = computeBestOrientation(tiltedPlate(10), 45)
-    expect(r.candidatesEvaluated).toBe(AUTO_ORIENT_CANDIDATES + 1)
+    // fibonacci sweep + at least one face-normal candidate + the current orientation
+    expect(r.candidatesEvaluated).toBeGreaterThan(AUTO_ORIENT_CANDIDATES + 1)
   })
 })

@@ -1,7 +1,14 @@
 import * as THREE from 'three'
 
-export const AUTO_ORIENT_CANDIDATES = 128
+export const AUTO_ORIENT_CANDIDATES = 64
 export const AUTO_ORIENT_MAX_FACES = 200_000
+/** How many distinct face-normal directions (largest total area first) are
+ *  tried as candidate rest orientations, on top of the Fibonacci sweep. A
+ *  flat resting face must be an exact candidate for its own contact area to
+ *  register, which a sparse Fibonacci lattice cannot guarantee. */
+const AUTO_ORIENT_FACE_NORMAL_CANDIDATES = 256
+/** Quantisation grid for de-duplicating near-parallel face normals (~1 degree). */
+const NORMAL_DEDUPE_GRID = 50
 
 const DEGENERATE_EPSILON = 1e-10
 const W_OVERHANG = 1.0
@@ -136,7 +143,28 @@ export function computeBestOrientation(
     }
   }
 
-  const dirs = fibonacciSphere(AUTO_ORIENT_CANDIDATES)
+  // Candidate rest directions: the model's own face normals (largest total
+  // coplanar area first) plus a Fibonacci sweep for shapes with no good flat
+  // face. De-duplicate on a coarse grid so a big flat region contributes one
+  // candidate, not thousands.
+  const buckets = new Map<string, { dir: [number, number, number]; area: number }>()
+  for (let f = 0; f < faceCount; f++) {
+    if (areas[f] === 0) continue
+    const nx = normals[f * 3], ny = normals[f * 3 + 1], nz = normals[f * 3 + 2]
+    const key =
+      Math.round(nx * NORMAL_DEDUPE_GRID) + ',' +
+      Math.round(ny * NORMAL_DEDUPE_GRID) + ',' +
+      Math.round(nz * NORMAL_DEDUPE_GRID)
+    const b = buckets.get(key)
+    if (b) b.area += areas[f]
+    else buckets.set(key, { dir: [nx, ny, nz], area: areas[f] })
+  }
+  const faceDirs = [...buckets.values()]
+    .sort((a, b) => b.area - a.area)
+    .slice(0, AUTO_ORIENT_FACE_NORMAL_CANDIDATES)
+    .map((b) => b.dir)
+
+  const dirs: [number, number, number][] = [...faceDirs, ...fibonacciSphere(AUTO_ORIENT_CANDIDATES)]
   let bestDir: [number, number, number] | null = null
   let bestCost = base.cost
   let bestOverhang = before
@@ -165,7 +193,7 @@ export function computeBestOrientation(
     quaternion,
     overhangFractionBefore: before,
     overhangFractionAfter: bestDir ? bestOverhang : before,
-    candidatesEvaluated: AUTO_ORIENT_CANDIDATES + 1,
+    candidatesEvaluated: dirs.length + 1,
     skipped: false,
   }
 }
