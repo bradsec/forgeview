@@ -79,6 +79,7 @@ export function TransformSection({
     const delta = parseAxisInputs(rotate, (deg) => (deg * Math.PI) / 180, 0)
     viewerRef.current?.rotateModelBy(delta)
     setRotate(BLANK)
+    setOrientNote(null) // a manual rotate invalidates the auto-orient figure
   }
   const runAutoOrient = () => {
     const r = viewerRef.current?.autoOrient()
@@ -181,7 +182,7 @@ export function TransformSection({
                 key={axis}
                 type="button"
                 disabled={locked}
-                onClick={() => viewerRef.current?.mirrorModel(axis)}
+                onClick={() => { viewerRef.current?.mirrorModel(axis); setOrientNote(null) }}
                 className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
               >
                 Mirror {axis.toUpperCase()}

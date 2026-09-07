@@ -246,7 +246,8 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       return
     }
     const box = new THREE.Box3()
-    for (const root of roots) box.expandByObject(root)
+    // precise: a rotated model's loose local-AABB fit is wrong; walk vertices.
+    for (const root of roots) box.expandByObject(root, true)
     const size = box.getSize(new THREE.Vector3())
     const health = summariseHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
     const overhangThreshold = useViewerStore.getState().overhangThresholdDeg
@@ -305,7 +306,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     let box = unionBox
     if (!box) {
       box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
     }
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
@@ -334,7 +335,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (roots.length === 0 || !scene || !camera || !controls) return
     fitAllModels(roots, camera, controls)
     const box = new THREE.Box3()
-    for (const root of roots) box.expandByObject(root)
+    for (const root of roots) box.expandByObject(root, true)
     rebuildGrid(box)
   }
   const updateTriangleDetails = () => {
@@ -690,7 +691,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const roots = modelRoots()
       if (roots.length === 0) return null
       const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
       return box.getSize(new THREE.Vector3())
     },
     setModelUnit: (mm: number) => {
@@ -707,7 +708,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const roots = modelRoots()
       if (roots.length === 0) return null
       const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
       const size = box.getSize(new THREE.Vector3())
       const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm ?? 1
       return size.multiplyScalar(unit)

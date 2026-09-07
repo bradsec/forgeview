@@ -10,13 +10,13 @@ const details = {
   watertight: true, modelUnitInMm: 1, overhangFaceCount: 0, thinWallFaceCount: 0,
 }
 
-describe('TransformSection', () => {
-  beforeEach(() =>
-    useViewerStore.setState({
-      geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,
-    }),
-  )
+beforeEach(() =>
+  useViewerStore.setState({
+    geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,
+  }),
+)
 
+describe('TransformSection', () => {
   it('locks every control while split by shell', () => {
     useViewerStore.setState({ splitParts: [{ id: 'a', name: 'a', triangleCount: 1, visible: true }] })
     render(<TransformSection viewerRef={{ current: null }} />)

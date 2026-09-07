@@ -18,6 +18,35 @@ function tiltedPlate(deg: number): Float32Array {
   return new Float32Array([...a, ...b, ...c, ...a, ...c, ...d])
 }
 
+/** Closed box [w x h x d] with outward winding, plus a tiny downward spike of
+ *  height `spike` hanging below the centre of the base. */
+function boxWithSpike(w: number, h: number, d: number, spike: number): Float32Array {
+  const v = [
+    [0, 0, 0], [w, 0, 0], [w, h, 0], [0, h, 0],
+    [0, 0, d], [w, 0, d], [w, h, d], [0, h, d],
+  ]
+  const faces = [
+    [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+    [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+    [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4],
+  ]
+  const out: number[] = []
+  const c = [w / 2, h / 2, d / 2]
+  const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+  const cross = (a: number[], b: number[]) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  for (const [i, j, k] of faces) {
+    const n = cross(sub(v[j], v[i]), sub(v[k], v[i]))
+    const fc = [(v[i][0] + v[j][0] + v[k][0]) / 3, (v[i][1] + v[j][1] + v[k][1]) / 3, (v[i][2] + v[j][2] + v[k][2]) / 3]
+    const ord = dot(n, sub(fc, c)) >= 0 ? [i, j, k] : [i, k, j]
+    for (const idx of ord) out.push(...v[idx])
+  }
+  // a single spike triangle poking below the base near its centre
+  const sx = w / 2, sz = d / 2
+  out.push(sx - 0.5, 0, sz, sx + 0.5, 0, sz, sx, -spike, sz)
+  return new Float32Array(out)
+}
+
 describe('fibonacciSphere', () => {
   it('returns n unit vectors', () => {
     const pts = fibonacciSphere(64)
@@ -36,6 +65,15 @@ describe('computeBestOrientation', () => {
     // already flat: winner is the current orientation -> identity
     expect(r.quaternion).toEqual([0, 0, 0, 1])
     expect(r.overhangFractionAfter).toBeCloseTo(r.overhangFractionBefore, 5)
+  })
+
+  it('is not flipped by a sub-millimetre spike on the base of a flat-resting box', () => {
+    // 40 x 20 x 30 box already resting flat, with a 0.02-unit nub below the
+    // base. A candidate-dependent contact tolerance would drop the whole base
+    // from the contact set and flip the box; a fixed diag-scaled band does not.
+    const r = computeBestOrientation(boxWithSpike(40, 20, 30, 0.02), 45)
+    expect(r.skipped).toBe(false)
+    expect(r.quaternion).toEqual([0, 0, 0, 1])
   })
 
   it('finds an orientation that removes the overhang on a tilted plate', () => {

@@ -6,7 +6,7 @@ export const AUTO_ORIENT_MAX_FACES = 200_000
  *  tried as candidate rest orientations, on top of the Fibonacci sweep. A
  *  flat resting face must be an exact candidate for its own contact area to
  *  register, which a sparse Fibonacci lattice cannot guarantee. */
-const AUTO_ORIENT_FACE_NORMAL_CANDIDATES = 256
+const AUTO_ORIENT_FACE_NORMAL_CANDIDATES = 64
 /** Quantisation grid for de-duplicating near-parallel face normals (~1 degree). */
 const NORMAL_DEDUPE_GRID = 50
 
@@ -26,6 +26,7 @@ export interface AutoOrientResult {
 
 /** n roughly-uniform unit vectors on the sphere (Fibonacci lattice). */
 export function fibonacciSphere(n: number): [number, number, number][] {
+  if (n < 2) return n === 1 ? [[0, -1, 0]] : []
   const out: [number, number, number][] = []
   const golden = Math.PI * (3 - Math.sqrt(5))
   for (let i = 0; i < n; i++) {
@@ -83,6 +84,11 @@ export function computeBestOrientation(
     totalArea += area
   }
   const diag = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) || 1
+  // Bed-contact band: orientation independent, roughly first-layer scale. Using
+  // the candidate's own height instead would make a flatter candidate's test
+  // tighter, so a sub-millimetre nub on the base could drop the whole face out
+  // of the contact set and flip the model.
+  const contactEps = Math.max(diag * 1e-3, 1e-4)
 
   // Evaluate one candidate down-vector: returns its overhang fraction (support
   // needing, i.e. within thresholdDeg of straight down and NOT resting on the
@@ -100,7 +106,6 @@ export function computeBestOrientation(
       }
     }
     const height = maxH - minH
-    const contactEps = Math.max(height * 1e-3, 1e-4)
     let overhangArea = 0
     let contactArea = 0
     for (let f = 0; f < faceCount; f++) {
