@@ -62,6 +62,7 @@ export function TransformSection({
   const [rotate, setRotate] = useState<AxisStrings>(BLANK)
   const [scale, setScale] = useState<AxisStrings>(BLANK)
   const [orientNote, setOrientNote] = useState<string | null>(null)
+  const [layoutNote, setLayoutNote] = useState<string | null>(null)
 
   const moveHasAny = hasAnyAxisValue(move)
   const rotateHasAny = hasAnyAxisValue(rotate)
@@ -73,6 +74,7 @@ export function TransformSection({
     const delta = parseAxisInputs(move, (mm) => toMm(mm, unit) / scaleUnit, 0)
     viewerRef.current?.moveModelBy(delta)
     setMove(BLANK)
+    setLayoutNote(null) // a manual reposition invalidates the arrangement
   }
   const applyRotate = () => {
     if (!rotateHasAny) return
@@ -87,6 +89,12 @@ export function TransformSection({
     if (r.status === 'skipped') { setOrientNote('Model too large to auto-orient'); return }
     if (r.status === 'noop') { setOrientNote('Already well oriented'); return }
     setOrientNote(`Overhang area ${r.beforePct}% to ${r.afterPct}%`)
+  }
+  const runArrange = () => {
+    const r = viewerRef.current?.arrangeOnPlate()
+    if (!r || r.status === 'empty') return
+    if (r.placed === r.total) setLayoutNote(`Arranged ${r.total} model${r.total === 1 ? '' : 's'}`)
+    else setLayoutNote(`Arranged ${r.placed} of ${r.total}, the rest do not fit`)
   }
   const applyScale = () => {
     if (!scaleHasAny || !scaleAllValid) return
@@ -195,7 +203,7 @@ export function TransformSection({
           <button
             type="button"
             disabled={locked}
-            onClick={() => viewerRef.current?.dropToFloor()}
+            onClick={() => { viewerRef.current?.dropToFloor(); setLayoutNote(null) }}
             className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
           >
             Drop to floor
@@ -203,7 +211,7 @@ export function TransformSection({
           <button
             type="button"
             disabled={locked}
-            onClick={() => viewerRef.current?.centerOnPlate()}
+            onClick={() => { viewerRef.current?.centerOnPlate(); setLayoutNote(null) }}
             className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
           >
             Center on plate
@@ -216,8 +224,17 @@ export function TransformSection({
           >
             Auto-orient
           </button>
+          <button
+            type="button"
+            disabled={locked}
+            onClick={runArrange}
+            className="px-3 py-1.5 rounded bg-[var(--bg-button)] text-sm disabled:opacity-50"
+          >
+            Arrange on plate
+          </button>
         </div>
         {orientNote && <p className="text-xs text-[var(--text-muted)]">{orientNote}</p>}
+        {layoutNote && <p className="text-xs text-[var(--text-muted)]">{layoutNote}</p>}
       </div>
     </div>
   )

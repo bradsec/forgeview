@@ -123,3 +123,33 @@ describe('TransformSection - auto-orient', () => {
     expect((screen.getByRole('button', { name: 'Auto-orient' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
+
+describe('TransformSection - arrange on plate', () => {
+  it('calls arrangeOnPlate and shows the all-placed note', async () => {
+    const arrangeOnPlate = vi.fn(() => ({ status: 'arranged', placed: 3, total: 3 }))
+    render(<TransformSection viewerRef={{ current: { arrangeOnPlate } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Arrange on plate' }))
+    expect(arrangeOnPlate).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Arranged 3 models')).toBeTruthy()
+  })
+
+  it('reports when some models do not fit', async () => {
+    const arrangeOnPlate = vi.fn(() => ({ status: 'arranged', placed: 2, total: 5 }))
+    render(<TransformSection viewerRef={{ current: { arrangeOnPlate } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Arrange on plate' }))
+    expect(screen.getByText('Arranged 2 of 5, the rest do not fit')).toBeTruthy()
+  })
+
+  it('says nothing for an empty scene', async () => {
+    const arrangeOnPlate = vi.fn(() => ({ status: 'empty' }))
+    render(<TransformSection viewerRef={{ current: { arrangeOnPlate } as never }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Arrange on plate' }))
+    expect(screen.queryByText(/Arranged/)).toBeNull()
+  })
+
+  it('disables the button while locked', () => {
+    useViewerStore.setState({ splitParts: [{ id: 'a', name: 'a', triangleCount: 1, visible: true }] })
+    render(<TransformSection viewerRef={{ current: null }} />)
+    expect((screen.getByRole('button', { name: 'Arrange on plate' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+})
