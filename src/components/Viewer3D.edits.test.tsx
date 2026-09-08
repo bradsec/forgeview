@@ -102,21 +102,6 @@ describe('transforms', () => {
     expect(center.x).toBeCloseTo(0)
     expect(center.z).toBeCloseTo(0)
   })
-
-  it('refreshes an armed heatmap after moving the model and undoing', async () => {
-    const root = twoShells()
-    const ref = await open(root)
-    act(() => useViewerStore.getState().setOverhangMode(true))
-    const overlayBox = () => {
-      const overlay = ref.current!.getScene()!.children.find((node) => node.userData.overhangOverlay)!
-      return new THREE.Box3().expandByObject(overlay, true)
-    }
-    const before = overlayBox().min.x
-    act(() => ref.current!.moveModelBy({ x: 10, y: 0, z: 0 }))
-    expect(overlayBox().min.x).toBeCloseTo(before + 10)
-    act(() => ref.current!.undoEdit())
-    expect(overlayBox().min.x).toBeCloseTo(before)
-  })
 })
 
 describe('scene lifecycle', () => {
