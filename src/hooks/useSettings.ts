@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import type { QualityPreset, PerformanceOverrides } from '../utils/performancePresets'
 import type { ThemeMode } from '../themes'
@@ -74,7 +74,7 @@ export function useSettingsPersistence() {
   const overrides = useViewerStore((s) => s.performanceOverrides)
   const theme = useViewerStore((s) => s.theme)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const initializedRef = useRef(false)
+  const [initialized, setInitialized] = useState(false)
 
   // Load settings on mount
   useEffect(() => {
@@ -103,13 +103,13 @@ export function useSettingsPersistence() {
         // Settings file doesn't exist yet or is corrupt — use defaults
       })
       .finally(() => {
-        initializedRef.current = true
+        setInitialized(true)
       })
   }, [])
 
   // Save settings on change (debounced 500ms)
   useEffect(() => {
-    if (!initializedRef.current) return
+    if (!initialized) return
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
@@ -119,5 +119,5 @@ export function useSettingsPersistence() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [preset, overrides, theme])
+  }, [initialized, preset, overrides, theme])
 }

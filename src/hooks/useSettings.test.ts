@@ -45,4 +45,18 @@ describe('useSettingsPersistence', () => {
     await waitFor(() => expect(useViewerStore.getState().performancePreset).toBe('low'))
     expect(useViewerStore.getState().theme).toBe('light')
   })
+
+  it('persists an edit made before initial settings reading finishes', async () => {
+    vi.useFakeTimers()
+    useViewerStore.setState({ performancePreset: 'high', performanceOverrides: {}, theme: 'dark' })
+    let finish!: (value: string) => void
+    fsMocks.readTextFile.mockReturnValue(new Promise<string>((r) => { finish = r }))
+    const hook = renderHook(() => useSettingsPersistence())
+    await act(async () => {})
+    act(() => useViewerStore.getState().setTheme('light'))
+    await act(async () => { finish('{}') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    try { expect(fsMocks.writeTextFile).toHaveBeenCalled() }
+    finally { hook.unmount(); vi.useRealTimers() }
+  })
 })
