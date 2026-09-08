@@ -64,6 +64,7 @@ export function SolidToolsSection({ viewerRef }: { viewerRef: React.RefObject<Vi
     </fieldset>
     <fieldset disabled={disabled} className="text-xs">
       <legend className="font-semibold">Hollow and drain</legend>
+      {details && !details.modelUnitInMm && <p className="mt-1">Assign import units in the Details tab before hollowing.</p>}
       <p className="mt-1 text-[var(--text-muted)]">One mesh. Inner surface is approximate; walls must be at least one grid cell thick. The optional straight drain passes through the model on the chosen axis.</p>
       <label className="mt-2 block">Wall thickness (mm)<input className={input} type="number" min={0.01} step={0.1} value={thickness} onChange={e => setThickness(Number(e.target.value))} /></label>
       <label className="mt-2 block">Hollow resolution<input className={input} type="number" min={16} max={64} value={resolution} onChange={e => setResolution(Number(e.target.value))} /></label>

@@ -699,6 +699,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       apply: () => meshes.forEach((mesh, i) => { mesh.geometry.dispose(); mesh.geometry = originals[i] }),
       discard: () => originals.forEach(geometry => geometry.dispose()),
     })
+    for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
     updateTriangleDetails()
     updateGeometryDetails()
     refreshSceneEnvironment()
@@ -1275,6 +1276,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         }, discard: () => disposeModel(original, scene) })
         useViewerStore.getState().setClipMode(false)
         useViewerStore.getState().setXrayMode(false)
+        applyViewMode(group, useViewerStore.getState().viewMode)
         updateTriangleDetails()
         updateGeometryDetails()
         invalidate()
