@@ -49,10 +49,6 @@
   model in the scene into a grid inside the build-volume footprint and
   drops each to the plate as one undoable step. Models too large for the
   footprint are left alone and reported.
-- Prepare panel: plane cut (SP-6a). With the clip plane shown, Cut at
-  plane slices the model into two watertight shells along it, using the
-  new manifold-3d wasm worker. The pieces land in the Parts section. One
-  undoable step.
 
 ## 1.7.2 - 2026-08-29
 

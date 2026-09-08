@@ -35,7 +35,6 @@ describe('SceneControls', () => {
         arrangeOnPlate: vi.fn(),
         undoEdit: vi.fn(),
         splitByShell: vi.fn(),
-        cutAtPlane: vi.fn(),
         getSplitPart: vi.fn(),
       } satisfies Viewer3DHandle,
     }

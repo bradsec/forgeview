@@ -39,10 +39,6 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     body: 'X-ray makes the model translucent so you can see interior walls and trapped voids. The clip plane hides everything on one side of an adjustable X, Y, or Z cut, showing a live cross-section. Use both to check what Make solid or hollow produced. They turn off automatically when a heatmap or hole-fill is armed.',
   },
   {
-    title: 'Plane cut',
-    body: 'With the clip plane shown, Cut at plane slices the model into two watertight shells along that plane. The pieces appear in the Parts section, where you can hide, export, or delete each one. It needs a single-mesh model; run Repair first if the model is not a closed solid. The pieces are flat-shaded and the cut is not available in multi-model mode. One undoable step.',
-  },
-  {
     title: 'Build volume',
     body: 'Show build volume draws your configured printer volume as a wireframe box on the plate, centred on the origin with its base on the plate. It is a fixed reference and does not move or scale the model. Set the size with the Scale to build volume fields, then use Center on plate and Drop to floor to bring the model onto it. The On build plate readiness row reports whether it fits.',
   },

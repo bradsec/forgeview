@@ -277,8 +277,8 @@ hard part, so it lands in SP-6a where the feature on top of it is small.
 
 | # | Piece | Depends on | New deps | Status |
 |---|-------|-----------|----------|--------|
-| SP-6a | manifold-3d integration + plane cut | SP-3 (mm), SP-5a (build volume box for the cut-plane UI) | `manifold-3d` | SHIPPED, branch `worktree-sp6a-manifold-plane-cut`, commits `384bcab..d8c013b`. Persistent manifold-3d wasm worker (`src/services/manifold.worker.ts`) + `weldSoup`/`meshToSoup` bridge (`src/services/manifoldBridge.ts`) + `cutByPlane` singleton-worker service (`src/services/planeCut.ts`). Viewer3D `cutAtPlane` handle reuses the SP-4c clip plane, world-bakes the mesh to a soup, `trimByPlane` both half-spaces, assembles two watertight shells into `splitPartsGroupRef` at identity, one undoable "Plane cut" edit. `AnalysisSection` gains a `viewerRef` prop + "Cut at plane" button/note in the clip block (`PreparePanel` wires it). `HelpModal` "Plane cut" entry. e2e `e2e/plane-cut.spec.ts` (real browser wasm load: cut a box into two parts, undo). Spec: `2026-09-07-sp6a-manifold-plane-cut-design.md`; plan: `../plans/2026-09-07-sp6a-manifold-plane-cut.md`. |
-| SP-6b | Boolean union / subtract / intersect | SP-6a | none extra | Not started. The remaining SP-6 cycle. `a.union(b)` / `a.subtract(b)` / `a.intersect(b)` between two scene models, reusing SP-6a's worker + bridge. |
+| SP-6a | manifold-3d integration + plane cut | SP-3 (mm), SP-5a (build volume box for the cut-plane UI) | `manifold-3d` | Not started. Load the wasm in a worker, bridge a BufferGeometry to a `Manifold`, and ship an axis-aligned plane cut via `trimByPlane` (guaranteed watertight, auto-capped). Keep-one-side or split-into-two-shells. One undoable "Plane cut" edit. |
+| SP-6b | Boolean union / subtract / intersect | SP-6a | none extra | Not started. `a.union(b)` / `a.subtract(b)` / `a.intersect(b)` between two scene models, reusing SP-6a's worker + bridge. |
 
 ## SP-H: in-app feature help (cross-cutting)
 

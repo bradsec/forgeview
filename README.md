@@ -20,10 +20,6 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
   fragments are dropped. Undo "Split by shell" from the history to recombine.
   Works on a single-mesh preview model (not multi-model mode, not textured or
   multi-material meshes).
-- **Plane cut** — with the clip plane shown, slice the model into two watertight
-  shells along that plane. The pieces land in the Parts section with their own
-  visibility toggle and Export. Runs on a manifold-3d wasm worker; needs a
-  single-mesh closed solid (run Repair first if it is not). One undoable step.
 - **Units and measure** — import unit prompt for unitless formats (STL/OBJ/PLY),
   bounding-box dimensions in mm/cm/in, point-to-point distance measure on the
   model, scale to target length, scale to fit configurable build volume.
