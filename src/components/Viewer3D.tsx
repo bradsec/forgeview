@@ -1436,6 +1436,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
 
     return () => {
       previewVersionRef.current++
+      clearUndo()
       unsubscribeStore()
       if (dblClickRef.current) {
         dblClickRef.current.el.removeEventListener('dblclick', dblClickRef.current.fn)
@@ -1748,7 +1749,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // After all adds complete, fit camera to all multi-model objects.
     // Removal-only and metadata-only updates (triangle counts) must not
     // re-fit — the user's camera position would jump for no reason.
-    if (addPromises.length === 0) return
+    if (addPromises.length === 0) {
+      updateGeometryDetails()
+      return
+    }
     Promise.all(addPromises).then(() => {
       updateGeometryDetails()
       if (sceneRef.current !== scene || loadingIdsRef.current.size > 0) return

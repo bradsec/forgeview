@@ -118,3 +118,35 @@ describe('transforms', () => {
     expect(overlayBox().min.x).toBeCloseTo(before)
   })
 })
+
+describe('scene lifecycle', () => {
+  it('clears undo resources and labels when the viewer unmounts', async () => {
+    const root = twoShells()
+    const dispose = vi.spyOn(root.geometry, 'dispose')
+    const ref = await open(root)
+    act(() => ref.current!.splitByShell())
+    expect(dispose).not.toHaveBeenCalled()
+    cleanup()
+    expect(dispose).toHaveBeenCalled()
+    expect(useViewerStore.getState().undoLabels).toEqual([])
+  })
+
+  it('refreshes scene dimensions when an assembly model is removed', async () => {
+    const meshes = [twoShells(), twoShells()]
+    meshes[1].position.x = 100
+    vi.mocked(loadModel).mockImplementation(async (path, _ext, scene) => {
+      const root = meshes[path === '/a.stl' ? 0 : 1]
+      scene.add(root)
+      return root
+    })
+    await act(async () => {
+      useViewerStore.setState({ loadedModels: ['a', 'b'].map((id) => ({
+        id, path: `/${id}.stl`, name: id, extension: '.stl', sizeBytes: 100, triangleCount: 0,
+      })) })
+      render(<Viewer3D filePath={null} fileExtension={null} viewMode="solid" />)
+    })
+    expect(useViewerStore.getState().geometryDetails!.width).toBe(104)
+    act(() => useViewerStore.getState().removeModel('b'))
+    expect(useViewerStore.getState().geometryDetails!.width).toBe(4)
+  })
+})
