@@ -38,6 +38,7 @@ import { buildWallThicknessOverlay, disposeWallThicknessOverlay } from '../servi
 import { buildBuildVolumeOverlay, disposeBuildVolumeOverlay } from '../services/buildVolumeOverlay'
 import { computeBestOrientation } from '../services/autoOrient'
 import { computeBedLayout } from '../services/bedLayout'
+import { packedPositions } from '../services/meshTopology'
 
 export interface RepairRunResult {
   label: string
@@ -264,8 +265,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const geo = mesh.geometry as THREE.BufferGeometry
       const worldGeo = geo.index ? geo.toNonIndexed() : geo.clone()
       worldGeo.applyMatrix4(mesh.matrixWorld)
-      const posAttr = worldGeo.getAttribute('position') as THREE.BufferAttribute
-      overhangFaceCount += computeOverhangFaceMask(posAttr.array as Float32Array, overhangThreshold).count
+      overhangFaceCount += computeOverhangFaceMask(packedPositions(worldGeo.getAttribute('position')), overhangThreshold).count
       worldGeo.dispose()
     }
     const unitScales = roots.map((root) => root.userData.modelUnitInMm).filter((value): value is number => typeof value === 'number')
@@ -933,7 +933,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         const g = mesh.geometry as THREE.BufferGeometry
         const wg = g.index ? g.toNonIndexed() : g.clone()
         wg.applyMatrix4(mesh.matrixWorld)
-        chunks.push((wg.getAttribute('position') as THREE.BufferAttribute).array as Float32Array)
+        chunks.push(packedPositions(wg.getAttribute('position')))
         wg.dispose()
       }
       const total = chunks.reduce((n, c) => n + c.length, 0)
