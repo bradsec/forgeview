@@ -78,8 +78,9 @@ and materials back to that point.
 
 The Prepare panel's readiness card summarises watertightness, manifold and open
 edges, and degenerate or duplicate faces, with a Fix shortcut that opens the
-Repair modal; wall-thickness, overhang, and build-plate checks are listed but
-arrive in a later release. Once a seal has run, the watertight and manifold rows
+Repair modal. Wall-thickness, overhang, and build-volume fit checks are also
+active; wall-thickness sampling is limited for large models. Once a seal has
+run, the watertight and manifold rows
 are marked informational: any residual edges are inherited from the original
 skin and the rows no longer offer a Fix.
 
@@ -98,6 +99,13 @@ default.
 
 3MF export includes an explicit physical-unit selector and defaults to
 millimetres. STL, OBJ, and PLY do not encode physical units.
+
+## Roadmap status
+
+Print-preparation SP-1 through SP-5 and the feature guide are implemented.
+SP-6a plane cut and SP-6b boolean operations are not implemented. Hollowing,
+decimation/remeshing, and batch preparation remain future roadmap work.
+See the [print-preparation roadmap](docs/superpowers/specs/2026-08-30-print-prep-roadmap.md).
 
 ## Prerequisites
 

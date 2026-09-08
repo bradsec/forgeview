@@ -30,6 +30,9 @@ test-results/
 .claude/
 .agents/
 .codex-plugins/
+.codex/
+*.tsbuildinfo
+*.log
 CLAUDE.md
 AGENTS.md
 GEMINI.md

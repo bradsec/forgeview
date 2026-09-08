@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Reject forged 3MF inflation sizes incrementally before whole-entry allocation.
+- Decode interleaved geometry correctly during repair, splitting, and analysis.
+- Process long connected meshes and highly fragmented meshes without exceeding
+  JavaScript stack or function argument limits.
+- Reject mixed multi-mesh models when splitting shells and preserve physical units.
+- Use precise bounds when dropping rotated models to the floor or centering them.
+- Release retained undo resources when leaving the viewer and refresh assembly
+  details after removing a model.
+- Keep responsive analysis and build-volume controls synchronized, and scope
+  readiness navigation to the visible panel.
+- Preserve pending settings edits during startup and shared thumbnail requests
+  when one requesting tile is canceled.
+
 - Repair modal: run individual mesh-repair stages (weld vertices, remove
   degenerate and duplicate faces, unify normals, remove small shells, fill
   holes) or the whole pipeline with Make solid as the final sealing stage.
