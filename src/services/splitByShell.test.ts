@@ -32,6 +32,40 @@ function cubePlusSpeck(): THREE.BufferGeometry {
 }
 
 describe('splitByShell', () => {
+  it('filters a mesh with many disconnected fragments', () => {
+    const fragments = 150000
+    const positions = new Float32Array((fragments + 2) * 9)
+    for (let i = 0; i <= fragments; i++) {
+      const x = i * 4
+      positions.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], i * 9)
+    }
+    const x = fragments * 4
+    positions.set([x + 1, 0, 0, x + 1, 1, 0, x, 1, 0], (fragments + 1) * 9)
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const { parts, droppedFragments, droppedTriangles } = splitByShell(g, 1)
+    expect(parts).toHaveLength(1)
+    expect(parts[0].getAttribute('position').count).toBe(6)
+    expect(droppedFragments).toBe(fragments)
+    expect(droppedTriangles).toBe(fragments)
+  })
+
+  it('preserves a long connected triangle strip without overflowing the stack', () => {
+    const triangles = 15000
+    const positions = new Float32Array(triangles * 9)
+    for (let i = 0; i < triangles; i++) {
+      positions.set([i, 0, 0, i, 1, 0, i + 1, 0, 0], i * 9)
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const { parts, droppedFragments, droppedTriangles } = splitByShell(g)
+    expect(parts).toHaveLength(1)
+    expect(parts[0].getAttribute('position').count).toBe(triangles * 3)
+    expect(droppedFragments).toBe(0)
+    expect(droppedTriangles).toBe(0)
+    expect(g.getAttribute('position').array).toEqual(positions)
+  })
+
   it('splits two separated cubes into two parts of equal size', () => {
     const src = cubes(2)
     const { parts, droppedFragments, droppedTriangles } = splitByShell(src)

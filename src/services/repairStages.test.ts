@@ -401,6 +401,36 @@ describe('runStages', () => {
 })
 
 describe('removeSmallShells', () => {
+  it('filters a mesh with many disconnected fragments', () => {
+    const fragments = 150000
+    const positions = new Float32Array((fragments + 2) * 9)
+    for (let i = 0; i <= fragments; i++) {
+      const x = i * 4
+      positions.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], i * 9)
+    }
+    const x = fragments * 4
+    positions.set([x + 1, 0, 0, x + 1, 1, 0, x, 1, 0], (fragments + 1) * 9)
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const { geometry, note } = removeSmallShells(g, 1)
+    expect(geometry.getAttribute('position').count).toBe(6)
+    expect(note).toBe(`${fragments} shells removed (${fragments} tris)`)
+  })
+
+  it('preserves a long connected triangle strip without overflowing the stack', () => {
+    const triangles = 15000
+    const positions = new Float32Array(triangles * 9)
+    for (let i = 0; i < triangles; i++) {
+      positions.set([i, 0, 0, i, 1, 0, i + 1, 0, 0], i * 9)
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const { geometry, note } = removeSmallShells(g)
+    expect(geometry.getAttribute('position').count).toBe(triangles * 3)
+    expect(note).toBeUndefined()
+    expect(g.getAttribute('position').array).toEqual(positions)
+  })
+
   it('drops a tiny second shell and keeps the big one', () => {
     // Big shell must have >100 tris so a 1-tri speck is below the default 1% floor.
     const big = new THREE.SphereGeometry(10, 16, 12).toNonIndexed().getAttribute('position').array as Float32Array

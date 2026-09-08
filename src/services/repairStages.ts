@@ -176,7 +176,16 @@ export function unifyNormals(geo: THREE.BufferGeometry): StageResult {
 export function removeSmallShells(geo: THREE.BufferGeometry, minFraction = 0.01): StageResult {
   const { positions, tris, vertexCount } = triModel(geo)
   const parent = Array.from({ length: vertexCount }, (_, i) => i)
-  const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])))
+  const find = (x: number): number => {
+    let root = x
+    while (parent[root] !== root) root = parent[root]
+    while (parent[x] !== root) {
+      const next = parent[x]
+      parent[x] = root
+      x = next
+    }
+    return root
+  }
   const union = (x: number, y: number) => { parent[find(x)] = find(y) }
   for (const tri of tris) { union(tri[0], tri[1]); union(tri[1], tri[2]) }
   const compTris = new Map<number, number[]>()
@@ -191,7 +200,8 @@ export function removeSmallShells(geo: THREE.BufferGeometry, minFraction = 0.01)
     return { geometry: rebuild(tris, (id) => table[id]) }
   }
   const total = tris.length
-  const maxTris = Math.max(...[...compTris.values()].map((list) => list.length))
+  let maxTris = 0
+  for (const list of compTris.values()) maxTris = Math.max(maxTris, list.length)
   const keep = new Set<number>()
   let dropped = 0, droppedTris = 0
   for (const list of compTris.values()) {

@@ -23,7 +23,16 @@ export function splitByShell(
   const table = vertexTable(positions, tris, vertexCount)
 
   const parent = Array.from({ length: vertexCount }, (_, i) => i)
-  const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])))
+  const find = (x: number): number => {
+    let root = x
+    while (parent[root] !== root) root = parent[root]
+    while (parent[x] !== root) {
+      const next = parent[x]
+      parent[x] = root
+      x = next
+    }
+    return root
+  }
   const union = (x: number, y: number) => { parent[find(x)] = find(y) }
   for (const tri of tris) { union(tri[0], tri[1]); union(tri[1], tri[2]) }
 
@@ -37,7 +46,7 @@ export function splitByShell(
 
   const groups = [...compTris.values()]
   const total = tris.length
-  const maxLen = Math.max(...groups.map((g) => g.length))
+  const maxLen = groups.reduce((max, g) => Math.max(max, g.length), 0)
 
   const kept: number[][] = []
   let droppedFragments = 0
