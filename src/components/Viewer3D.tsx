@@ -1191,11 +1191,11 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       if (!original) throw new Error('Split by shell works on a single open model')
       if (splitPartsGroupRef.current) throw new Error('Already split — undo Split by shell first')
 
-      const meshes = withGeometry(modelMeshes()).filter(isRepairable)
-      if (meshes.length === 0)
-        throw new Error('No splittable mesh: the model uses textures or multiple materials')
+      const meshes = withGeometry(modelMeshes())
       if (meshes.length > 1)
         throw new Error('Split by shell needs a single-mesh model')
+      if (meshes.length === 0 || !isRepairable(meshes[0]))
+        throw new Error('No splittable mesh: the model uses textures or multiple materials')
 
       const mesh = meshes[0]
       const res = splitGeometryByShell(mesh.geometry as THREE.BufferGeometry)
@@ -1218,6 +1218,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const base = baseModelName()
       const group = new THREE.Group()
       group.userData.splitGroup = true
+      group.userData.modelUnitInMm = original.userData.modelUnitInMm
 
       const partMeta: { id: string; name: string; triangleCount: number; visible: boolean }[] = []
       res.parts.forEach((geo, i) => {
