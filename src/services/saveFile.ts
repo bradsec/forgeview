@@ -18,6 +18,31 @@ function isAbortError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
 }
 
+/** Call directly from the export click, before yielding or preparing bytes.
+ * Undefined selects the native dialog or download fallback; null means cancelled.
+ */
+export async function prepareExportSave(filename: string): Promise<BrowserSaveHandle | null | undefined> {
+  if (isTauri()) return undefined
+  const savePicker = (window as Window & { showSaveFilePicker?: BrowserSavePicker }).showSaveFilePicker
+  if (savePicker) {
+    const extensionIndex = filename.lastIndexOf('.')
+    const extension = extensionIndex >= 0 ? filename.slice(extensionIndex).toLowerCase() : ''
+    try {
+      return await savePicker.call(window, {
+        suggestedName: filename,
+        types: [{
+          description: '3D model',
+          accept: { 'application/octet-stream': extension ? [extension] : [] },
+        }],
+      })
+    } catch (error) {
+      if (isAbortError(error)) return null
+      throw error
+    }
+  }
+  return undefined
+}
+
 /**
  * Deliver exported bytes to the user.
  *
@@ -29,7 +54,11 @@ function isAbortError(error: unknown): boolean {
  * Returns the saved path (Tauri), the filename (browser), or null when the
  * user cancelled the save dialog.
  */
-export async function saveExportedFile(bytes: Uint8Array, filename: string): Promise<string | null> {
+export async function saveExportedFile(
+  bytes: Uint8Array,
+  filename: string,
+  preparedHandle?: BrowserSaveHandle | null,
+): Promise<string | null> {
   if (isTauri()) {
     // Header values must be ASCII-safe; Rust percent-decodes
     const encoded = encodeURIComponent(filename)
@@ -40,18 +69,10 @@ export async function saveExportedFile(bytes: Uint8Array, filename: string): Pro
     return savedPath
   }
 
-  const savePicker = (window as Window & { showSaveFilePicker?: BrowserSavePicker }).showSaveFilePicker
-  if (savePicker) {
-    const extensionIndex = filename.lastIndexOf('.')
-    const extension = extensionIndex >= 0 ? filename.slice(extensionIndex).toLowerCase() : ''
+  const handle = preparedHandle === undefined ? await prepareExportSave(filename) : preparedHandle
+  if (handle === null) return null
+  if (handle) {
     try {
-      const handle = await savePicker.call(window, {
-        suggestedName: filename,
-        types: [{
-          description: '3D model',
-          accept: { 'application/octet-stream': extension ? [extension] : [] },
-        }],
-      })
       const writable = await handle.createWritable()
       await writable.write(new Uint8Array(bytes))
       await writable.close()

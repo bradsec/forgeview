@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as THREE from 'three'
 import { ExportDialog } from './ExportDialog'
 import type { Viewer3DHandle } from './Viewer3D'
 import { useViewerStore } from '../store/viewerStore'
+import { saveExportedFile } from '../services/saveFile'
 import { collectExportMeshes, exportMeshes } from '../services/exporters'
 
 vi.mock('../services/exporters', () => ({
@@ -13,12 +14,58 @@ vi.mock('../services/exporters', () => ({
   disposeExportMeshes: vi.fn(),
   exportMeshes: vi.fn(async () => new Uint8Array()),
 }))
-vi.mock('../services/saveFile', () => ({ saveExportedFile: vi.fn(async () => 'model.stl') }))
+vi.mock('../utils/isTauri', () => ({ isTauri: () => false }))
+vi.mock('../services/saveFile', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../services/saveFile')>(),
+  saveExportedFile: vi.fn(async () => 'model.stl'),
+}))
 
 describe('ExportDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useViewerStore.setState({ exportOpen: true, fileName: 'model.stl', pendingModelLoads: 0, error: null })
+    useViewerStore.setState({ exportOpen: true, fileName: 'model.stl', pendingModelLoads: 0, error: null, exportTargetId: null })
+  })
+
+  afterEach(() => {
+    delete (window as Window & { showSaveFilePicker?: unknown }).showSaveFilePicker
+  })
+
+  it('opens the picker during the click before a slow export starts', async () => {
+    let finishExport!: (bytes: Uint8Array) => void
+    vi.mocked(exportMeshes).mockReturnValueOnce(new Promise((resolve) => { finishExport = resolve }))
+    const handle = { name: 'chosen.stl', createWritable: vi.fn() }
+    const picker = vi.fn().mockResolvedValue(handle)
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: picker })
+    const viewerRef = { current: { getScene: () => new THREE.Scene() } as Viewer3DHandle }
+    render(<ExportDialog viewerRef={viewerRef} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(picker).toHaveBeenCalledOnce()
+    expect(collectExportMeshes).not.toHaveBeenCalled()
+    await waitFor(() => expect(exportMeshes).toHaveBeenCalledOnce())
+    expect(saveExportedFile).not.toHaveBeenCalled()
+    const bytes = new Uint8Array([1, 2])
+    await act(async () => { finishExport(bytes) })
+    await waitFor(() => expect(saveExportedFile).toHaveBeenCalledWith(bytes, 'model.stl', handle))
+  })
+
+  it.each([
+    [{ name: 'AbortError' }, null],
+    [new Error('Picker unavailable'), 'Picker unavailable'],
+  ])('stops before processing when the picker rejects with %s', async (error, expectedError) => {
+    const picker = vi.fn().mockRejectedValue(error)
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: picker })
+    const viewerRef = { current: { getScene: () => new THREE.Scene() } as Viewer3DHandle }
+    render(<ExportDialog viewerRef={viewerRef} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(picker).toHaveBeenCalledOnce()
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Export' }) as HTMLButtonElement).disabled).toBe(false))
+    expect(collectExportMeshes).not.toHaveBeenCalled()
+    expect(exportMeshes).not.toHaveBeenCalled()
+    expect(saveExportedFile).not.toHaveBeenCalled()
+    expect(useViewerStore.getState().exportOpen).toBe(true)
+    expect(useViewerStore.getState().error).toBe(expectedError)
   })
 
   it('disables export while assembly models are loading', () => {

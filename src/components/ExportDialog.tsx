@@ -3,7 +3,7 @@ import { useViewerStore } from '../store/viewerStore'
 import type { Viewer3DHandle } from './Viewer3D'
 import { EXPORT_FORMATS, THREE_MF_UNITS } from '../services/exportFormats'
 import type { ExportFormat, ThreeMFUnit } from '../services/exportFormats'
-import { saveExportedFile } from '../services/saveFile'
+import { prepareExportSave, saveExportedFile } from '../services/saveFile'
 import { nextPaint } from '../utils/nextPaint'
 
 interface ExportDialogProps {
@@ -17,8 +17,8 @@ function exportFileName(sourceName: string | null, format: ExportFormat): string
 
 /**
  * In-app export dialog: pick a target format, optionally make the model
- * then save. Browser mode downloads the
- * file directly; the desktop app opens the native save dialog from Rust.
+ * then save. Browser mode selects a destination before preparing bytes when
+ * supported; the desktop app opens the native save dialog from Rust.
  */
 export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const exportOpen = useViewerStore((s) => s.exportOpen)
@@ -100,6 +100,11 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     store.setError(null)
     let meshes: import('three').Mesh[] = []
     try {
+      const target = exportFileName(targetPart ? targetPart.name : fileName, format)
+      setPhase('Choosing save location')
+      // The browser picker needs the click activation, before any paint or export work.
+      const saveHandle = await prepareExportSave(target)
+      if (saveHandle === null) return
       // Serialization is synchronous; yield after each phase label so it
       // paints before the heavy work starts.
       setPhase('Collecting scene meshes')
@@ -118,8 +123,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
       const bytes = await exportMeshes(meshes, format, { threeMFUnit })
       setPhase(`Saving ${(bytes.byteLength / (1024 * 1024)).toFixed(1)} MB file`)
       await nextPaint()
-      const target = exportFileName(targetPart ? targetPart.name : fileName, format)
-      const saved = await saveExportedFile(bytes, target)
+      const saved = await saveExportedFile(bytes, target, saveHandle)
       if (saved !== null) {
         store.setNotice(`Exported ${saved}`)
         store.setExportOpen(false)
