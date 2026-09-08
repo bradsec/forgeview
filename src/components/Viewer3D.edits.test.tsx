@@ -92,7 +92,7 @@ describe('transforms', () => {
       0, 0, 0, 4, 0, 0, 0, 3, 1,
     ], 3))
     const root = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial())
-    root.rotation.z = Math.PI / 4
+    root.rotation.z = 5 * Math.PI / 4
     root.position.set(10, 10, 10)
     const ref = await open(root)
     act(() => ref.current!.dropToFloor())

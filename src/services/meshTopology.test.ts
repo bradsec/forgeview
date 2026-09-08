@@ -41,6 +41,28 @@ describe('fromPositions', () => {
 })
 
 describe('nonIndexedPositions', () => {
+  it('extracts only XYZ from interleaved positions and preserves the source', () => {
+    const data = new THREE.InterleavedBuffer(new Float32Array([
+      0, 0, 1, 0, 0, 0,
+      0, 0, 1, 1, 0, 0,
+      0, 0, 1, 0, 1, 0,
+    ]), 6)
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.InterleavedBufferAttribute(data, 3, 3))
+    g.setAttribute('normal', new THREE.InterleavedBufferAttribute(data, 3, 0))
+    const original = data.array.slice()
+
+    expect([...nonIndexedPositions(g)]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0])
+    expect(data.array).toEqual(original)
+    expect(triModel(g).tris).toHaveLength(1)
+  })
+
+  it('decodes normalized position components', () => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Int16Array([32767, 0, -32768]), 3, true))
+    expect([...nonIndexedPositions(g)]).toEqual([1, 0, -1])
+  })
+
   it('expands an indexed geometry to a flat soup copy', () => {
     const g = new THREE.BoxGeometry(1, 1, 1) // indexed
     const soup = nonIndexedPositions(g)

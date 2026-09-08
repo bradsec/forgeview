@@ -1,9 +1,19 @@
 import * as THREE from 'three'
 
+/** Copy decoded XYZ values without including interleaved sibling attributes. */
+export function packedPositions(attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): Float32Array {
+  const positions = new Float32Array(attribute.count * 3)
+  for (let index = 0; index < attribute.count; index++) {
+    positions[index * 3] = attribute.getX(index)
+    positions[index * 3 + 1] = attribute.getY(index)
+    positions[index * 3 + 2] = attribute.getZ(index)
+  }
+  return positions
+}
+
 export function nonIndexedPositions(geo: THREE.BufferGeometry): Float32Array {
   const src = geo.index ? geo.toNonIndexed() : geo
-  const attr = src.getAttribute('position') as THREE.BufferAttribute
-  const out = new Float32Array(attr.array as ArrayLike<number>)
+  const out = packedPositions(src.getAttribute('position'))
   if (src !== geo) src.dispose()
   return out
 }

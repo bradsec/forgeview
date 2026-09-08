@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { RepairStageId } from './repairStages'
 import type { MeshHealth } from './meshHealth'
+import { nonIndexedPositions } from './meshTopology'
 
 export interface PerMeshStage { id: RepairStageId; before: MeshHealth; after: MeshHealth; note?: string }
 
@@ -12,9 +13,7 @@ export function runRepairInWorker(
 ): Promise<{ geometries: THREE.BufferGeometry[]; perMesh: PerMeshStage[][] }> {
   if (meshes.length === 0) return Promise.reject(new Error('The scene has no mesh geometry to repair'))
   const payload = meshes.map((mesh) => {
-    const src = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry
-    const positions = new Float32Array(src.getAttribute('position').array as ArrayLike<number>).buffer
-    if (src !== mesh.geometry) src.dispose()
+    const positions = nonIndexedPositions(mesh.geometry).buffer
     return { positions, index: null as ArrayBuffer | null }
   })
   const worker = new Worker(new URL('./meshRepair.worker.ts', import.meta.url), { type: 'module' })

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { MeshBVH } from 'three-mesh-bvh'
+import { packedPositions } from './meshTopology'
 
 export const WALL_THICKNESS_MAX_TRIANGLES = 250_000
 
@@ -23,8 +24,7 @@ export function computeWallThicknessMask(
   minWallMm: number,
   unitInMm: number,
 ): WallThicknessMaskResult {
-  const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute
-  const positions = posAttr.array as Float32Array
+  const positions = packedPositions(geometry.getAttribute('position'))
   const faceCount = Math.floor(positions.length / 9)
   const mask = new Uint8Array(faceCount)
   let thinCount = 0

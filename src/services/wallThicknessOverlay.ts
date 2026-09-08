@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { computeWallThicknessMask } from './wallThickness'
+import { packedPositions } from './meshTopology'
 
 export interface WallThicknessOverlayResult {
   group: THREE.Group
@@ -39,8 +40,7 @@ export function buildWallThicknessOverlay(
 
     const baseHex = (mesh.material as THREE.MeshStandardMaterial)?.color?.getHex?.() ?? 0xb0b0b0
     const base = new THREE.Color(baseHex)
-    const posAttr = worldGeo.getAttribute('position') as THREE.BufferAttribute
-    const positions = posAttr.array as Float32Array
+    const positions = packedPositions(worldGeo.getAttribute('position'))
     const colors = new Float32Array(positions.length)
     const faceCount = Math.floor(positions.length / 9)
     for (let f = 0; f < faceCount; f++) {

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { computeOverhangFaceMask } from './overhangAnalysis'
+import { packedPositions } from './meshTopology'
 
 export interface OverhangOverlayResult {
   group: THREE.Group
@@ -32,8 +33,7 @@ export function buildOverhangOverlay(
     const worldGeo = source.index ? source.toNonIndexed() : source.clone()
     worldGeo.applyMatrix4(mesh.matrixWorld)
 
-    const posAttr = worldGeo.getAttribute('position') as THREE.BufferAttribute
-    const positions = posAttr.array as Float32Array
+    const positions = packedPositions(worldGeo.getAttribute('position'))
     const { mask } = computeOverhangFaceMask(positions, thresholdDeg)
 
     const baseHex = (mesh.material as THREE.MeshStandardMaterial)?.color?.getHex?.() ?? 0xb0b0b0
