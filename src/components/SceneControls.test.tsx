@@ -36,6 +36,7 @@ describe('SceneControls', () => {
         undoEdit: vi.fn(),
         splitByShell: vi.fn(),
         getSplitPart: vi.fn(),
+    cutAtPlane: vi.fn(), booleanOperation: vi.fn(), hollowModel: vi.fn(), remeshModel: vi.fn(), deleteSplitPart: vi.fn(),
       } satisfies Viewer3DHandle,
     }
     render(<SceneControls viewerRef={viewerRef} />)

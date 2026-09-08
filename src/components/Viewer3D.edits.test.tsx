@@ -18,11 +18,19 @@ vi.mock('../loaders', async (importOriginal) => ({
   ...await importOriginal<typeof import('../loaders')>(),
   loadModel: vi.fn(),
 }))
+vi.mock('../services/planeCut', () => ({ cutByPlane: vi.fn() }))
+vi.mock('../services/hollowModel', () => ({ hollowModel: vi.fn() }))
+vi.mock('../services/booleanMesh', () => ({ booleanMeshes: vi.fn() }))
+vi.mock('../services/remesh', () => ({ remeshGeometryInWorker: vi.fn() }))
 
 import * as THREE from 'three'
 import { loadModel } from '../loaders'
 import { Viewer3D, type Viewer3DHandle } from './Viewer3D'
 import { useViewerStore } from '../store/viewerStore'
+import { cutByPlane } from '../services/planeCut'
+import { hollowModel } from '../services/hollowModel'
+import { booleanMeshes } from '../services/booleanMesh'
+import { remeshGeometryInWorker } from '../services/remesh'
 
 beforeAll(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
@@ -34,6 +42,10 @@ beforeAll(() => {
 beforeEach(() => {
   useViewerStore.setState(useViewerStore.getInitialState(), true)
   vi.mocked(loadModel).mockReset()
+  vi.mocked(cutByPlane).mockReset()
+  vi.mocked(hollowModel).mockReset()
+  vi.mocked(booleanMeshes).mockReset()
+  vi.mocked(remeshGeometryInWorker).mockReset()
 })
 afterEach(cleanup)
 
@@ -148,5 +160,82 @@ describe('scene lifecycle', () => {
     expect(useViewerStore.getState().geometryDetails!.width).toBe(104)
     act(() => useViewerStore.getState().removeModel('b'))
     expect(useViewerStore.getState().geometryDetails!.width).toBe(4)
+  })
+})
+
+describe('solid edit transactions', () => {
+  it('cuts into parts, deletes one, and restores each step with units intact', async () => {
+    const root = twoShells()
+    root.userData.modelUnitInMm = 25.4
+    const ref = await open(root)
+    const positions = new Float32Array(root.geometry.getAttribute('position').array)
+    vi.mocked(cutByPlane).mockResolvedValue({ partA: positions, partB: positions })
+    act(() => useViewerStore.getState().setClipMode(true))
+    await act(async () => ref.current!.cutAtPlane())
+    expect(useViewerStore.getState().splitParts).toHaveLength(2)
+    expect(useViewerStore.getState().geometryDetails!.modelUnitInMm).toBe(25.4)
+    const first = useViewerStore.getState().splitParts[0].id
+    act(() => ref.current!.deleteSplitPart(first))
+    expect(useViewerStore.getState().splitParts).toHaveLength(1)
+    expect(ref.current!.getSplitPart(first)).toBeUndefined()
+    act(() => ref.current!.undoEdit())
+    expect(useViewerStore.getState().splitParts).toHaveLength(2)
+    act(() => ref.current!.undoEdit())
+    expect(ref.current!.getScene()!.children).toContain(root)
+    expect(useViewerStore.getState().splitParts).toHaveLength(0)
+  })
+
+  it('rejects stale worker results after a transform without modifying geometry', async () => {
+    const root = twoShells()
+    root.userData.modelUnitInMm = 1
+    const original = root.geometry
+    const ref = await open(root)
+    let finish!: (positions: Float32Array) => void
+    vi.mocked(hollowModel).mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    let result!: Promise<void>
+    await act(async () => { result = ref.current!.hollowModel({ wallThickness: 1, resolution: 32, drainRadius: 0, drainAxis: 'y', drainOffset: [0, 0, 0] }) })
+    act(() => ref.current!.moveModelBy({ x: 5, y: 0, z: 0 }))
+    finish(new Float32Array(original.getAttribute('position').array))
+    await expect(result).rejects.toThrow('The model changed while the operation was running')
+    expect(root.geometry).toBe(original)
+    expect(useViewerStore.getState().undoLabels).toEqual(['Move'])
+  })
+
+  it('restores remesh geometry on undo and preserves it on failure', async () => {
+    const root = twoShells()
+    const original = root.geometry
+    const ref = await open(root)
+    vi.mocked(remeshGeometryInWorker).mockRejectedValueOnce(new Error('Unsupported topology'))
+    await expect(ref.current!.remeshModel({ operation: 'decimate', targetTriangles: 12 })).rejects.toThrow('Unsupported topology')
+    expect(root.geometry).toBe(original)
+    vi.mocked(remeshGeometryInWorker).mockResolvedValue({ geometry: original.clone(), beforeTriangles: 24, afterTriangles: 24 })
+    await act(async () => ref.current!.remeshModel({ operation: 'decimate', targetTriangles: 12 }))
+    expect(root.geometry).not.toBe(original)
+    act(() => ref.current!.undoEdit())
+    expect(root.geometry).toBe(original)
+  })
+
+  it('consumes two boolean operands atomically and restores both with undo', async () => {
+    const meshes = [twoShells(), twoShells()]
+    const originals = meshes.map(mesh => mesh.geometry)
+    meshes.forEach(mesh => { mesh.userData.modelUnitInMm = 1 })
+    vi.mocked(loadModel).mockImplementation(async (path, _ext, scene) => {
+      const mesh = meshes[path === '/a.stl' ? 0 : 1]
+      scene.add(mesh)
+      return mesh
+    })
+    const ref = createRef<Viewer3DHandle>()
+    await act(async () => {
+      useViewerStore.setState({ loadedModels: ['a', 'b'].map(id => ({ id, path: `/${id}.stl`, name: id, extension: '.stl', sizeBytes: 100, triangleCount: 0 })) })
+      render(<Viewer3D ref={ref} filePath={null} fileExtension={null} viewMode="solid" />)
+    })
+    vi.mocked(booleanMeshes).mockResolvedValue(new Float32Array(originals[0].getAttribute('position').array))
+    await act(async () => ref.current!.booleanOperation('a', 'b', 'union'))
+    expect(meshes[1].geometry.getAttribute('position')).toBeUndefined()
+    act(() => ref.current!.undoEdit())
+    expect(meshes.map(mesh => mesh.geometry)).toEqual(originals)
+    vi.mocked(booleanMeshes).mockResolvedValue(new Float32Array())
+    await expect(ref.current!.booleanOperation('a', 'b', 'intersection')).rejects.toThrow('empty result')
+    expect(meshes.map(mesh => mesh.geometry)).toEqual(originals)
   })
 })

@@ -31,7 +31,8 @@ export function PartsSection({ viewerRef }: { viewerRef: React.RefObject<Viewer3
       </h3>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
         Separate a multi-body model into individually named parts. Tiny fragments
-        are dropped. Undo &ldquo;Split by shell&rdquo; from the history to recombine.
+        are dropped. Delete keeps at least one part. Undo restores deleted parts
+        or recombines the original model.
       </p>
       <button
         type="button"
@@ -64,6 +65,16 @@ export function PartsSection({ viewerRef }: { viewerRef: React.RefObject<Viewer3
               >
                 Export
               </button>
+              <button
+                type="button"
+                aria-label={`Delete ${p.name}`}
+                disabled={splitParts.length < 2}
+                className="px-2 py-0.5 rounded bg-[var(--bg-button)] disabled:opacity-50"
+                onClick={() => {
+                  try { viewerRef.current?.deleteSplitPart(p.id) }
+                  catch (error) { useViewerStore.getState().setError(error instanceof Error ? error.message : 'Delete failed') }
+                }}
+              >Delete</button>
             </li>
           ))}
         </ul>

@@ -39,6 +39,10 @@ import { buildBuildVolumeOverlay, disposeBuildVolumeOverlay } from '../services/
 import { computeBestOrientation } from '../services/autoOrient'
 import { computeBedLayout } from '../services/bedLayout'
 import { packedPositions } from '../services/meshTopology'
+import { requireEditable, worldPositions, geometryFromWorld } from '../services/editGeometry'
+import type { BooleanOperation } from '../services/booleanMesh'
+import type { RemeshOptions, RemeshResult } from '../services/remesh'
+import type { HollowOptions } from '../services/hollowModel'
 
 export interface RepairRunResult {
   label: string
@@ -107,6 +111,11 @@ export interface Viewer3DHandle {
    * Error with a user-facing message when not applicable. */
   splitByShell: () => { parts: number; droppedFragments: number }
   getSplitPart: (id: string) => THREE.Mesh | undefined
+  cutAtPlane: (signal?: AbortSignal) => Promise<void>
+  booleanOperation: (a: string, b: string, operation: BooleanOperation, signal?: AbortSignal) => Promise<void>
+  hollowModel: (options: HollowOptions, signal?: AbortSignal) => Promise<void>
+  remeshModel: (options: RemeshOptions, signal?: AbortSignal) => Promise<Pick<RemeshResult, 'beforeTriangles' | 'afterTriangles'>>
+  deleteSplitPart: (id: string) => void
 }
 
 export function disposeViewerResources(
@@ -347,6 +356,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   }
   const updateTriangleDetails = () => {
     if (modelGroupRef.current) useViewerStore.getState().setTriangleCount(countTriangles(modelGroupRef.current))
+    if (splitPartsGroupRef.current) useViewerStore.getState().setTriangleCount(countTriangles(splitPartsGroupRef.current))
     for (const [id, root] of modelMapRef.current) useViewerStore.getState().updateModelTriangles(id, countTriangles(root))
   }
   const syncUndoLabels = () => {
@@ -650,6 +660,49 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     if (rendererRef.current && sceneRef.current && cameraRef.current) {
       rendererRef.current.render(sceneRef.current, cameraRef.current)
     }
+  }
+
+  const operationBusyRef = useRef(false)
+  const assertEditReady = () => {
+    if (operationBusyRef.current || useViewerStore.getState().repairDialogOpen || useViewerStore.getState().pendingModelLoads > 0) {
+      throw new Error('Wait for the current model operation to finish')
+    }
+    if (splitPartsGroupRef.current) throw new Error('Recombine split parts before editing')
+  }
+  const singleEditableMesh = () => {
+    assertEditReady()
+    const meshes = withGeometry(modelMeshes())
+    if (meshes.length !== 1) throw new Error('This operation needs a single-mesh model')
+    requireEditable(meshes)
+    return meshes[0]
+  }
+  const snapshotStillCurrent = (meshes: THREE.Mesh[]) => {
+    const scene = sceneRef.current
+    const snapshots = meshes.map(mesh => {
+      mesh.updateWorldMatrix(true, false)
+      return { mesh, geometry: mesh.geometry, matrix: mesh.matrixWorld.clone() }
+    })
+    return () => {
+      const current = modelMeshes()
+      if (scene !== sceneRef.current || snapshots.some(({ mesh, geometry, matrix }) => {
+        mesh.updateWorldMatrix(true, false)
+        return !current.includes(mesh) || mesh.geometry !== geometry || !matrix.equals(mesh.matrixWorld)
+      })) throw new Error('The model changed while the operation was running')
+    }
+  }
+  const replaceGeometry = (meshes: THREE.Mesh[], positions: Float32Array, label: string) => {
+    if (!positions.length) throw new Error('The operation produced an empty result; the model was not changed')
+    const first = geometryFromWorld(positions, meshes[0])
+    const originals = meshes.map(mesh => mesh.geometry)
+    meshes.forEach((mesh, i) => { mesh.geometry = i === 0 ? first : new THREE.BufferGeometry() })
+    pushUndo({ label,
+      apply: () => meshes.forEach((mesh, i) => { mesh.geometry.dispose(); mesh.geometry = originals[i] }),
+      discard: () => originals.forEach(geometry => geometry.dispose()),
+    })
+    updateTriangleDetails()
+    updateGeometryDetails()
+    refreshSceneEnvironment()
+    invalidate()
   }
 
   useImperativeHandle(ref, () => ({
@@ -1179,6 +1232,136 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
         rendererRef.current.render(sceneRef.current, cameraRef.current)
       }
       return { label, perMesh, seal, skippedMeshes: skipped.length }
+    },
+    cutAtPlane: async (signal) => {
+      const mesh = singleEditableMesh()
+      const original = modelGroupRef.current
+      if (!original || !useViewerStore.getState().clipMode) throw new Error('Show the clip plane on a single preview model before cutting')
+      const plane = computeClipPlane()
+      if (!plane) throw new Error('No cut plane is available')
+      const current = snapshotStillCurrent([mesh])
+      operationBusyRef.current = true
+      try {
+        const { cutByPlane } = await import('../services/planeCut')
+        const result = await cutByPlane(worldPositions(mesh), plane.normal.toArray() as [number, number, number], -plane.constant, signal)
+        current()
+        if (signal?.aborted) throw new DOMException('Cut cancelled', 'AbortError')
+        if (!result.partA.length || !result.partB.length) throw new Error('The plane must pass through the interior of the model')
+        teardownXray()
+        teardownClip()
+        const group = new THREE.Group()
+        group.userData.splitGroup = true
+        group.userData.modelUnitInMm = original.userData.modelUnitInMm
+        const metadata = [result.partA, result.partB].map((positions, index) => {
+          const part = new THREE.Mesh(geometryFromWorld(positions), (mesh.material as THREE.Material).clone())
+          const id = crypto.randomUUID()
+          part.name = `${baseModelName()} - cut ${index + 1}`
+          part.userData.splitPartId = id
+          group.add(part)
+          splitPartsRef.current.set(id, part)
+          return { id, name: part.name, triangleCount: positions.length / 9, visible: true }
+        })
+        const scene = sceneRef.current!
+        scene.remove(original)
+        modelGroupRef.current = undefined
+        scene.add(group)
+        splitPartsGroupRef.current = group
+        useViewerStore.getState().setSplitParts(metadata)
+        pushUndo({ label: 'Plane cut', apply: () => {
+          teardownSplitParts()
+          scene.add(original)
+          modelGroupRef.current = original
+          useViewerStore.getState().setSplitParts([])
+        }, discard: () => disposeModel(original, scene) })
+        useViewerStore.getState().setClipMode(false)
+        useViewerStore.getState().setXrayMode(false)
+        updateTriangleDetails()
+        updateGeometryDetails()
+        invalidate()
+      } finally { operationBusyRef.current = false }
+    },
+    deleteSplitPart: (id) => {
+      const part = splitPartsRef.current.get(id)
+      const group = splitPartsGroupRef.current
+      if (!part || !group) return
+      if (splitPartsRef.current.size < 2) throw new Error('Keep at least one part')
+      const previous = useViewerStore.getState().splitParts
+      group.remove(part)
+      splitPartsRef.current.delete(id)
+      useViewerStore.getState().setSplitParts(previous.filter(p => p.id !== id))
+      useViewerStore.getState().setExportTargetId(null)
+      pushUndo({ label: 'Delete part', apply: () => {
+        group.add(part)
+        splitPartsRef.current.set(id, part)
+        useViewerStore.getState().setSplitParts(previous)
+      }, discard: () => disposeModel(part, new THREE.Scene()) })
+      updateTriangleDetails()
+      updateGeometryDetails()
+      invalidate()
+    },
+    booleanOperation: async (a, b, operation, signal) => {
+      assertEditReady()
+      if (a === b) throw new Error('Choose two different models')
+      const roots = [modelMapRef.current.get(a), modelMapRef.current.get(b)]
+      if (roots.some(root => !root)) throw new Error('Choose two loaded scene models')
+      const units = roots.map(root => root!.userData.modelUnitInMm)
+      if (!units.every(unit => typeof unit === 'number' && unit > 0 && unit === units[0])) throw new Error('Assign the same physical units to both models first')
+      const lists = roots.map(root => {
+        const meshes: THREE.Mesh[] = []
+        root!.traverse(child => { if (child instanceof THREE.Mesh && child.geometry.getAttribute('position')?.count) meshes.push(child) })
+        requireEditable(meshes)
+        return meshes
+      })
+      const meshes = lists.flat()
+      const current = snapshotStillCurrent(meshes)
+      const soup = (list: THREE.Mesh[]) => {
+        const chunks = list.map(worldPositions)
+        const all = new Float32Array(chunks.reduce((n, c) => n + c.length, 0))
+        let offset = 0
+        for (const chunk of chunks) { all.set(chunk, offset); offset += chunk.length }
+        return all
+      }
+      operationBusyRef.current = true
+      try {
+        const { booleanMeshes } = await import('../services/booleanMesh')
+        const result = await booleanMeshes(soup(lists[0]), soup(lists[1]), operation, signal)
+        current()
+        if (signal?.aborted) throw new DOMException('Boolean cancelled', 'AbortError')
+        replaceGeometry(meshes, result, `Boolean ${operation}`)
+      } finally { operationBusyRef.current = false }
+    },
+    hollowModel: async (options, signal) => {
+      const mesh = singleEditableMesh()
+      const current = snapshotStillCurrent([mesh])
+      const unit = useViewerStore.getState().geometryDetails?.modelUnitInMm
+      if (!unit || unit <= 0) throw new Error('Assign physical units before hollowing')
+      operationBusyRef.current = true
+      try {
+        const { hollowModel } = await import('../services/hollowModel')
+        const result = await hollowModel(worldPositions(mesh), {
+          ...options, wallThickness: options.wallThickness / unit, drainRadius: options.drainRadius / unit,
+          drainOffset: options.drainOffset.map(v => v / unit) as [number, number, number],
+        }, signal)
+        current()
+        if (signal?.aborted) throw new DOMException('Hollow cancelled', 'AbortError')
+        replaceGeometry([mesh], result, 'Hollow')
+      } finally { operationBusyRef.current = false }
+    },
+    remeshModel: async (options, signal) => {
+      const mesh = singleEditableMesh()
+      const current = snapshotStillCurrent([mesh])
+      const world = geometryFromWorld(worldPositions(mesh))
+      operationBusyRef.current = true
+      try {
+        const { remeshGeometryInWorker } = await import('../services/remesh')
+        const result = await remeshGeometryInWorker(world, options, signal)
+        try {
+          current()
+          if (signal?.aborted) throw new DOMException('Remesh cancelled', 'AbortError')
+          replaceGeometry([mesh], packedPositions(result.geometry.getAttribute('position')), options.operation === 'decimate' ? 'Decimate' : 'Uniform remesh')
+          return { beforeTriangles: result.beforeTriangles, afterTriangles: result.afterTriangles }
+        } finally { result.geometry.dispose() }
+      } finally { world.dispose(); operationBusyRef.current = false }
     },
     getSplitPart: (id: string) => splitPartsRef.current.get(id),
 

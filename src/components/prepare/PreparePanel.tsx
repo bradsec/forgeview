@@ -8,6 +8,8 @@ import { MeasureSection } from './MeasureSection'
 import { ScaleSection } from './ScaleSection'
 import { TransformSection } from './TransformSection'
 import { AnalysisSection } from './AnalysisSection'
+import { SolidToolsSection } from './SolidToolsSection'
+import { RemeshSection } from './RemeshSection'
 import type { Viewer3DHandle } from '../Viewer3D'
 
 export function PreparePanel({
@@ -45,6 +47,11 @@ export function PreparePanel({
       <ScaleSection viewerRef={viewerRef} sectionRef={scaleRef} />
       <TransformSection viewerRef={viewerRef} />
       <AnalysisSection />
+      <SolidToolsSection viewerRef={viewerRef} />
+      <RemeshSection onRemesh={details ? (options, signal) => {
+        if (!viewerRef.current) return Promise.reject(new Error('Open a 3D view first'))
+        return viewerRef.current.remeshModel(options, signal)
+      } : undefined} />
     </div>
   )
 }
