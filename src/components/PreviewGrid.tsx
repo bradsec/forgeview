@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { listGridFiles } from '../services/gridFiles'
 import type { GridFile, GridListing } from '../services/gridFiles'
+import { BatchPrep } from './BatchPrep'
 import { GridTile } from './GridTile'
 import { breadcrumbsFor } from '../utils/pathUtils'
 
@@ -112,6 +113,8 @@ export function PreviewGrid() {
           {loading ? 'scanning...' : `${total} file${total === 1 ? '' : 's'}`}
         </span>
       </div>
+
+      {!loading && <BatchPrep key={`${gridFolder}:${gridScope}`} files={listing.files} />}
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto p-4">
