@@ -2066,6 +2066,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
   // Placed after the renderer effect so rendererRef / cameraRef are populated.
   const holeFillMode = useViewerStore((s) => s.holeFillMode)
   const repairDialogOpen = useViewerStore((s) => s.repairDialogOpen)
+  const geometryDetails = useViewerStore((s) => s.geometryDetails)
   useEffect(() => {
     if (!holeFillMode) return
     const el = rendererRef.current?.domElement
@@ -2135,7 +2136,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownHoleOverlays()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holeFillMode, rendererGen])
+  }, [holeFillMode, rendererGen, geometryDetails])
 
   // Effect 10: Auto-disarm pick mode when the Repair dialog opens
   useEffect(() => {
@@ -2287,7 +2288,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownOverhangOverlay()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overhangMode, overhangThresholdDeg, rendererGen])
+  }, [overhangMode, overhangThresholdDeg, rendererGen, geometryDetails])
 
   // Effect 13: Auto-disarm the overhang heatmap when the Repair dialog opens
   // — a repair can rewrite the geometry the overlay is a frozen copy of.
@@ -2338,7 +2339,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownWallThicknessOverlay()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallThicknessMode, minWallThicknessMm, rendererGen])
+  }, [wallThicknessMode, minWallThicknessMm, rendererGen, geometryDetails])
 
   // Effect 16: Auto-disarm the wall-thickness heatmap when the Repair dialog opens.
   useEffect(() => {
@@ -2360,7 +2361,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownXray()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xrayMode, rendererGen])
+  }, [xrayMode, rendererGen, geometryDetails])
 
   // Effect 21: Clip plane - assign an axis-aligned THREE.Plane to the model
   // materials while armed, clear it on disarm.
@@ -2371,7 +2372,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       teardownClip()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipMode, rendererGen])
+  }, [clipMode, rendererGen, geometryDetails])
 
   // Effect 22: Recompute the plane in place when axis, position, or side
   // changes. applyClip's reuse branch just moves the existing plane, so a
