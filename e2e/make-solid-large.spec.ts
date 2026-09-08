@@ -29,7 +29,8 @@ const visibleCheck = (page: Page, id: string) =>
  * place these counts are shown. */
 async function detailValue(page: Page, term: string): Promise<number> {
   await page.getByRole('tab', { name: 'Details' }).click()
-  const dd = page.getByRole('term', { name: term }).locator('xpath=following-sibling::dd[1]')
+  const dd = page.getByRole('tabpanel', { name: 'Details' })
+    .getByRole('term').filter({ hasText: term }).locator('xpath=following-sibling::dd[1]')
   const text = ((await dd.textContent()) ?? '').trim()
   return Number(text.replace(/[^\d]/g, ''))
 }
