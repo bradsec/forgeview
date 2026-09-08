@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ScaleSection } from './ScaleSection'
 import { useViewerStore, DEFAULT_BUILD_VOLUME_MM } from '../../store/viewerStore'
@@ -11,6 +11,16 @@ const details = {
 }
 
 describe('ScaleSection', () => {
+  it('keeps volume fields in sync across responsive panels without losing decimal drafts', () => {
+    render(<><ScaleSection viewerRef={{ current: null }} /><ScaleSection viewerRef={{ current: null }} /></>)
+    const inputs = screen.getAllByLabelText('Build volume x') as HTMLInputElement[]
+    fireEvent.change(inputs[0], { target: { value: '150.' } })
+    expect(inputs[0].value).toBe('150.')
+    expect(inputs[1].value).toBe('150')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reset' })[1])
+    expect(inputs[0].value).toBe(String(DEFAULT_BUILD_VOLUME_MM.x))
+  })
+
   beforeEach(() =>
     useViewerStore.setState({
       geometryDetails: details, measurementUnit: 'mm', splitParts: [], measureMode: false,

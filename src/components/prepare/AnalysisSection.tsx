@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useViewerStore } from '../../store/viewerStore'
 
 export function AnalysisSection() {
@@ -14,6 +14,14 @@ export function AnalysisSection() {
   const thinWallFaceCount = useViewerStore((s) => s.geometryDetails?.thinWallFaceCount)
   const [minWallStr, setMinWallStr] = useState(String(minWallThicknessMm))
   const tooLarge = hasModel && thinWallFaceCount === null
+
+  useEffect(() => {
+    setThresholdStr((raw) => Number(raw) === storeThreshold ? raw : String(storeThreshold))
+  }, [storeThreshold])
+
+  useEffect(() => {
+    setMinWallStr((raw) => Number(raw) === minWallThicknessMm ? raw : String(minWallThicknessMm))
+  }, [minWallThicknessMm])
 
   const xrayMode = useViewerStore((s) => s.xrayMode)
   const clipMode = useViewerStore((s) => s.clipMode)

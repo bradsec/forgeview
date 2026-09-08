@@ -11,6 +11,18 @@ const details = {
 }
 
 describe('AnalysisSection', () => {
+  it('keeps threshold fields in sync across responsive panels without losing decimal drafts', () => {
+    useViewerStore.setState({ geometryDetails: details, minWallThicknessMm: 1 })
+    render(<><AnalysisSection /><AnalysisSection /></>)
+    const angles = screen.getAllByLabelText('Overhang angle') as HTMLInputElement[]
+    const walls = screen.getAllByLabelText('Min wall') as HTMLInputElement[]
+    fireEvent.change(angles[0], { target: { value: '30' } })
+    expect(angles[1].value).toBe('30')
+    fireEvent.change(walls[0], { target: { value: '2.' } })
+    expect(walls[0].value).toBe('2.')
+    expect(walls[1].value).toBe('2')
+  })
+
   beforeEach(() =>
     useViewerStore.setState({
       geometryDetails: null, overhangMode: false, overhangThresholdDeg: 45, overhangOverlayStatus: null,

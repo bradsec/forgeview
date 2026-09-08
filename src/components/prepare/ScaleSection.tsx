@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useViewerStore } from '../../store/viewerStore'
 import { toMm } from '../../services/unitConversion'
 import { scaleToTargetFactor, scaleToFitFactor, isFactorInBounds } from '../../services/scaleMath'
@@ -24,6 +24,18 @@ export function ScaleSection({
   const [volStr, setVolStr] = useState<{ x: string; y: string; z: string }>({
     x: String(buildVolume.x), y: String(buildVolume.y), z: String(buildVolume.z),
   })
+
+  useEffect(() => {
+    setVolStr((previous) => {
+      const next = { ...previous }
+      for (const axis of ['x', 'y', 'z'] as const) {
+        const parsed = Number(previous[axis])
+        const committed = Number.isFinite(parsed) ? parsed : 0
+        if (committed !== buildVolume[axis]) next[axis] = String(buildVolume[axis])
+      }
+      return next
+    })
+  }, [buildVolume.x, buildVolume.y, buildVolume.z])
 
   const locked = !details || splitParts.length > 0 || measureMode
   const scale = details?.modelUnitInMm ?? 1
