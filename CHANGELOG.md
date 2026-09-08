@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.7.3 - 2026-09-08
+
 - Reject forged 3MF inflation sizes incrementally before whole-entry allocation.
 - Decode interleaved geometry correctly during repair, splitting, and analysis.
 - Process long connected meshes and highly fragmented meshes without exceeding
