@@ -18,6 +18,19 @@ beforeEach(() => {
 })
 
 describe('PreparePanel', () => {
+  it('scrolls its own scale section when another panel is mounted', async () => {
+    useViewerStore.setState({ geometryDetails: { ...details, width: 1000 }, buildVolumeMm: { x: 220, y: 220, z: 250 } })
+    const first = render(<PreparePanel viewerRef={{ current: null }} />)
+    const second = render(<PreparePanel viewerRef={{ current: null }} />)
+    const firstScale = within(first.container).getByRole('heading', { name: 'Scale' }).parentElement!
+    const secondScale = within(second.container).getByRole('heading', { name: 'Scale' }).parentElement!
+    firstScale.scrollIntoView = vi.fn()
+    secondScale.scrollIntoView = vi.fn()
+    await userEvent.click(within(second.container).getByRole('button', { name: 'Fix On build plate' }))
+    expect(secondScale.scrollIntoView).toHaveBeenCalledWith({ block: 'center' })
+    expect(firstScale.scrollIntoView).not.toHaveBeenCalled()
+  })
+
   it('shows the empty state when no model is loaded', () => {
     render(<PreparePanel viewerRef={{ current: null }} />)
     expect(screen.getByTestId('prepare-empty')).toBeTruthy()

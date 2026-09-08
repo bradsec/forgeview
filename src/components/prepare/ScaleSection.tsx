@@ -8,8 +8,10 @@ type Axis = 'width' | 'height' | 'depth' | 'longest'
 
 export function ScaleSection({
   viewerRef,
+  sectionRef,
 }: {
   viewerRef: React.RefObject<Viewer3DHandle | null>
+  sectionRef?: React.RefObject<HTMLDivElement | null>
 }) {
   const details = useViewerStore((s) => s.geometryDetails)
   const unit = useViewerStore((s) => s.measurementUnit)
@@ -53,7 +55,7 @@ export function ScaleSection({
   }
 
   return (
-    <div id="prepare-scale">
+    <div id="prepare-scale" ref={sectionRef}>
       <h3 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">Scale</h3>
       {locked && (
         <p className="mt-2 text-xs text-[var(--text-muted)]">
