@@ -85,3 +85,21 @@ describe('split integrity', () => {
     expect(ref.current!.getModelDimensionsMm()!.toArray()).toEqual(before.toArray())
   })
 })
+
+describe('transforms', () => {
+  it('drops and centers rotated asymmetric geometry using its actual vertices', async () => {
+    const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([
+      0, 0, 0, 4, 0, 0, 0, 3, 1,
+    ], 3))
+    const root = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial())
+    root.rotation.z = Math.PI / 4
+    root.position.set(10, 10, 10)
+    const ref = await open(root)
+    act(() => ref.current!.dropToFloor())
+    expect(new THREE.Box3().expandByObject(root, true).min.y).toBeCloseTo(0)
+    act(() => ref.current!.centerOnPlate())
+    const center = new THREE.Box3().expandByObject(root, true).getCenter(new THREE.Vector3())
+    expect(center.x).toBeCloseTo(0)
+    expect(center.z).toBeCloseTo(0)
+  })
+})

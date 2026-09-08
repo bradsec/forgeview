@@ -871,7 +871,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const roots = modelRoots()
       if (roots.length === 0) return
       const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
       const deltaY = -box.min.y
       const prev = roots.map((r) => r.position.clone())
       roots.forEach((r) => {
@@ -897,7 +897,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       const roots = modelRoots()
       if (roots.length === 0) return
       const box = new THREE.Box3()
-      for (const root of roots) box.expandByObject(root)
+      for (const root of roots) box.expandByObject(root, true)
       const center = box.getCenter(new THREE.Vector3())
       const deltaX = -center.x
       const deltaZ = -center.z
