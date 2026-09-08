@@ -32,14 +32,14 @@ export function createThumbnailQueue(opts: {
   const concurrency = opts.concurrency ?? 1
   const maxEntries = opts.maxEntries ?? 200
   const cache = new Map<string, ThumbEntry>()
-  const inflight = new Map<string, Promise<ThumbEntry>>()
-  const pending: Array<{ file: GridFile; key: string; resolve: (e: ThumbEntry) => void; signal?: AbortSignal }> = []
+  const inflight = new Map<string, { promise: Promise<ThumbEntry>; signals: Array<AbortSignal | undefined> }>()
+  const pending: Array<{ file: GridFile; key: string; resolve: (e: ThumbEntry) => void; signals: Array<AbortSignal | undefined> }> = []
   let active = 0
 
   const pump = () => {
     while (active < concurrency && pending.length > 0) {
       const job = pending.shift()!
-      if (job.signal?.aborted) {
+      if (job.signals.every((signal) => signal?.aborted)) {
         inflight.delete(job.key)
         job.resolve({ status: 'error' })
         continue
@@ -74,11 +74,15 @@ export function createThumbnailQueue(opts: {
       return Promise.resolve(cached)
     }
     const existing = inflight.get(key)
-    if (existing) return existing
+    if (existing) {
+      existing.signals.push(signal)
+      return existing.promise
+    }
+    const signals = [signal]
     const p = new Promise<ThumbEntry>((resolve) => {
-      pending.push({ file: f, key, resolve, signal })
+      pending.push({ file: f, key, resolve, signals })
     })
-    inflight.set(key, p)
+    inflight.set(key, { promise: p, signals })
     pump()
     return p
   }

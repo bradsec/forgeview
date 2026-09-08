@@ -109,4 +109,20 @@ describe('createThumbnailQueue', () => {
     expect(q.get(b)).toBeUndefined()
     expect(q.get(c)?.status).toBe('ready')
   })
+
+  it('keeps a re-requested thumbnail live after its original subscriber aborts', async () => {
+    let finish!: (value: string) => void
+    const render = vi.fn().mockImplementationOnce(() => new Promise<string>((r) => { finish = r }))
+      .mockResolvedValue('second-image')
+    const q = createThumbnailQueue({ render })
+    const first = q.request(file('first'))
+    const original = new AbortController()
+    const old = q.request(file('second'), original.signal)
+    original.abort()
+    const replacement = q.request(file('second'), new AbortController().signal)
+    finish('first-image')
+    await first
+    await old
+    expect(await replacement).toEqual({ status: 'ready', dataUrl: 'second-image' })
+  })
 })
