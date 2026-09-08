@@ -68,10 +68,19 @@ export function assertArchiveWithinBudget(buffer: ArrayBuffer): void {
       if (actualInflated > MAX_INFLATED_ARCHIVE_BYTES) {
         throw new Error('3MF archive expands to over the supported size and was rejected')
       }
+      if (compressed > 0 && actualInflated / compressed > MAX_ARCHIVE_INFLATION_RATIO) {
+        throw new Error('3MF archive has an implausible compression ratio and was rejected')
+      }
     }
     file.start()
   }
-  unzip.push(bytes, true)
+  // fflate emits output only after inflating an entire input chunk. Small
+  // compressed chunks bound allocation before the callback can reject a bomb.
+  const chunkSize = 1024
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const end = Math.min(offset + chunkSize, bytes.length)
+    unzip.push(bytes.subarray(offset, end), end === bytes.length)
+  }
 }
 
 function threeMFUnitScale(buffer: ArrayBuffer): number {

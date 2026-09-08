@@ -454,11 +454,34 @@ endsolid test
     expect(() => assertArchiveWithinBudget(buffer)).toThrow(/compression ratio|expands to over/)
   })
 
+  it('rejects excessive actual inflation when ZIP headers under-report the size', async () => {
+    const { zipSync } = await import('three/addons/libs/fflate.module.js')
+    const bomb = zipSync({ '3D/3dmodel.model': new Uint8Array(4 * 1024 * 1024) })
+    const view = new DataView(bomb.buffer, bomb.byteOffset, bomb.byteLength)
+    for (let offset = 0; offset <= bomb.length - 28; offset++) {
+      const signature = view.getUint32(offset, true)
+      if (signature === 0x04034b50) view.setUint32(offset + 22, 1, true)
+      if (signature === 0x02014b50) view.setUint32(offset + 24, 1, true)
+    }
+    const buffer = bomb.buffer.slice(bomb.byteOffset, bomb.byteOffset + bomb.byteLength) as ArrayBuffer
+
+    expect(() => assertArchiveWithinBudget(buffer)).toThrow(/compression ratio|expands to over/)
+  })
+
   it('accepts a normal 3MF archive', async () => {
     const { zipSync, strToU8 } = await import('three/addons/libs/fflate.module.js')
     const payload = new Uint8Array(strToU8('<model unit="millimeter"></model>'))
     const ok = zipSync({ '3D/3dmodel.model': payload })
     const buffer = ok.buffer.slice(ok.byteOffset, ok.byteOffset + ok.byteLength) as ArrayBuffer
+    expect(() => assertArchiveWithinBudget(buffer)).not.toThrow()
+  })
+
+  it('accepts an archive with entries spanning compressed input chunks', async () => {
+    const { zipSync } = await import('three/addons/libs/fflate.module.js')
+    const payload = Uint8Array.from({ length: 8192 }, (_, index) => index % 251)
+    const archive = zipSync({ 'first.model': payload, 'second.model': payload }, { level: 0 })
+    const buffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer
+
     expect(() => assertArchiveWithinBudget(buffer)).not.toThrow()
   })
 
