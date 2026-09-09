@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { SimplifyModifier } from 'three/addons/modifiers/SimplifyModifier.js'
-import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
+import { decimateGeometry } from './decimate'
+import { remeshInputError } from './remeshLimits'
 import { MeshBVH } from 'three-mesh-bvh'
 import { analyzeGeometry } from './meshHealth'
 
@@ -14,11 +14,12 @@ export interface RemeshResult {
 }
 
 /** Position-only input: callers must reject textured, animated, and multi-material meshes. */
-export function remeshGeometry(input: THREE.BufferGeometry, options: RemeshOptions): RemeshResult {
+export async function remeshGeometry(input: THREE.BufferGeometry, options: RemeshOptions): Promise<RemeshResult> {
   const attr = input.getAttribute('position')
   if (!attr || attr.itemSize !== 3) throw new Error('Mesh requires three-component positions')
   const count = (input.index?.count ?? attr.count) / 3
-  if (!Number.isInteger(count) || count < 4 || count > 100_000) throw new Error('Remesh requires 4 to 100,000 triangles')
+  const inputError = remeshInputError(count)
+  if (inputError) throw new Error(inputError)
   const source = new THREE.BufferGeometry()
   const positions = new Float32Array(count * 9)
   for (let i = 0; i < count * 3; i++) {
@@ -33,15 +34,7 @@ export function remeshGeometry(input: THREE.BufferGeometry, options: RemeshOptio
   let geometry: THREE.BufferGeometry
   try {
     if (options.operation === 'decimate') {
-      if (count > 10_000) throw new Error('Decimation is limited to 10,000 input triangles')
-      if (!Number.isInteger(options.targetTriangles) || options.targetTriangles < 4 || options.targetTriangles > count) throw new Error('Target must be between 4 and the current triangle count')
-      const welded = mergeVertices(source)
-      try {
-        // Melax collapses vertices, not triangles. Two faces per collapse is an
-        // estimate for closed manifold surfaces; always report the actual count.
-        const remove = Math.min(welded.getAttribute('position').count - 4, Math.floor((count - options.targetTriangles) / 2))
-        geometry = new SimplifyModifier().modify(welded, Math.max(0, remove))
-      } finally { welded.dispose() }
+      geometry = await decimateGeometry(source, options.targetTriangles)
     } else {
       geometry = voxelRemesh(source, options.resolution)
     }
@@ -56,7 +49,7 @@ export function remeshGeometry(input: THREE.BufferGeometry, options: RemeshOptio
 
 function voxelRemesh(source: THREE.BufferGeometry, resolution: number): THREE.BufferGeometry {
   if (!Number.isInteger(resolution) || resolution < 8 || resolution > 64) throw new Error('Grid resolution must be an integer from 8 to 64')
-  if (!analyzeGeometry(source).watertight) throw new Error('Uniform remesh requires a closed manifold surface')
+  if (!analyzeGeometry(source).watertight) throw new Error('Uniform remesh requires a closed manifold surface. Run Repair first, then try again.')
   source.computeBoundingBox()
   const box = source.boundingBox!
   const size = box.getSize(new THREE.Vector3())
@@ -107,11 +100,15 @@ export function remeshGeometryInWorker(geometry: THREE.BufferGeometry, options: 
   const attr = geometry.getAttribute('position')
   if (!attr || attr.itemSize !== 3) return Promise.reject(new Error('Mesh requires three-component positions'))
   const count = geometry.index?.count ?? attr.count
-  if (count < 12 || count > 300_000) return Promise.reject(new Error('Remesh requires 4 to 100,000 triangles'))
+  const inputError = remeshInputError(count / 3)
+  if (inputError) return Promise.reject(new Error(inputError))
   const positions = new Float32Array(count * 3)
   for (let i = 0; i < count; i++) {
     const j = geometry.index ? geometry.index.getX(i) : i
-    positions.set([attr.getX(j), attr.getY(j), attr.getZ(j)], i * 3)
+    if (!Number.isInteger(j) || j < 0 || j >= attr.count) return Promise.reject(new Error('Mesh contains an invalid vertex index'))
+    positions[i * 3] = attr.getX(j)
+    positions[i * 3 + 1] = attr.getY(j)
+    positions[i * 3 + 2] = attr.getZ(j)
   }
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./remesh.worker.ts', import.meta.url), { type: 'module' })
@@ -119,12 +116,17 @@ export function remeshGeometryInWorker(geometry: THREE.BufferGeometry, options: 
     const abort = () => { cleanup(); reject(new DOMException('Remesh cancelled', 'AbortError')) }
     signal?.addEventListener('abort', abort, { once: true })
     worker.onerror = (event) => { cleanup(); reject(new Error(event.message || 'Remesh worker failed')) }
-    worker.onmessage = (event: MessageEvent<{ error?: string; positions: Float32Array; beforeTriangles: number; afterTriangles: number }>) => {
+    worker.onmessage = (event: MessageEvent<{ error?: string; positions: Float32Array; normals: Float32Array; beforeTriangles: number; afterTriangles: number }>) => {
       cleanup()
-      if (event.data.error) { reject(new Error(event.data.error)); return }
-      const result = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(event.data.positions, 3))
-      result.computeVertexNormals()
-      resolve({ geometry: result, beforeTriangles: event.data.beforeTriangles, afterTriangles: event.data.afterTriangles })
+      try {
+        if (event.data?.error) { reject(new Error(event.data.error)); return }
+        const { positions, normals, beforeTriangles, afterTriangles } = event.data
+        if (!(positions instanceof Float32Array) || !(normals instanceof Float32Array) || positions.length !== normals.length || positions.length < 36 || positions.length % 9 !== 0 || afterTriangles !== positions.length / 9) throw new Error('Invalid remesh worker response')
+        const result = new THREE.BufferGeometry()
+          .setAttribute('position', new THREE.BufferAttribute(positions, 3))
+          .setAttribute('normal', new THREE.BufferAttribute(normals, 3))
+        resolve({ geometry: result, beforeTriangles, afterTriangles })
+      } catch (error) { reject(error) }
     }
     worker.onmessageerror = () => { cleanup(); reject(new Error('Could not decode remesh worker response')) }
     try {

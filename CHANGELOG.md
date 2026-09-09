@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.9.1 - 2026-09-10
+
+- Replace the small-mesh decimator with a scalable WebAssembly simplifier and
+  support up to five million input triangles in Decimate / remesh.
+- Show current triangle counts and input limits before Apply, and keep the
+  default decimation target within the loaded mesh count.
+- Generate result normals in the worker and reject malformed worker replies
+  instead of leaving processing pending.
+- Explain that open surfaces need Repair before uniform voxel remeshing.
+
 ## 1.9.0 - 2026-09-10
 
 - Modernize the inspector, shared typography, controls, and light/dark theme contrast.

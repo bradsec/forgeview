@@ -136,9 +136,11 @@ Radius 0 leaves a sealed cavity. Drains that miss the cavity are rejected.
 
 Solid operations require static, untextured meshes with one material. Repair
 open surfaces first. Decimate/remesh also requires a single eligible mesh:
-edge-collapse decimation accepts up to 10,000 input triangles and targets an
-approximate count; uniform voxel remesh accepts up to 100,000 triangles and
-grid resolution 8 to 64. Voxel output is stepped and subcell details can vanish.
+edge-collapse decimation and uniform voxel remesh accept up to 5,000,000 input
+triangles. Decimation targets an approximate count, subject to topology constraints;
+uniform voxel remesh requires a closed manifold surface and a grid resolution
+from 8 to 64. Run Repair first if the surface is open. Voxel output is stepped
+and subcell details can vanish.
 Neither mode guarantees topology preservation. Inspect results before export.
 All operations are undoable. Cancellation and failures preserve input geometry.
 Inspection overlays refresh after edits.

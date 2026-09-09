@@ -21,6 +21,7 @@ export function PreparePanel({
   onUndoEdit?: (steps?: number) => void
   viewerRef: React.RefObject<Viewer3DHandle | null>
 }) {
+  const triangleCount = useViewerStore((s) => s.triangleCount)
   const details = useViewerStore((s) => s.geometryDetails)
   const sealApplied = useViewerStore((s) => s.sealApplied)
   const buildVolumeMm = useViewerStore((s) => s.buildVolumeMm)
@@ -80,7 +81,7 @@ export function PreparePanel({
       {tool('Transform', <TransformSection viewerRef={viewerRef} />)}
       {tool('Analysis', <AnalysisSection />)}
       {tool('Solid operations', <SolidToolsSection viewerRef={viewerRef} />)}
-      {tool('Decimate / remesh', <RemeshSection onRemesh={details ? (options, signal) => {
+      {tool('Decimate / remesh', <RemeshSection triangleCount={triangleCount} onRemesh={details ? (options, signal) => {
         if (!viewerRef.current) return Promise.reject(new Error('Open a 3D view first'))
         return viewerRef.current.remeshModel(options, signal)
       } : undefined} />)}

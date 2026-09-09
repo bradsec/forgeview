@@ -20,6 +20,9 @@ importers:
       manifold-3d:
         specifier: 3.5.3
         version: 3.5.3(@gltf-transform/core@4.5.0)(@gltf-transform/extensions@4.5.0)(@gltf-transform/functions@4.5.0)(esbuild-wasm@0.27.7)
+      meshoptimizer:
+        specifier: 1.2.0
+        version: 1.2.0
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -1306,6 +1309,9 @@ packages:
   meshoptimizer@1.1.1:
     resolution: {integrity: sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==}
 
+  meshoptimizer@1.2.0:
+    resolution: {integrity: sha512-davRZeIJbxJrE24cwQle7ZDsxjdk/OphNOV83oX+efQinyoHY9Jcyz3MHbaoG0qySZajldGztNZ1RN/T19PZsg==}
+
   mrmime@2.0.1:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
     engines: {node: '>=10'}
@@ -2584,6 +2590,8 @@ snapshots:
   mdn-data@2.27.1: {}
 
   meshoptimizer@1.1.1: {}
+
+  meshoptimizer@1.2.0: {}
 
   mrmime@2.0.1:
     optional: true
