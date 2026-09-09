@@ -277,8 +277,8 @@ hard part, so it lands in SP-6a where the feature on top of it is small.
 
 | # | Piece | Depends on | New deps | Status |
 |---|-------|-----------|----------|--------|
-| SP-6a | manifold-3d integration + plane cut | SP-3 (mm), SP-5a (build volume box for the cut-plane UI) | `manifold-3d` | Not started. Load the wasm in a worker, bridge a BufferGeometry to a `Manifold`, and ship an axis-aligned plane cut via `trimByPlane` (guaranteed watertight, auto-capped). Keep-one-side or split-into-two-shells. One undoable "Plane cut" edit. |
-| SP-6b | Boolean union / subtract / intersect | SP-6a | none extra | Not started. `a.union(b)` / `a.subtract(b)` / `a.intersect(b)` between two scene models, reusing SP-6a's worker + bridge. |
+| SP-6a | manifold-3d integration + plane cut | SP-3, SP-4c | `manifold-3d` 3.5.3 | Implemented 2026-09-09. Capped cut worker, parts visibility/export/delete, undo, cancellation, stale-result rejection. |
+| SP-6b | Boolean union / subtract / intersect | SP-6a | none extra | Implemented 2026-09-09. Two selected scene models with equal assigned units; static untextured inputs, undo, empty-result rejection. |
 
 ## SP-H: in-app feature help (cross-cutting)
 
@@ -298,3 +298,24 @@ Spec: `2026-09-06-sph-in-app-help-design.md`; plan: `../plans/2026-09-06-sph-in-
 - MeshFixLib: https://github.com/hololocheck/MeshFixLib
 - MeshLib: https://meshlib.io/
 - Browser mesh boolean benchmarks 2026: https://polydera.com/algorithms/browser-mesh-boolean-libraries-2026
+
+## SP-7 through SP-9 implementation (2026-09-09)
+
+- SP-7: `src/services/manifoldHollow.ts`, `hollowModel.ts`, and
+  `SolidToolsSection.tsx`. Signed-distance sampled inward cavity, wall thickness
+  in mm, optional axis-aligned cylindrical through-drain. Resolution 16 to 64;
+  wall thickness must meet grid spacing. Closed static untextured single mesh.
+- SP-8: `src/services/remesh.ts` and `RemeshSection.tsx`. Approximate
+  edge-collapse target (up to 10k input faces), uniform voxel reconstruction
+  (up to 100k input faces, grid 8 to 64). Stepped output, possible detail and
+  topology changes, no maximum-deviation guarantee. Worker cancellation/undo.
+- SP-9: `src/services/batchPrep.ts`, worker, `BatchPrep.tsx` in the folder grid.
+  Six repair stages plus auto-orientation, sequential files, explicit unitless
+  input units, mm/Z-up STL ZIP and per-file manifest. Limits 100 files, 32 MiB
+  source, 200k faces/model, 256 MiB ZIP. No Make solid stage or watertightness
+  guarantee. Animation/deformation and textured/external glTF/Collada skipped.
+
+These implement the core operations above. Optional alignment-pin holes,
+maximum-deviation decimation, smoothing, and richer automated placement remain
+outside this implementation; the earlier catalogue describes alternatives and
+future enhancements rather than guarantees of the current algorithms.

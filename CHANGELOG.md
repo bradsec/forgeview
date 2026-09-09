@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Browser Save As opens before serialization to preserve user activation.
+- Desktop CSP permits local embedded textures and the solid-operation WASM worker.
+- Inspection overlays refresh automatically after edits and undo.
+- SP-6: capped plane cuts, undoable part deletion, and two-model booleans.
+- SP-7: sampled hollowing and optional cylindrical through-drains.
+- SP-8: approximate decimation and uniform voxel remesh, with cancellation/undo.
+- SP-9: sequential folder repair/orientation with STL ZIP export and a manifest.
+
 ## 1.7.3 - 2026-09-08
 
 - Reject forged 3MF inflation sizes incrementally before whole-entry allocation.
@@ -37,9 +45,7 @@
   center on plate. Each action is one undoable edit (SP-3b).
 - Prepare > Analysis: overhang heatmap with adjustable angle threshold (default
   45 degrees). Highlights faces past the threshold angle in the viewport.
-  Readiness score card includes the Overhangs row (SP-4a). The heatmap overlay
-  does not live-update while you move, rotate, scale, or split the model, toggle
-  it off and on to refresh.
+  Readiness score card includes the Overhangs row (SP-4a).
 - Help menu: a Feature guide modal summarising every Prepare-panel tool
   (readiness checks, Repair, Split, Measure, Scale, Transform, Overhang
   heatmap). Each new feature adds its own entry.

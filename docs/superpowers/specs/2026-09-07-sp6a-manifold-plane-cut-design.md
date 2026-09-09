@@ -1,6 +1,6 @@
 # SP-6a: manifold-3d integration + plane cut
 
-**Status:** design approved (autonomous cycle, decisions recorded as rulings)
+**Status:** implemented 2026-09-09. The original design below is historical; implementation adds undoable part deletion, cancellation, exact vertex welding, and stale-result rejection.
 **Roadmap:** SP-6 decomposition, first cycle. SP-6b (booleans) reuses this
 cycle's worker and geometry bridge.
 **Depends on:** SP-3 (mm scale), SP-4c (the clip-plane store fields
@@ -24,7 +24,7 @@ same split-parts group Split by shell uses. One undoable "Plane cut" edit.
 - Alignment-pin holes in the cut face. A later cycle (catalogue 6, "boolean
   with (5)").
 - Keeping only one side. The cut always produces both shells; the user
-  deletes the unwanted one from the model list, or from the Parts section.
+  deletes the unwanted one from the Parts section, keeping at least one part.
 - Cutting a multi-model scene, a split model, or a textured / multi-material
   mesh. Same eligibility rules as Split by shell.
 - A progress bar. The cut is a single worker round trip; a busy state on the
@@ -373,7 +373,7 @@ init.
   require it.
 - **R3. Always split into two shells**, both landing in the existing
   split-parts group (`splitPartsGroupRef` / `setSplitParts`), so the Parts
-  section (SP-2d) manages visibility / export / delete with zero new UI.
+  section manages visibility / export; this implementation adds undoable delete UI.
   One undo entry "Plane cut" restoring the original, identical in shape to
   Split by shell's undo.
 - **R4. World-baked soup in, world-space parts out.** The worker receives

@@ -50,6 +50,10 @@ const HELP_SECTIONS: { title: string; body: string }[] = [
     title: 'Arrange on plate',
     body: 'Arrange on plate lays every model in the scene out in a grid inside the build volume footprint and drops each to the plate, as one undoable step. It only moves models, it does not rotate or scale them. Models too large for the footprint are left where they are and reported.',
   },
+  { title: 'Plane cut and booleans', body: 'Show and position the clip plane, then Cut at plane creates two capped parts. Hide, export, or delete parts, keeping at least one. For booleans add two scene models, select A and B, then union, A minus B, or intersection. Both require the same physical units and closed, static, untextured geometry. Undo restores the original inputs.' },
+  { title: 'Hollow and drain', body: 'Set wall thickness in mm and sampling resolution. Hollow approximates the inner surface; walls must be at least one grid cell thick. Optional straight drains pass through the cavity at the chosen scene coordinates and axis. Radius zero leaves a sealed cavity. Requires one closed, static, untextured mesh. Undo restores the original.' },
+  { title: 'Decimate and remesh', body: 'Decimate reduces toward an approximate triangle target, up to 10,000 input triangles. Uniform voxel remesh rebuilds a closed mesh on a grid, up to 100,000 input triangles. Output is stepped; subcell details may disappear. Neither guarantees topology preservation. Both support cancellation and undo.' },
+  { title: 'Batch preparation', body: 'From the folder grid, choose Batch prepare and units for unitless inputs. Repair and orientation run per eligible model without changing source files. Export ZIP saves mm, Z-up STLs and a results manifest. Limits: 100 files, 32 MiB per source, 200,000 triangles per model, 256 MiB output. Cancel stops without saving.' },
 ]
 
 export function HelpModal() {

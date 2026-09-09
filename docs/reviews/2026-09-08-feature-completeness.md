@@ -3,6 +3,55 @@
 Review base: `dc6faae`, branch `review/feature-completeness-2026-09-08`.
 User work committed to main as `d63bf10`; nothing pushed or merged.
 
+## Follow-up: authorized completion (2026-09-09)
+
+The user authorized all deferred fixes and SP-6 through SP-9 after the review.
+Review fixes were fast-forwarded to main and version bumped to 1.7.3 in
+`d067746`. P03 is fixed in `f3b9b2c`; P04 in `0923c3f`; V03 in `b5af61c`.
+SP-6/SP-7 engines: `90db67a`; SP-8: `b6b954f`; SP-9: `246380d`;
+viewer integration and undoable part deletion (D02): `3fba915`.
+
+The historical findings and feature table below describe the review base.
+The current README and roadmap describe the subsequently implemented tools
+and their limits. R01 core SP-6 through SP-9 scope is now implemented;
+optional catalogue alternatives such as alignment pins and deviation-bounded
+simplification are not claimed. Native packaging remains unverified.
+
+### Follow-up verification
+
+Final commands and verbatim summaries:
+
+| Command | Output |
+|---|---|
+| `pnpm test` | `Test Files  68 passed (68)`; `Tests  544 passed (544)` |
+| `pnpm test:e2e` | `28 skipped`; `48 passed (35.5s)` |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | `test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s` |
+| `pnpm exec tsc --noEmit` | Exit 0, no output |
+| `pnpm build` | `✓ built in 331ms` |
+
+Compared with the original baseline: 63 additional unit tests and nine
+additional passing browser tests, with both baseline browser failures fixed.
+Seven additional mobile cases are skipped because the new browser workflows
+target desktop. No final test failures remain.
+
+New coverage includes actual WASM cut/boolean/hollow output, worker cancellation,
+malformed/open input rejection, mirrored transforms, stale-result rejection,
+undo and deletion, remesh limits, batch ZIP manifests, and save-picker ordering.
+Browser tests in `aa9f257` exercise solid operations under the exact desktop CSP,
+embedded GLB textures, remesh and undo. Batch export coverage is in `246380d`.
+
+Intermediate browser failures reported `Error: locator.selectOption: Test timeout of 120000ms exceeded.`
+and `Error: locator.click: Test timeout of 120000ms exceeded.` Test setup was
+corrected to select controls by role, assign units in Details before Prepare,
+and scope duplicate folder controls to the main grid. The final full run above
+includes these corrections.
+
+Build warnings remain for the main bundle size and the WASM package's conditional
+`node:module` import. Browser WASM execution passes; native packaged webviews,
+Windows/macOS installers, signing, and deployment remain unverified. Geometry
+sampling and resource limits are documented in README. Fix confidence is HIGH
+for covered browser paths and MEDIUM for native CSP compatibility.
+
 ## Feature coverage
 
 | Scope | Result | Evidence |

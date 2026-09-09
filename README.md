@@ -102,10 +102,50 @@ millimetres. STL, OBJ, and PLY do not encode physical units.
 
 ## Roadmap status
 
-Print-preparation SP-1 through SP-5 and the feature guide are implemented.
-SP-6a plane cut and SP-6b boolean operations are not implemented. Hollowing,
-decimation/remeshing, and batch preparation remain future roadmap work.
+Print-preparation SP-1 through SP-9 and the feature guide are implemented with
+the limits below. Optional alignment-pin holes remain outside the SP-6 design.
 See the [print-preparation roadmap](docs/superpowers/specs/2026-08-30-print-prep-roadmap.md).
+
+### Solid and mesh operations
+
+Show and position the clip plane under Analysis, then press **Cut at plane**
+under Solid operations. Both sides become capped parts; delete an unwanted
+part or export it separately. At least one part must remain. Undo restores
+parts and the original model.
+
+For booleans, add two models from the folder grid and choose A and B. Both
+must use the same assigned units. Subtract removes B from A; the result
+occupies A and consumes B geometry. Undo restores both. Empty results leave
+both inputs unchanged.
+
+Hollow requires one closed mesh. Set wall thickness in mm and resolution
+(16 to 64 samples along the longest dimension). The inner surface is sampled;
+wall thickness must be at least one grid cell. An optional cylindrical drain
+passes through the model on a scene axis at a center entered in scene mm.
+Radius 0 leaves a sealed cavity. Drains that miss the cavity are rejected.
+
+Solid operations require static, untextured meshes with one material. Repair
+open surfaces first. Decimate/remesh also requires a single eligible mesh:
+edge-collapse decimation accepts up to 10,000 input triangles and targets an
+approximate count; uniform voxel remesh accepts up to 100,000 triangles and
+grid resolution 8 to 64. Voxel output is stepped and subcell details can vanish.
+Neither mode guarantees topology preservation. Inspect results before export.
+All operations are undoable. Cancellation and failures preserve input geometry.
+Inspection overlays refresh after edits.
+
+### Batch preparation
+
+In the folder grid, open **Batch prepare**, choose units for unitless files,
+then **Prepare files**. Each eligible model receives six repair stages and
+auto-orientation. **Export ZIP** saves mm, Z-up binary STLs and a manifest of
+successes, failures, and skips. This does not run Make solid or guarantee
+watertight output. Source files stay untouched.
+
+Limits: 100 files, 32 MiB per source, 200,000 triangles per model, 256 MiB ZIP.
+Animated/deformed models and textured or externally referenced glTF/Collada
+are skipped. Other failures are recorded while processing continues. Cancel
+terminates geometry processing without saving. Parsing and ZIP packaging run
+on the main thread; repair/orientation run in workers.
 
 ## Prerequisites
 
@@ -165,8 +205,8 @@ show a "contains system files" message; pick a subfolder inside them instead. In
 Safari) an in-app dialog explains this before the browser shows its
 upload-style confirmation.
 
-Supported browsers show a Save As picker for exports, allowing the filename and
-location to be selected; other browsers use their configured download behavior.
+Supported browsers show a Save As picker before export processing, allowing
+the filename and location to be selected while the browser recognizes the click; other browsers use their configured download behavior.
 On iOS the file picker lists all files, because iOS greys out extensions it
 cannot map to system types (such as .stl); unsupported picks are rejected after
 selection instead.
