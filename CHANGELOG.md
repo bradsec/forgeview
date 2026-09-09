@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.8.0 - 2026-09-09
+
 - Browser Save As opens before serialization to preserve user activation.
 - Desktop CSP permits local embedded textures and the solid-operation WASM worker.
 - Inspection overlays refresh automatically after edits and undo.
