@@ -61,13 +61,14 @@ function combinedPositions(meshes: THREE.Mesh[]): Float32Array {
  * parts are deleted, so the model becomes one filled STL-style solid whose
  * outer appearance is unchanged while triangle and vertex counts drop.
  */
-export function repairGeometriesInWorker(
+export async function repairGeometriesInWorker(
   meshes: THREE.Mesh[],
   resolution: number,
   onProgress: (percent: number, phase: string) => void,
   signal?: AbortSignal,
   options?: { stripInternalWalls?: boolean; renderer?: THREE.WebGLRenderer | null }
 ): Promise<SolidRepairResult> {
+  signal?.throwIfAborted()
   if (meshes.length === 0) return Promise.reject(new Error('The scene has no mesh geometry to repair'))
   const before = sumHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
   onProgress(1, 'Combining scene as triangle soup')
@@ -82,63 +83,80 @@ export function repairGeometriesInWorker(
     (fraction) => onProgress(2 + Math.round(fraction * 3), 'Checking outside visibility'),
     options?.renderer
   )
+  signal?.throwIfAborted()
   const worker = new Worker(new URL('./solidRepair.worker.ts', import.meta.url), { type: 'module' })
   const id = Date.now()
   return new Promise((resolve, reject) => {
+    let settled = false
+    let geometry: THREE.BufferGeometry | undefined
     const cleanup = () => {
+      settled = true
       worker.terminate()
       signal?.removeEventListener('abort', abort)
     }
-    const abort = () => {
+    const fail = (error: unknown) => {
+      if (settled) return
       cleanup()
-      reject(new DOMException('Repair cancelled', 'AbortError'))
+      geometry?.dispose()
+      reject(error)
     }
+    const abort = () => fail(new DOMException('Repair cancelled', 'AbortError'))
     signal?.addEventListener('abort', abort, { once: true })
-    worker.onerror = (event) => {
-      cleanup()
-      reject(new Error(event.message || 'Solid fill worker failed'))
-    }
+    worker.onerror = (event) => fail(new Error(event.message || 'Solid fill worker failed'))
+    worker.onmessageerror = () => fail(new Error('Could not read solid fill worker result'))
     worker.onmessage = (event: MessageEvent) => {
-      if (event.data.id !== id) return
-      if (event.data.type === 'progress') {
-        onProgress(event.data.percent, event.data.phase)
-        return
+      if (settled || event.data.id !== id) return
+      try {
+        signal?.throwIfAborted()
+        if (event.data.type === 'progress') {
+          onProgress(event.data.percent, event.data.phase)
+          return
+        }
+        if (event.data.type !== 'complete') throw new Error('Unexpected solid fill worker response')
+        const sealed = new Float32Array(event.data.positions)
+        const normals = new Float32Array(event.data.normals)
+        if (sealed.length === 0) throw new Error('Solid fill found no exterior surface to keep')
+        if (sealed.length % 9 !== 0 || normals.length !== sealed.length || !event.data.after) {
+          throw new Error('Invalid solid fill worker result')
+        }
+        geometry = new THREE.BufferGeometry()
+        geometry.setAttribute('position', new THREE.BufferAttribute(sealed, 3))
+        geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
+        onProgress(100, 'Solid fill complete')
+        if (settled) return
+        signal?.throwIfAborted()
+        const geometries = [geometry, ...meshes.slice(1).map(() => new THREE.BufferGeometry())]
+        cleanup()
+        resolve({
+          geometries,
+          stats: {
+            before,
+            after: event.data.after,
+            meshes: meshes.length,
+            resolution: event.data.resolution,
+            gpuAssisted: visible !== null,
+            strippedWalls: event.data.strippedWalls === true,
+          },
+        })
+      } catch (error) {
+        fail(error)
       }
-      cleanup()
-      const sealed = new Float32Array(event.data.positions)
-      if (sealed.length === 0) {
-        reject(new Error('Solid fill found no exterior surface to keep'))
-        return
-      }
-      const geometry = new THREE.BufferGeometry()
-      geometry.setAttribute('position', new THREE.BufferAttribute(sealed, 3))
-      geometry.computeVertexNormals()
-      const after = analyzeGeometry(geometry)
-      const geometries = [geometry, ...meshes.slice(1).map(() => new THREE.BufferGeometry())]
-      onProgress(100, 'Solid fill complete')
-      resolve({
-        geometries,
-        stats: {
-          before,
-          after,
-          meshes: meshes.length,
-          resolution: event.data.resolution,
-          gpuAssisted: visible !== null,
-          strippedWalls: event.data.strippedWalls === true,
-        },
-      })
     }
     const transfer: ArrayBuffer[] = [positions.buffer as ArrayBuffer]
     if (visible) transfer.push(visible.buffer as ArrayBuffer)
-    worker.postMessage(
-      {
-        id,
-        positions: positions.buffer,
-        visible: visible?.buffer ?? null,
-        resolution,
-        stripInternalWalls: options?.stripInternalWalls === true,
-      },
-      transfer
-    )
+    try {
+      worker.postMessage(
+        {
+          id,
+          positions: positions.buffer,
+          visible: visible?.buffer ?? null,
+          resolution,
+          stripInternalWalls: options?.stripInternalWalls === true,
+        },
+        transfer
+      )
+    } catch (error) {
+      fail(error)
+    }
   })
 }

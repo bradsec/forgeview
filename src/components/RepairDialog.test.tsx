@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RepairDialog } from './RepairDialog'
 import { useViewerStore } from '../store/viewerStore'
@@ -63,4 +63,26 @@ describe('RepairDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
     expect(capturedSignal!.aborted).toBe(true)
   })
+})
+
+
+it('does not create more WebGL contexts for repair progress updates', async () => {
+  const context = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+  let onProgress: ((percent: number, phase: string) => void) | undefined
+  const runRepair = vi.fn((_ids, _opts, callback) => {
+    onProgress = callback
+    return new Promise(() => {})
+  })
+  try {
+    render(<RepairDialog viewerRef={{ current: { runRepair } } as never} />)
+    const probes = context.mock.calls.length
+    expect(probes).toBe(1)
+    await userEvent.click(screen.getByRole('button', { name: /repair all/i }))
+    act(() => onProgress!(30, 'Voxelizing'))
+    act(() => onProgress!(70, 'Building surface'))
+    expect(context).toHaveBeenCalledTimes(probes)
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
+  } finally {
+    context.mockRestore()
+  }
 })

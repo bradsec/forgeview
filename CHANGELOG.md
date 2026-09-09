@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.8.1 - 2026-09-09
+
+- Keep final repair geometry checks in the worker so cancellation stays responsive.
+- Reuse repair health results and boundary scans to reduce large-mesh processing.
+- Report sealing phases and reject worker result errors instead of leaving repair pending.
+- Avoid creating a new WebGL context for every repair progress update.
+
 ## 1.8.0 - 2026-09-09
 
 - Browser Save As opens before serialization to preserve user activation.

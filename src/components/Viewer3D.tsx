@@ -250,7 +250,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     }
     splitPartsRef.current.clear()
   }
-  const updateGeometryDetails = () => {
+  const updateGeometryDetails = (precomputedHealth?: ReturnType<typeof summariseHealth>) => {
     const roots = modelRoots()
     // Make solid leaves attribute-less placeholder geometries on collapsed
     // meshes; they carry no content and must not drag health to "needs repair".
@@ -266,7 +266,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
     // precise: a rotated model's loose local-AABB fit is wrong; walk vertices.
     for (const root of roots) box.expandByObject(root, true)
     const size = box.getSize(new THREE.Vector3())
-    const health = summariseHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
+    const health = precomputedHealth ?? summariseHealth(meshes.map((mesh) => analyzeGeometry(mesh.geometry)))
     const overhangThreshold = useViewerStore.getState().overhangThresholdDeg
     let overhangFaceCount = 0
     for (const mesh of meshes) {
@@ -1153,10 +1153,10 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
           if (m.geometry !== originals[i]) { m.geometry.dispose(); m.geometry = originals[i] }
         })
       }
-      const refreshTail = () => {
+      const refreshTail = (health?: ReturnType<typeof summariseHealth>) => {
         for (const root of modelRoots()) applyViewMode(root, useViewerStore.getState().viewMode)
         updateTriangleDetails()
-        updateGeometryDetails()
+        updateGeometryDetails(health)
         invalidate()
       }
 
@@ -1225,7 +1225,7 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Viewer3DProps>(
       })
 
       if (wantSeal) useViewerStore.getState().setSealApplied(true)
-      refreshTail()
+      refreshTail(seal?.after)
       // A long worker run can leave the RAF loop throttled (backgrounded tab or
       // mobile), so the demand-render bump in refreshTail may not paint for
       // seconds. Force one synchronous frame so the repair shows at once.

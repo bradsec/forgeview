@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import * as THREE from 'three'
+import { analyzeGeometry } from './meshHealth'
 import { exteriorTriangleFlags, finalizeSolid, protectConnectedSkin } from './exteriorShell'
 
 interface RepairRequest {
@@ -52,9 +54,18 @@ scope.onmessage = (event: MessageEvent<RepairRequest>) => {
     out += 9
   }
   scope.postMessage({ id, type: 'progress', percent: 96, phase: 'Welding and sealing openings' })
-  const sealed = finalizeSolid(filtered)
+  const sealed = finalizeSolid(filtered, (phase) => {
+    scope.postMessage({ id, type: 'progress', percent: 96, phase })
+  })
+  scope.postMessage({ id, type: 'progress', percent: 98, phase: 'Checking repaired geometry' })
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(sealed, 3))
+  geometry.computeVertexNormals()
+  const normals = geometry.getAttribute('normal').array as Float32Array
+  const after = analyzeGeometry(geometry)
+  geometry.dispose()
   scope.postMessage(
-    { id, type: 'complete', positions: sealed.buffer, resolution, strippedWalls: strip },
-    [sealed.buffer]
+    { id, type: 'complete', positions: sealed.buffer, normals: normals.buffer, after, resolution, strippedWalls: strip },
+    [sealed.buffer, normals.buffer]
   )
 }

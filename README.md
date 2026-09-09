@@ -72,7 +72,10 @@ are unchanged, so the outer appearance stays exactly as loaded and triangle and
 vertex counts drop. Materials collapse to a single solid material. Draft,
 Standard, and Fine detection detail trade processing cost against how finely
 interior geometry is separated from the outside surface. Repair all runs every
-stage in order, ending with Make solid, in a single pass. The Prepare panel
+stage in order, ending with Make solid, in a single pass. Sealing reports its
+welding, crack-closing, and final geometry-check phases. Final geometry checks
+run in the worker so Cancel remains available during that work. Large meshes
+can spend substantial time in the final sealing phases. The Prepare panel
 keeps the last 5 model edits, and each entry in the undo list steps the geometry
 and materials back to that point.
 

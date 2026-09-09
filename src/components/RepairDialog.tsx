@@ -76,7 +76,7 @@ export function RepairDialog({ viewerRef }: { viewerRef: React.RefObject<Viewer3
   const [stripRequested, setStripRequested] = useState(false)
   const controllerRef = useRef<AbortController | null>(null)
   const justRanRef = useRef(false)
-  const webgl2 = hasWebGL2()
+  const [webgl2] = useState(hasWebGL2)
 
   useEffect(() => {
     if (open) return

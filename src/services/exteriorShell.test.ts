@@ -184,6 +184,17 @@ describe('finalizeSolid', () => {
     expect(analyzeSoup(sealed).watertight).toBe(true)
   })
 
+  it('reports sealing phases while preserving the repaired result', () => {
+    const phases: string[] = []
+    const sealed = finalizeSolid(openBoxSoup(), (phase) => phases.push(phase))
+    expect(phases).toEqual([
+      'Welding vertices',
+      'Removing duplicate and collapsed faces',
+      'Sealing boundary loops',
+    ])
+    expect(analyzeSoup(sealed).watertight).toBe(true)
+  })
+
   it('caps an open box into a watertight solid', () => {
     const soup = openBoxSoup()
     const before = analyzeSoup(soup)

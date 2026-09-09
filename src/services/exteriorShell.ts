@@ -260,6 +260,8 @@ interface SolidMesh {
   vertexPosition: number[]
   /** vertex-id triples, winding preserved from the source soup. */
   faces: number[]
+  /** Reused until a face or vertex id changes. All topology edits invalidate it. */
+  boundary?: Array<[number, number]>
 }
 
 function buildDirectedEdges(mesh: SolidMesh): Map<number, number> {
@@ -276,6 +278,7 @@ function buildDirectedEdges(mesh: SolidMesh): Map<number, number> {
 
 /** Drop degenerate triangles and exact duplicate faces in place. */
 function dedupeFaces(mesh: SolidMesh): void {
+  mesh.boundary = undefined
   const kept: number[] = []
   const seen = new Set<string>()
   for (let face = 0; face < mesh.faces.length; face += 3) {
@@ -290,6 +293,7 @@ function dedupeFaces(mesh: SolidMesh): void {
 }
 
 function boundaryEdgeList(mesh: SolidMesh): Array<[number, number]> {
+  if (mesh.boundary) return mesh.boundary
   const stride = mesh.vertexPosition.length / 3 + 1
   const directed = buildDirectedEdges(mesh)
   const boundary: Array<[number, number]> = []
@@ -298,6 +302,7 @@ function boundaryEdgeList(mesh: SolidMesh): Array<[number, number]> {
     const v = packed % stride
     if (count === 1 && !directed.has(v * stride + u)) boundary.push([u, v])
   }
+  mesh.boundary = boundary
   return boundary
 }
 
@@ -311,6 +316,7 @@ function centroidFan(mesh: SolidMesh, ring: number[]): void {
   const pos = mesh.vertexPosition
   const m = ring.length
   if (m < 3) return
+  mesh.boundary = undefined
   const centroid = [0, 0, 0]
   for (const id of ring) for (let axis = 0; axis < 3; axis++) centroid[axis] += pos[id * 3 + axis]
   const centroidId = pos.length / 3
@@ -334,6 +340,7 @@ function fillLoop(mesh: SolidMesh, loop: number[]): void {
   const pos = mesh.vertexPosition
   const n = loop.length
   if (n < 3) return
+  mesh.boundary = undefined
   if (n === 3) {
     mesh.faces.push(loop[2], loop[1], loop[0])
     return
@@ -508,6 +515,7 @@ function capBoundaryLoops(mesh: SolidMesh): void {
 function capRemainingBoundary(mesh: SolidMesh): void {
   const boundary = boundaryEdgeList(mesh)
   if (boundary.length === 0) return
+  mesh.boundary = undefined
   const pos = mesh.vertexPosition
   const component = new Map<number, number>()
   const find = (id: number): number => {
@@ -644,7 +652,10 @@ function snapBoundaryVertices(mesh: SolidMesh, tolerance: number): void {
  * 4. While open edges remain, snap boundary rim vertices together at a
  *    growing (still sub-visible) tolerance and cap again.
  */
-export function finalizeSolid(positions: Float32Array): Float32Array {
+export function finalizeSolid(
+  positions: Float32Array,
+  progress: (phase: string) => void = () => {},
+): Float32Array {
   const triangles = Math.floor(positions.length / 9)
   if (triangles === 0) return positions
 
@@ -656,6 +667,7 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
   const diagonal = Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
   const quantum = Math.max(diagonal * 1e-5, 1e-9)
 
+  progress('Welding vertices')
   const vertexIds = new Map<string, number>()
   const mesh: SolidMesh = { vertexPosition: [], faces: [] }
   for (let corner = 0; corner < triangles * 3; corner++) {
@@ -670,10 +682,13 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
     mesh.faces.push(id)
   }
 
+  progress('Removing duplicate and collapsed faces')
   dedupeFaces(mesh)
+  progress('Sealing boundary loops')
   capBoundaryLoops(mesh)
   for (const factor of [20, 100, 500, 2500]) {
     if (boundaryEdgeList(mesh).length === 0) break
+    progress('Closing cracks')
     snapBoundaryVertices(mesh, quantum * factor)
     capBoundaryLoops(mesh)
   }
@@ -683,6 +698,7 @@ export function finalizeSolid(positions: Float32Array): Float32Array {
   // holds. Widen the weld if fan+weld alone stops converging.
   let open = boundaryEdgeList(mesh).length
   for (let round = 0; round < 40 && open > 0; round++) {
+    progress(`Sealing remaining openings: pass ${round + 1}`)
     capRemainingBoundary(mesh)
     weldBoundaryComponents(mesh, diagonal * 0.02)
     dedupeFaces(mesh)

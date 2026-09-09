@@ -18,12 +18,16 @@ vi.mock('../loaders', async (importOriginal) => ({
   ...await importOriginal<typeof import('../loaders')>(),
   loadModel: vi.fn(),
 }))
+vi.mock('../services/solidRepair', () => ({ repairGeometriesInWorker: vi.fn() }))
+vi.mock('../services/meshHealth', { spy: true })
 vi.mock('../services/planeCut', () => ({ cutByPlane: vi.fn() }))
 vi.mock('../services/hollowModel', () => ({ hollowModel: vi.fn() }))
 vi.mock('../services/booleanMesh', () => ({ booleanMeshes: vi.fn() }))
 vi.mock('../services/remesh', () => ({ remeshGeometryInWorker: vi.fn() }))
 
 import * as THREE from 'three'
+import { repairGeometriesInWorker } from '../services/solidRepair'
+import { analyzeGeometry } from '../services/meshHealth'
 import { loadModel } from '../loaders'
 import { Viewer3D, type Viewer3DHandle } from './Viewer3D'
 import { useViewerStore } from '../store/viewerStore'
@@ -237,5 +241,33 @@ describe('solid edit transactions', () => {
     vi.mocked(booleanMeshes).mockResolvedValue(new Float32Array())
     await expect(ref.current!.booleanOperation('a', 'b', 'intersection')).rejects.toThrow('empty result')
     expect(meshes.map(mesh => mesh.geometry)).toEqual(originals)
+  })
+})
+
+
+describe('repair health refresh', () => {
+  it('uses sealed health without analyzing again and recomputes it on undo', async () => {
+    const root = twoShells()
+    const ref = await open(root)
+    const before = analyzeGeometry(root.geometry)
+    const geometry = new THREE.BoxGeometry().toNonIndexed()
+    const after = analyzeGeometry(geometry)
+    vi.mocked(repairGeometriesInWorker).mockResolvedValueOnce({
+      geometries: [geometry],
+      stats: { before, after, meshes: 1, resolution: 128, gpuAssisted: false, strippedWalls: false },
+    })
+    vi.mocked(analyzeGeometry).mockClear()
+
+    await act(async () => {
+      await ref.current!.runRepair(['seal'], { resolution: 128, stripInternalWalls: false }, vi.fn())
+    })
+
+    expect(analyzeGeometry).not.toHaveBeenCalled()
+    expect(useViewerStore.getState().geometryDetails).toMatchObject({
+      vertices: after.vertices, boundaryEdges: after.boundaryEdges, watertight: after.watertight,
+    })
+    act(() => ref.current!.undoEdit())
+    expect(analyzeGeometry).toHaveBeenCalled()
+    expect(useViewerStore.getState().geometryDetails).toMatchObject({ vertices: before.vertices })
   })
 })
