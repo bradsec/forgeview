@@ -1,0 +1,35 @@
+.export-dialog { width: min(480px, 100%); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; }
+.export-header, .export-footer { flex-shrink: 0; }
+.export-header { gap: 12px; }
+.export-header h2 { font-size: 22px; line-height: 28px; overflow-wrap: anywhere; }
+.export-body { overflow-y: auto; min-height: 0; }
+.export-format { min-height: 44px; }
+.export-dialog button, .export-dialog select { min-height: 36px; }
+.export-header button { min-width: 36px; flex-shrink: 0; }
+.export-body p, .export-body label > span { text-transform: none; letter-spacing: normal; font-size: 14px; }
+.export-footer { min-height: 72px; }
+.grid-toolbar { flex-wrap: wrap; }
+.grid-toolbar button, .grid-toolbar select { min-height: 36px; font-size: 14px; }
+.grid-body { padding: 20px; }
+.preview-tiles { gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); }
+.explorer-panel button { min-height: 36px; }
+.explorer-panel button[title="Add to scene"], .explorer-panel button[title="Remove from scene"], .explorer-panel button[aria-label="Close Explorer"] { min-width: 36px; }
+.explorer-panel h2 { font-size: 16px; text-transform: none; letter-spacing: normal; }
+.explorer-panel [role="treeitem"] > button:first-child > span[title] { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 599px) {
+  .export-overlay { padding: 0; }
+  .export-dialog { max-height: 100dvh; width: 100%; border-radius: 0; }
+  .grid-scope { flex-basis: 100%; }
+  .grid-scope button { flex: 1; }
+  .grid-body { padding: 16px; }
+  .preview-tiles { grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); }
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .export-dialog button, .export-dialog select, .grid-toolbar button, .grid-toolbar select, .explorer-panel button { min-height: 44px; }
+  .export-header button, .explorer-panel button[title="Add to scene"], .explorer-panel button[title="Remove from scene"], .explorer-panel button[aria-label="Close Explorer"] { min-width: 44px; }
+}
+
+@media (max-width: 599px) {
+  .export-header { padding-top: max(16px, env(safe-area-inset-top)); }
+  .export-footer { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+}

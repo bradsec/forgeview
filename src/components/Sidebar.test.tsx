@@ -54,6 +54,7 @@ describe('Sidebar geometry details', () => {
 describe('Sidebar desktop variant', () => {
   beforeEach(() => {
     useViewerStore.setState({ sidebarVisible: false })
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 })
   })
   it('renders the hidden placeholder when sidebarVisible is false', () => {
     const { container } = render(<Sidebar viewerRef={{ current: null }} />)
@@ -65,9 +66,9 @@ describe('Sidebar desktop variant', () => {
     render(<Sidebar viewerRef={{ current: null }} />)
 
     const separator = screen.getByRole('separator', { name: 'Resize Details' })
-    expect(separator.getAttribute('aria-valuenow')).toBe('256')
+    expect(separator.getAttribute('aria-valuenow')).toBe('352')
     fireEvent.keyDown(separator, { key: 'ArrowLeft' })
-    expect(separator.getAttribute('aria-valuenow')).toBe('266')
+    expect(separator.getAttribute('aria-valuenow')).toBe('362')
   })
 
   it('removes active pointer resize listeners on unmount', () => {

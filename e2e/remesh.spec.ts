@@ -12,6 +12,7 @@ async function dropStl(page: Page, stl: string, name: string) {
   await expect(page.getByRole('banner')).toContainText(name)
   await expect(page.getByRole('navigation', { name: 'Camera navigation' })).toBeVisible()
   await page.getByRole('button', { name: 'Prepare', exact: true }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: 'Decimate / remesh', exact: true, expanded: false }).filter({ visible: true }).click()
 }
 
 for (const operation of ['decimate', 'remesh'] as const) {

@@ -181,6 +181,15 @@ export function Toolbar() {
   const mainView = useViewerStore((state) => state.mainView)
   const explorerVisible = useViewerStore((state) => state.explorerVisible)
   const sidebarVisible = useViewerStore((state) => state.sidebarVisible)
+  const mobileDrawer = useViewerStore((state) => state.mobileDrawer)
+  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const update = () => setNarrow(media.matches)
+    media.addEventListener?.('change', update)
+    return () => media.removeEventListener?.('change', update)
+  }, [])
+  const panelVisible = narrow ? mobileDrawer === 'details' : sidebarVisible
   const rightPanelTab = useViewerStore((state) => state.rightPanelTab)
   const theme = useViewerStore((state) => state.theme)
 
@@ -190,12 +199,19 @@ export function Toolbar() {
   }
 
   const togglePanel = (panel: 'explorer' | 'details') => {
+    if (panel === 'details') useViewerStore.getState().setRightPanelTab('details')
     if (window.matchMedia('(max-width: 767px)').matches) {
       useViewerStore.getState().setMobileDrawer(panel)
       return
     }
-    if (panel === 'explorer') useViewerStore.getState().setExplorerVisible(!explorerVisible)
-    else useViewerStore.getState().setSidebarVisible(!sidebarVisible)
+    if (window.innerWidth >= 768 && window.innerWidth < 1024) {
+      if (panel === 'explorer') useViewerStore.getState().setSidebarVisible(false)
+      else useViewerStore.getState().setExplorerVisible(false)
+    }
+    if (panel === 'explorer') {
+      const obscuredByInspector = window.innerWidth >= 768 && window.innerWidth < 1024 && sidebarVisible
+      useViewerStore.getState().setExplorerVisible(!explorerVisible || obscuredByInspector)
+    } else useViewerStore.getState().setSidebarVisible(!sidebarVisible || rightPanelTab === 'prepare')
   }
 
   const openPrepare = () => {
@@ -204,6 +220,7 @@ export function Toolbar() {
       useViewerStore.getState().setMobileDrawer('details')
       return
     }
+    if (window.innerWidth >= 768 && window.innerWidth < 1024) useViewerStore.getState().setExplorerVisible(false)
     useViewerStore.getState().setSidebarVisible(true)
   }
 
@@ -250,9 +267,9 @@ export function Toolbar() {
                 <MenuItem key={mode} onClick={() => { close(); useViewerStore.getState().setViewMode(mode) }} selected={viewMode === mode}>{label}</MenuItem>
               ))}
               <div className="menu-separator" role="separator" />
-              <MenuItem disabled={!dirPath} onClick={() => { close(); togglePanel('explorer') }} selected={Boolean(dirPath && explorerVisible)}>Explorer</MenuItem>
-              <MenuItem onClick={() => { close(); togglePanel('details') }} selected={sidebarVisible}>Details</MenuItem>
-              <MenuItem onClick={() => { close(); openPrepare() }} selected={sidebarVisible && rightPanelTab === 'prepare'}>Prepare</MenuItem>
+              <MenuItem disabled={!dirPath} onClick={() => { close(); togglePanel('explorer') }} selected={Boolean(dirPath && (narrow ? mobileDrawer === 'explorer' : explorerVisible))}>Explorer</MenuItem>
+              <MenuItem onClick={() => { close(); togglePanel('details') }} selected={panelVisible && rightPanelTab === 'details'}>Details</MenuItem>
+              <MenuItem onClick={() => { close(); openPrepare() }} selected={panelVisible && rightPanelTab === 'prepare'}>Prepare</MenuItem>
               <div className="menu-separator" role="separator" />
               <MenuItem onClick={() => { close(); useViewerStore.getState().toggleTheme() }}>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</MenuItem>
               <MenuItem onClick={() => { close(); useViewerStore.getState().setSettingsOpen(true) }}>Settings</MenuItem>
@@ -293,20 +310,21 @@ export function Toolbar() {
         />
         <button
           type="button"
-          aria-pressed={sidebarVisible && rightPanelTab === 'prepare'}
+          aria-pressed={panelVisible && rightPanelTab === 'prepare'}
           onClick={openPrepare}
-          className={`toolbar-action ${sidebarVisible && rightPanelTab === 'prepare' ? 'is-active' : ''}`}
+          className={`toolbar-action ${panelVisible && rightPanelTab === 'prepare' ? 'is-active' : ''}`}
         >
           Prepare
         </button>
         <button
           type="button"
-          aria-pressed={sidebarVisible && rightPanelTab === 'details'}
+          aria-pressed={panelVisible && rightPanelTab === 'details'}
           onClick={() => {
             useViewerStore.getState().setRightPanelTab('details')
+            if (window.innerWidth >= 768 && window.innerWidth < 1024) useViewerStore.getState().setExplorerVisible(false)
             useViewerStore.getState().setSidebarVisible(!sidebarVisible || rightPanelTab === 'prepare')
           }}
-          className={`toolbar-action ${sidebarVisible && rightPanelTab === 'details' ? 'is-active' : ''}`}
+          className={`toolbar-action ${panelVisible && rightPanelTab === 'details' ? 'is-active' : ''}`}
         >
           Details
         </button>

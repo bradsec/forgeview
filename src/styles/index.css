@@ -20,19 +20,19 @@
 :root {
   --bg-app: #151A22;
   --bg-toolbar: #1B2027;
-  --bg-panel: #1D232B;
-  --bg-dialog: #222933;
-  --bg-button: #292F38;
-  --bg-button-hover: #333B46;
+  --bg-panel: #252C35;
+  --bg-dialog: #252C35;
+  --bg-button: #303946;
+  --bg-button-hover: #3B4654;
   --bg-button-active: #4A2D24;
   --bg-input: #171C23;
-  --border: #303741;
-  --border-input: #414A56;
-  --text-primary: #C8CED7;
+  --border: #414A56;
+  --border-input: #8491A1;
+  --text-primary: #F0F3F7;
   --text-bright: #F0F3F7;
-  --text-muted: #8993A1;
+  --text-muted: #AAB2BE;
   --text-label: #AAB2BE;
-  --text-on-accent: #F4FBFF;
+  --text-on-accent: #FFFFFF;
   --accent: #E68A4E;
   --accent-hover: #F0A873;
   --accent-button: #984622;
@@ -58,6 +58,8 @@ body,
 body {
   font-family: var(--font-sans);
   background: var(--bg-app);
+  font-size: 14px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -74,8 +76,8 @@ button:not(:disabled) {
   position: relative;
   z-index: 30;
   display: flex;
-  min-height: 46px;
-  flex: 0 0 46px;
+  min-height: 52px;
+  flex: 0 0 52px;
   align-items: center;
   gap: 10px;
   padding: 0 10px;
@@ -110,13 +112,13 @@ button:not(:disabled) {
 }
 
 .app-menu-trigger {
-  height: 32px;
+  height: 36px;
   padding: 0 9px;
   border: 0;
   border-radius: 5px;
   background: transparent;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .app-menu-trigger:hover,
@@ -152,7 +154,7 @@ button:not(:disabled) {
 .app-menu-item {
   display: flex;
   width: 100%;
-  min-height: 32px;
+  min-height: 36px;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
@@ -161,7 +163,7 @@ button:not(:disabled) {
   border-radius: 5px;
   background: transparent;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -191,7 +193,7 @@ button:not(:disabled) {
 .menu-heading {
   padding: 7px 9px 4px;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -216,7 +218,7 @@ button:not(:disabled) {
   max-width: 260px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -238,13 +240,13 @@ button:not(:disabled) {
 
 .toolbar-segment button,
 .toolbar-action {
-  height: 28px;
+  height: 36px;
   padding: 0 9px;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -262,15 +264,15 @@ button:not(:disabled) {
 
 .status-bar {
   display: flex;
-  min-height: 26px;
-  flex: 0 0 26px;
+  min-height: 28px;
+  flex: 0 0 28px;
   align-items: center;
   justify-content: space-between;
   padding: 0 10px;
   border-top: 1px solid var(--border);
   background: var(--bg-toolbar);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .status-bar div {
@@ -337,7 +339,7 @@ button:not(:disabled) {
 .about-dialog p {
   margin: 0 0 12px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
@@ -369,33 +371,26 @@ button:not(:disabled) {
   border-radius: 6px;
   background: var(--accent-button);
   color: var(--text-on-accent);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
 }
 
 .model-canvas {
-  background-color: var(--bg-app);
-  background-image:
-    linear-gradient(45deg, color-mix(in srgb, var(--text-primary) 2.5%, transparent) 25%, transparent 25%),
-    linear-gradient(-45deg, color-mix(in srgb, var(--text-primary) 2.5%, transparent) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--text-primary) 2.5%, transparent) 75%),
-    linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--text-primary) 2.5%, transparent) 75%);
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-size: 16px 16px;
+  background: var(--bg-app);
 }
 
 .empty-workspace {
   display: flex;
-  width: min(520px, calc(100% - 40px));
+  width: min(440px, calc(100% - 32px));
   min-height: 322px;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 34px;
+  padding: 24px;
   border: 1px dashed var(--border-input);
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg-panel) 60%, transparent);
-  text-align: center;
+  text-align: left;
   box-shadow: inset 0 1px color-mix(in srgb, var(--text-bright) 3%, transparent);
 }
 
@@ -417,7 +412,7 @@ button:not(:disabled) {
 .empty-workspace h1 {
   margin: 0;
   color: var(--text-bright);
-  font-size: 19px;
+  font-size: 24px;
   font-weight: 680;
   letter-spacing: -0.015em;
 }
@@ -426,18 +421,18 @@ button:not(:disabled) {
   max-width: 410px;
   margin: 8px 0 19px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
 .empty-primary-action {
-  height: 36px;
+  height: 40px;
   padding: 0 17px;
   border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--accent-button));
   border-radius: 6px;
   background: var(--accent-button);
   color: var(--text-on-accent);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   box-shadow: inset 0 1px color-mix(in srgb, white 12%, transparent);
 }
@@ -454,7 +449,7 @@ button:not(:disabled) {
   margin-top: 14px;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.02em;
 }
 
@@ -518,6 +513,10 @@ button:not(:disabled) {
   }
 
   .status-bar {
+    min-height: 28px;
+  }
+
+  .status-bar div {
     display: none;
   }
 
@@ -536,6 +535,50 @@ button:not(:disabled) {
  * Honor reduced-motion: drop the spinner animation and collapse transitions.
  * Camera tweens are additionally guarded in JS (cameraActions).
  */
+
+
+/* Shared control geometry leaves utility-specific layout to each surface. */
+button, select, input { accent-color: var(--accent); }
+button, select { transition: background-color 100ms, color 100ms; }
+button:disabled { cursor: default; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select {
+  min-height: 36px;
+}
+progress { accent-color: var(--accent); }
+.status-bar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-context { flex: 1 1 auto; }
+.camera-controls { background: var(--bg-panel); border: 1px solid var(--border); }
+.camera-controls button, .camera-controls select { min-width: 36px; min-height: 36px; }
+.camera-controls select { max-width: 112px; }
+@media (min-width: 768px) and (max-width: 1023px) {
+  .desktop-actions .toolbar-segment { display: none; }
+  .file-context { max-width: 180px; }
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .app-menu-item, .camera-controls button, .camera-controls select, .empty-primary-action {
+    min-height: 44px;
+  }
+  .camera-controls button { min-width: 44px; }
+  .camera-controls { gap: 2px; padding: 4px; bottom: max(16px, env(safe-area-inset-bottom)); }
+  .camera-controls select { max-width: 78px; padding-inline: 4px; }
+}
+
+.utility-dialog { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); border-radius: 12px; }
+.utility-dialog-header { flex-shrink: 0; }
+.utility-dialog-header h2 { font-size: 22px; line-height: 28px; }
+.utility-dialog-header button { min-width: 36px; min-height: 36px; }
+.utility-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.utility-dialog > :last-child:not(.utility-dialog-body) { flex-shrink: 0; }
+.utility-dialog button, .utility-dialog select { min-height: 36px; }
+@media (pointer: coarse), (max-width: 767px) {
+  .utility-dialog button, .utility-dialog select { min-height: 44px; }
+  .utility-dialog-header button { min-width: 44px; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .workspace-layout:has(> .inspector) > .explorer-panel { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -545,3 +588,5 @@ button:not(:disabled) {
     transition-duration: 0.001ms !important;
   }
 }
+
+.mobile-drawer-panel { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }

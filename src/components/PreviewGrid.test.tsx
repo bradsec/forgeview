@@ -51,6 +51,14 @@ describe('PreviewGrid', () => {
     expect(useViewerStore.getState().gridFolder).toBe('/many')
   })
 
+  it('shows a scan failure without claiming the folder is empty', async () => {
+    vi.mocked(listGridFiles).mockRejectedValueOnce(new Error('Access denied'))
+    render(<PreviewGrid />)
+    expect((await screen.findByRole('alert')).textContent).toContain('Access denied')
+    expect(screen.queryByText('No supported 3D files in this folder.')).toBeNull()
+    expect(screen.queryByText('0 files')).toBeNull()
+  })
+
   it('renders large listings in pages', async () => {
     vi.mocked(listGridFiles).mockResolvedValue({
       folders: [],

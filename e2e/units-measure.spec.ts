@@ -49,6 +49,8 @@ test.describe('SP-3a units + measure', () => {
     const check = (id: string) => page.getByTestId(`check-${id}`).filter({ visible: true })
 
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Measure', exact: true, expanded: false }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Scale', exact: true, expanded: false }).filter({ visible: true }).click()
 
     // 1. Details tab: the unit prompt and a mm dimensions readout are shown.
     await detailsTab.click()
@@ -68,6 +70,8 @@ test.describe('SP-3a units + measure', () => {
 
     // 3. Measure the straight-line distance between two points on the cube.
     await prepareTab.click()
+    await page.getByRole('button', { name: 'Measure', exact: true, expanded: false }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Scale', exact: true, expanded: false }).filter({ visible: true }).click()
     await page.waitForTimeout(400) // let the load-framing camera move settle
     await page.getByRole('button', { name: 'Measure distance' }).filter({ visible: true }).click()
 
@@ -93,6 +97,8 @@ test.describe('SP-3a units + measure', () => {
 
     // 5. Undo the scale from the history list: dimensions return to 10mm.
     await prepareTab.click()
+    await page.getByRole('button', { name: 'Measure', exact: true, expanded: false }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Scale', exact: true, expanded: false }).filter({ visible: true }).click()
     const history = page.getByTestId('undo-history').filter({ visible: true })
     await history.getByRole('button', { name: /Scale to target/i }).click()
     await detailsTab.click()
@@ -102,6 +108,8 @@ test.describe('SP-3a units + measure', () => {
     // 6. Shrink the build volume below the cube, then fit to it: the
     // On build plate readiness row flips from fail to pass.
     await prepareTab.click()
+    await page.getByRole('button', { name: 'Measure', exact: true, expanded: false }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Scale', exact: true, expanded: false }).filter({ visible: true }).click()
     for (const axis of ['x', 'y', 'z'] as const) {
       await scale.getByLabel(`Build volume ${axis}`).fill('5')
     }

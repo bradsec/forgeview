@@ -163,10 +163,10 @@ export function SettingsModal() {
           aria-modal="true"
           aria-labelledby="settings-title"
           onKeyDown={handleKeyDown}
-          className="bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-sm"
+          className="utility-dialog bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-sm"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+          <div className="utility-dialog-header flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
             <h2 id="settings-title" className="text-base font-semibold text-[var(--text-bright)]">Settings</h2>
             <button
               ref={closeButtonRef}
@@ -179,7 +179,7 @@ export function SettingsModal() {
           </div>
 
           {/* Body */}
-          <div className="px-5 py-4">
+          <div className="utility-dialog-body px-5 py-4">
             {/* Appearance */}
             <div className="mb-4">
               <p className="text-xs font-semibold text-[var(--text-label)] uppercase tracking-wide mb-2">

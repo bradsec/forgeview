@@ -106,9 +106,9 @@ export function HelpModal() {
           aria-modal="true"
           aria-labelledby="help-title"
           onKeyDown={handleKeyDown}
-          className="bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-lg max-h-[85vh] flex flex-col"
+          className="utility-dialog bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-lg max-h-[85vh] flex flex-col"
         >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+          <div className="utility-dialog-header flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
             <h2 id="help-title" className="text-base font-semibold text-[var(--text-bright)]">Feature guide</h2>
             <button
               type="button"
@@ -120,7 +120,7 @@ export function HelpModal() {
               &times;
             </button>
           </div>
-          <div className="px-5 py-4 overflow-y-auto flex flex-col gap-4">
+          <div className="utility-dialog-body px-5 py-4 overflow-y-auto flex flex-col gap-4">
             {HELP_SECTIONS.map((s) => (
               <section key={s.title}>
                 <h3 className="text-sm font-semibold text-[var(--text-bright)]">{s.title}</h3>

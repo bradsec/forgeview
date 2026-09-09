@@ -72,6 +72,7 @@ test.describe('X-ray and clip plane', () => {
 
     await dropStl(page, cubeStl(), 'cube.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Analysis', exact: true, expanded: false }).filter({ visible: true }).click()
 
     const xrayShow = page.getByRole('button', { name: 'Show X-ray' }).filter({ visible: true })
     const clipShow = page.getByRole('button', { name: 'Show clip plane' }).filter({ visible: true })
@@ -126,10 +127,12 @@ test.describe('X-ray and clip plane', () => {
 
     await dropStl(page, twoCubesStl(), 'two.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Analysis', exact: true, expanded: false }).filter({ visible: true }).click()
 
     await page.getByRole('button', { name: 'Show X-ray' }).filter({ visible: true }).click()
     await expect(page.getByRole('button', { name: 'Hide X-ray' }).filter({ visible: true })).toBeVisible()
 
+    await page.getByRole('button', { name: 'Split', exact: true, expanded: false }).filter({ visible: true }).click()
     const splitBtn = page.getByRole('button', { name: 'Split by shell', exact: true }).filter({ visible: true })
     await expect(splitBtn).toBeEnabled()
     await splitBtn.click()

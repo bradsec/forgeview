@@ -212,6 +212,7 @@ test.describe('Prepare panel', () => {
 
     await dropStl(page, twoCubesStl(), 'two.stl')
     await page.getByRole('button', { name: 'Prepare' }).click()
+    await page.getByRole('button', { name: 'Split', exact: true, expanded: false }).filter({ visible: true }).click()
 
     // exact: after the split the undo-history entry is also named "Split by shell".
     const splitBtn = page.getByRole('button', { name: 'Split by shell', exact: true }).filter({ visible: true })

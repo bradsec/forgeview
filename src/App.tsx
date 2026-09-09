@@ -35,6 +35,7 @@ export default function App() {
   const mobileDrawer = useViewerStore((s) => s.mobileDrawer)
   const setMobileDrawer = useViewerStore((s) => s.setMobileDrawer)
   const settingsOpen = useViewerStore((s) => s.settingsOpen)
+  const exportOpen = useViewerStore((s) => s.exportOpen)
   const helpOpen = useViewerStore((s) => s.helpOpen)
   const repairDialogOpen = useViewerStore((s) => s.repairDialogOpen)
 
@@ -50,9 +51,9 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[var(--bg-app)] text-[var(--text-primary)]">
-      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || repairDialogOpen || helpOpen}>
+      <div className="flex flex-col flex-1 min-h-0" inert={mobileDrawer !== 'none' || settingsOpen || repairDialogOpen || helpOpen || exportOpen}>
         <Toolbar />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="workspace-layout flex flex-1 overflow-hidden">
         {/* Left panel — Explorer */}
         <DirectoryPanel />
         <main className="flex-1 relative min-w-0 overflow-hidden bg-[var(--bg-app)]" aria-busy={isLoading}>
@@ -107,18 +108,22 @@ export default function App() {
         <Sidebar viewerRef={viewerRef} onUndoEdit={(steps) => viewerRef.current?.undoEdit(steps)} />
         </div>
       </div>
-      <MobileDrawer side="left" open={mobileDrawer === 'explorer'} onClose={() => setMobileDrawer('none')}>
-        <DirectoryPanel mobile />
-      </MobileDrawer>
-      <MobileDrawer side="right" open={mobileDrawer === 'details'} onClose={() => setMobileDrawer('none')}>
-        <Sidebar mobile viewerRef={viewerRef} onUndoEdit={(steps) => viewerRef.current?.undoEdit(steps)} />
-      </MobileDrawer>
+      <div inert={settingsOpen || helpOpen || repairDialogOpen || exportOpen}>
+        <MobileDrawer side="left" open={mobileDrawer === 'explorer'} onClose={() => setMobileDrawer('none')}>
+          <DirectoryPanel mobile />
+        </MobileDrawer>
+        <MobileDrawer side="right" open={mobileDrawer === 'details'} onClose={() => setMobileDrawer('none')}>
+          <Sidebar mobile viewerRef={viewerRef} onUndoEdit={(steps) => viewerRef.current?.undoEdit(steps)} />
+        </MobileDrawer>
+      </div>
       <SettingsModal />
       <HelpModal />
       <ExportDialog viewerRef={viewerRef} />
       <RepairDialog viewerRef={viewerRef} />
       <FolderAccessNotice />
-      <StatusBar />
+      <div className="contents" inert={mobileDrawer !== 'none' || settingsOpen || helpOpen || repairDialogOpen || exportOpen}>
+        <StatusBar />
+      </div>
     </div>
   )
 }

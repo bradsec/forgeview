@@ -9,6 +9,10 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 
 ## Features
 
+The interface uses copper accents, readable light and dark themes, and a wider
+resizable inspector. Prepare keeps checks and Repair visible, with the remaining
+tools under expandable section headings in their existing order.
+
 - Native file open dialog and drag-and-drop loading (drops work any time, including over an open model)
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view
 - Grid breadcrumbs, name/size/modified sorting, and persistent thumbnail cache (IndexedDB)
@@ -57,7 +61,9 @@ colors, and other geometry attributes supported by the target format. Bake
 skinned poses and active morph deformation into static geometry before export.
 
 The Prepare panel's Repair modal runs mesh-repair stages against the open model,
-each on its own or as one pipeline. The individual stages are weld vertices,
+each on its own or as one pipeline. The dialog keeps its actions visible on short
+screens while the stage list scrolls. Escape closes an idle dialog; during a run,
+Cancel or Escape requests cancellation and waits for restoration to finish. The individual stages are weld vertices,
 remove degenerate faces, remove duplicate faces, unify normals, remove small
 shells, and fill holes; each updates the model in place and adds an undo entry.
 The individual stages currently apply only to single-material, untextured
@@ -75,7 +81,8 @@ interior geometry is separated from the outside surface. Repair all runs every
 stage in order, ending with Make solid, in a single pass. Sealing reports its
 welding, crack-closing, and final geometry-check phases. Final geometry checks
 run in the worker so Cancel remains available during that work. Large meshes
-can spend substantial time in the final sealing phases. The Prepare panel
+can spend substantial time in the final sealing phases. Stage names and elapsed
+time describe ongoing work without presenting a time estimate. The Prepare panel
 keeps the last 5 model edits, and each entry in the undo list steps the geometry
 and materials back to that point.
 
@@ -257,3 +264,10 @@ Forge View is built on these open-source projects:
   test tooling
 
 Thanks to the maintainers and contributors of these projects.
+
+### Export feedback
+
+Export keeps format and units fixed while serialization and saving run. Failures
+appear inside the dialog so the same selections can be retried. The background
+workspace is unavailable while a dialog is open; keyboard focus returns to the
+trigger when it closes. Mobile keeps status notices visible at the bottom.

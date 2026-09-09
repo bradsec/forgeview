@@ -1,3 +1,4 @@
+import '../styles/browsing.css'
 import { useEffect, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { listGridFiles } from '../services/gridFiles'
@@ -22,6 +23,7 @@ export function PreviewGrid() {
   const gridSort = useViewerStore((s) => s.gridSort)
   const dirPath = useViewerStore((s) => s.dirPath)
   const [listing, setListing] = useState<GridListing>({ folders: [], files: [] })
+  const [scanError, setScanError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
@@ -29,6 +31,7 @@ export function PreviewGrid() {
     if (!gridFolder) return
     let cancelled = false
     setLoading(true)
+    setScanError(null)
     setListing({ folders: [], files: [] })
     setVisibleCount(PAGE_SIZE)
     listGridFiles(gridFolder, gridScope === 'recursive')
@@ -36,7 +39,7 @@ export function PreviewGrid() {
       .catch((err) => {
         if (!cancelled) {
           setListing({ folders: [], files: [] })
-          useViewerStore.getState().setError(err instanceof Error ? err.message : String(err))
+          setScanError(err instanceof Error ? err.message : String(err))
         }
       })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -77,8 +80,8 @@ export function PreviewGrid() {
       )}
 
       {/* Toolbar row: scope toggle + sort + count */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] shrink-0">
-        <div className="flex rounded overflow-hidden border border-[var(--border-input)]">
+      <div className="grid-toolbar flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] shrink-0">
+        <div className="grid-scope flex rounded overflow-hidden border border-[var(--border-input)]">
           {(['current', 'recursive'] as const).map((s) => (
             <button
               key={s}
@@ -110,18 +113,18 @@ export function PreviewGrid() {
           </select>
         </label>
         <span className="text-xs text-[var(--text-muted)] font-mono tabular-nums">
-          {loading ? 'scanning...' : `${total} file${total === 1 ? '' : 's'}`}
+          {loading ? 'scanning...' : scanError ? 'Scan failed' : `${total} file${total === 1 ? '' : 's'}`}
         </span>
       </div>
 
-      {!loading && <BatchPrep key={`${gridFolder}:${gridScope}`} files={listing.files} />}
+      {!loading && !scanError && <BatchPrep key={`${gridFolder}:${gridScope}`} files={listing.files} />}
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {!loading && total === 0 && listing.folders.length === 0 ? (
+      <div className="grid-body flex-1 overflow-y-auto">
+        {scanError ? <p role="alert" className="text-sm text-[var(--error)]">Folder scan failed: {scanError}</p> : !loading && total === 0 && listing.folders.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">No supported 3D files in this folder.</p>
         ) : (
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
+          <div className="preview-tiles grid">
             {visibleEntries.map((entry) => entry.kind === 'folder' ? (
               <button
                 key={entry.folder.path}

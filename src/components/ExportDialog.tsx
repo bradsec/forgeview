@@ -4,6 +4,7 @@ import type { Viewer3DHandle } from './Viewer3D'
 import { EXPORT_FORMATS, THREE_MF_UNITS } from '../services/exportFormats'
 import type { ExportFormat, ThreeMFUnit } from '../services/exportFormats'
 import { prepareExportSave, saveExportedFile } from '../services/saveFile'
+import '../styles/browsing.css'
 import { nextPaint } from '../utils/nextPaint'
 
 interface ExportDialogProps {
@@ -29,6 +30,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const targetPart = exportTargetId ? splitParts.find((p) => p.id === exportTargetId) ?? null : null
   const [format, setFormat] = useState<ExportFormat>('.stl')
   const [threeMFUnit, setThreeMFUnit] = useState<ThreeMFUnit>('millimeter')
+  const [exportError, setExportError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [phase, setPhase] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -44,10 +46,16 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
 
   useEffect(() => {
     if (!exportOpen) return
+    setExportError(null)
     previousFocusRef.current = document.activeElement as HTMLElement | null
     closeButtonRef.current?.focus()
     return () => previousFocusRef.current?.focus()
   }, [exportOpen])
+
+  useEffect(() => {
+    if (exportOpen && busy) dialogRef.current?.focus()
+    else if (exportOpen && document.activeElement === dialogRef.current) closeButtonRef.current?.focus()
+  }, [exportOpen, busy])
 
   if (!exportOpen) return null
 
@@ -60,16 +68,20 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     if (event.key !== 'Tab' || !dialogRef.current) return
     const focusable = Array.from(
       dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], summary, [tabindex]:not([tabindex="-1"])'
       )
     )
-    if (focusable.length === 0) return
+    if (focusable.length === 0) {
+      event.preventDefault()
+      dialogRef.current.focus()
+      return
+    }
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
       event.preventDefault()
       last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) {
       event.preventDefault()
       first.focus()
     }
@@ -78,16 +90,16 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   const runExport = async () => {
     const store = useViewerStore.getState()
     if (store.pendingModelLoads > 0) {
-      store.setError('Wait for all scene models to finish loading before exporting')
+      setExportError('Wait for all scene models to finish loading before exporting')
       return
     }
     let root: import('three').Object3D | undefined
     if (exportTargetId) {
       root = viewerRef.current?.getSplitPart(exportTargetId)
-      if (!root) { store.setError('That part is no longer in the scene'); return }
+      if (!root) { setExportError('That part is no longer in the scene'); return }
     } else {
       root = viewerRef.current?.getScene()
-      if (!root) { store.setError('Export needs an open 3D view'); return }
+      if (!root) { setExportError('Export needs an open 3D view'); return }
     }
     // X-ray writes transparent/opacity onto the live materials and GLTFExporter
     // serializes those (alphaMode BLEND), so a GLB exported while X-ray is armed
@@ -97,7 +109,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
     const wasXray = store.xrayMode
     const wasClip = store.clipMode
     setBusy(true)
-    store.setError(null)
+    setExportError(null)
     let meshes: import('three').Mesh[] = []
     try {
       const target = exportFileName(targetPart ? targetPart.name : fileName, format)
@@ -130,7 +142,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
         store.setExportTargetId(null)
       }
     } catch (err) {
-      store.setError(err instanceof Error ? err.message : String(err))
+      setExportError(err instanceof Error ? err.message : String(err))
     } finally {
       if (meshes.length > 0) {
         const { disposeExportMeshes } = await import('../services/exporters')
@@ -146,16 +158,17 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
   return (
     <>
       <div className="fixed inset-0 bg-[var(--scrim)] z-40" onClick={close} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="export-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
           ref={dialogRef}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-labelledby="export-title"
           onKeyDown={handleKeyDown}
-          className="bg-[var(--bg-dialog)] border border-[var(--border)] rounded shadow-[0_10px_40px_var(--shadow-color)] w-full max-w-sm"
+          className="export-dialog bg-[var(--bg-dialog)] border border-[var(--border)] shadow-[0_10px_40px_var(--shadow-color)]"
         >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+          <div className="export-header flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
             <h2 id="export-title" className="text-base font-semibold text-[var(--text-bright)]">{targetPart ? `Export — ${targetPart.name}` : 'Export model'}</h2>
             <button
               ref={closeButtonRef}
@@ -168,15 +181,16 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
             </button>
           </div>
 
-          <div className="px-5 py-4">
+          <div className="export-body px-5 py-4">
             <p className="text-xs font-semibold text-[var(--text-label)] uppercase tracking-wide mb-2">Format</p>
             <div role="radiogroup" aria-label="Export format" className="flex flex-col gap-1 mb-4">
               {EXPORT_FORMATS.map((option) => (
                 <label
                   key={option.format}
-                  className="flex items-center gap-2 py-1 text-sm text-[var(--text-primary)] cursor-pointer"
+                  className="export-format flex items-center gap-2 py-1 text-sm text-[var(--text-primary)] cursor-pointer"
                 >
                   <input
+                    disabled={busy}
                     type="radio"
                     name="export-format"
                     value={option.format}
@@ -193,6 +207,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
               <label className="block mb-4 text-sm text-[var(--text-primary)]">
                 <span className="block text-xs font-semibold text-[var(--text-label)] uppercase tracking-wide mb-1">3MF units</span>
                 <select
+                  disabled={busy}
                   value={threeMFUnit}
                   onChange={(event) => setThreeMFUnit(event.target.value as ThreeMFUnit)}
                   className="w-full rounded border border-[var(--border)] bg-[var(--bg-button)] px-2 py-1.5"
@@ -207,12 +222,15 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
             {busy && phase && (
               <div role="status" aria-live="polite" className="mb-1">
                 <div className="flex justify-between text-sm text-[var(--text-primary)]"><span>{phase}</span></div>
-                <progress className="w-full mt-1" max={100} />
+                <progress aria-label="Export progress" className="w-full mt-1" max={100} />
               </div>
             )}
           </div>
 
-          <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+          <div className="export-footer px-5 py-3 border-t border-[var(--border)]">
+            {exportError && <p role="alert" className="mb-3 text-sm text-[var(--error)]">Export failed: {exportError}</p>}
+            {busy && <p className="mb-3 text-sm text-[var(--text-muted)]">Export cannot be cancelled while choosing a location or saving.</p>}
+            <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={close}
@@ -229,6 +247,7 @@ export function ExportDialog({ viewerRef }: ExportDialogProps) {
             >
               {busy ? 'Exporting…' : pendingModelLoads > 0 ? 'Loading models…' : 'Export'}
             </button>
+            </div>
           </div>
         </div>
       </div>

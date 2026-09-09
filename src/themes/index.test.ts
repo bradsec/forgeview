@@ -15,6 +15,16 @@ function contrast(foreground: string, background: string): number {
 }
 
 describe('theme contrast', () => {
+  it.each([darkTheme, lightTheme])('keeps status and supporting text readable on surfaces', (theme) => {
+    for (const foreground of [theme.textPrimary, theme.textMuted, theme.textLabel, theme.error, theme.warning, theme.success]) {
+      for (const background of [theme.bgPanel, theme.bgDialog]) {
+        expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+    expect(contrast(theme.borderInput, theme.bgInput)).toBeGreaterThanOrEqual(3)
+    expect(contrast(theme.textOnAccent, theme.accentButtonHover)).toBeGreaterThanOrEqual(4.5)
+  })
+
   it.each([darkTheme, lightTheme])('keeps accent button text at WCAG AA contrast', (theme) => {
     expect(contrast(theme.textOnAccent, theme.accentButton)).toBeGreaterThanOrEqual(4.5)
   })

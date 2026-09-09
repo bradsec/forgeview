@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RepairDialog } from './RepairDialog'
 import { useViewerStore } from '../store/viewerStore'
@@ -85,4 +85,56 @@ it('does not create more WebGL contexts for repair progress updates', async () =
   } finally {
     context.mockRestore()
   }
+})
+
+it('keeps cancellation visible until settlement and never announces success', async () => {
+  let finish!: () => void
+  const runRepair = vi.fn(() => new Promise((resolve) => { finish = () => resolve({ label: 'x', perMesh: [], skippedMeshes: 0 }) }))
+  useViewerStore.setState({ notice: null })
+  render(<RepairDialog viewerRef={{ current: { runRepair } } as never} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Repair all' }))
+  expect((screen.getByRole('combobox') as HTMLSelectElement).disabled).toBe(true)
+  expect(screen.getByRole('progressbar').hasAttribute('value')).toBe(false)
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  expect(screen.getByRole('dialog')).toBeTruthy()
+  expect(screen.getByRole('status').textContent).toContain('Cancelling')
+  await act(async () => finish())
+  expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
+  expect(useViewerStore.getState().notice).toBeNull()
+})
+
+it('shows failures inside the dialog and retains chosen settings for retry', async () => {
+  const runRepair = vi.fn().mockRejectedValue(new Error('Worker failed'))
+  render(<RepairDialog viewerRef={{ current: { runRepair } } as never} />)
+  await userEvent.selectOptions(screen.getByRole('combobox'), '160')
+  await userEvent.click(screen.getByRole('button', { name: 'Repair all' }))
+  expect(screen.getByRole('alert').textContent).toBe('Worker failed')
+  expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('160')
+  expect((screen.getByRole('combobox') as HTMLSelectElement).disabled).toBe(false)
+})
+
+it('traps keyboard focus and returns it to the opener after Escape', async () => {
+  const trigger = document.createElement('button')
+  document.body.append(trigger)
+  trigger.focus()
+  render(<RepairDialog viewerRef={stubRef() as never} />)
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Repair' }))
+  fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Repair all' }))
+  fireEvent.keyDown(document.activeElement!, { key: 'Tab' })
+  expect(document.activeElement).toBe(within(screen.getByTestId('repair-stage-weld')).getByRole('button'))
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(document.activeElement).toBe(trigger)
+  trigger.remove()
+})
+
+it('identifies the stage reported by the worker without displaying a guessed percentage', async () => {
+  let progress!: (percent: number, phase: string) => void
+  const runRepair = vi.fn((_ids, _opts, callback) => { progress = callback; return new Promise(() => {}) })
+  render(<RepairDialog viewerRef={{ current: { runRepair } } as never} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Repair all' }))
+  act(() => progress(15, 'Mesh 1/1: Remove duplicate faces'))
+  expect(screen.getByTestId('repair-stage-duplicate').getAttribute('aria-current')).toBe('step')
+  expect(screen.queryByText('15%')).toBeNull()
 })

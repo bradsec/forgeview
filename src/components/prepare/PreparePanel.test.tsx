@@ -22,13 +22,30 @@ describe('PreparePanel', () => {
     useViewerStore.setState({ geometryDetails: { ...details, width: 1000 }, buildVolumeMm: { x: 220, y: 220, z: 250 } })
     const first = render(<PreparePanel viewerRef={{ current: null }} />)
     const second = render(<PreparePanel viewerRef={{ current: null }} />)
-    const firstScale = within(first.container).getByRole('heading', { name: 'Scale' }).parentElement!
-    const secondScale = within(second.container).getByRole('heading', { name: 'Scale' }).parentElement!
+    const firstScale = first.container.querySelector('[id="prepare-scale"]')!
+    const secondScale = second.container.querySelector('[id="prepare-scale"]')!
     firstScale.scrollIntoView = vi.fn()
     secondScale.scrollIntoView = vi.fn()
     await userEvent.click(within(second.container).getByRole('button', { name: 'Fix On build plate' }))
     expect(secondScale.scrollIntoView).toHaveBeenCalledWith({ block: 'center' })
     expect(firstScale.scrollIntoView).not.toHaveBeenCalled()
+    expect(within(second.container).getByRole('button', { name: 'Scale' }).getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(within(second.container).getByRole('combobox', { name: 'Target axis' }))
+  })
+
+  it('keeps edited fields when sections are collapsed and allows multiple tools open', async () => {
+    useViewerStore.setState({ geometryDetails: details })
+    render(<PreparePanel viewerRef={{ current: null }} />)
+    const scale = screen.getByRole('button', { name: 'Scale' })
+    await userEvent.click(scale)
+    const target = screen.getByLabelText('Target length (mm)')
+    await userEvent.type(target, '25')
+    await userEvent.click(screen.getByRole('button', { name: 'Measure' }))
+    expect(scale.getAttribute('aria-expanded')).toBe('true')
+    await userEvent.click(scale)
+    expect(screen.queryByRole('combobox', { name: 'Target axis' })).toBeNull()
+    await userEvent.click(scale)
+    expect((screen.getByLabelText('Target length (mm)') as HTMLInputElement).value).toBe('25')
   })
 
   it('shows the empty state when no model is loaded', () => {
@@ -39,12 +56,14 @@ describe('PreparePanel', () => {
     expect((screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('renders the readiness card and repair section when a model is loaded', () => {
+  it('renders the readiness card and repair section when a model is loaded', async () => {
     useViewerStore.setState({ geometryDetails: details, filePath: '/m/model.stl' })
     render(<PreparePanel viewerRef={{ current: null }} />)
     expect(screen.getByTestId('check-watertight').getAttribute('data-state')).toBe('fail')
     expect(screen.getByRole('button', { name: 'Repair…' })).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Repair…' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Split by shell' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Split' }))
     expect(screen.getByRole('button', { name: 'Split by shell' })).toBeTruthy()
   })
 

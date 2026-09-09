@@ -44,6 +44,7 @@ test.describe('Build volume box', () => {
 
     await dropStl(page, cubeStl(), 'cube.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Scale', exact: true, expanded: false }).filter({ visible: true }).click()
 
     const show = page.getByRole('button', { name: 'Show build volume' }).filter({ visible: true })
     await show.click()

@@ -17,6 +17,16 @@ beforeEach(() => {
 })
 
 describe('Toolbar application menus', () => {
+  it('switches from Prepare to Details without hiding the inspector', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }))
+    useViewerStore.setState({ sidebarVisible: true, rightPanelTab: 'prepare' })
+    render(<Toolbar />)
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Details' }))
+    expect(useViewerStore.getState().sidebarVisible).toBe(true)
+    expect(useViewerStore.getState().rightPanelTab).toBe('details')
+  })
+
   it('has no Edit menu', () => {
     render(<Toolbar />)
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
@@ -39,6 +49,18 @@ describe('Toolbar application menus', () => {
     await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Prepare' }))
     expect(useViewerStore.getState().rightPanelTab).toBe('prepare')
     expect(useViewerStore.getState().mobileDrawer).toBe('details')
+  })
+
+  it('marks Prepare only while its mobile drawer is visible', async () => {
+    useViewerStore.setState({ sidebarVisible: true, mobileDrawer: 'none', rightPanelTab: 'prepare' })
+    render(<Toolbar />)
+    expect(screen.getByRole('button', { name: 'Prepare' }).getAttribute('aria-pressed')).toBe('false')
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare' }))
+    expect(screen.getByRole('button', { name: 'Prepare' }).getAttribute('aria-pressed')).toBe('true')
+    await userEvent.click(screen.getByRole('button', { name: 'View' }))
+    await userEvent.click(within(screen.getByTestId('toolbar-view-menu')).getByRole('menuitem', { name: 'Details' }))
+    expect(useViewerStore.getState().rightPanelTab).toBe('details')
+    expect(screen.getByRole('button', { name: 'Details' }).getAttribute('aria-pressed')).toBe('true')
   })
 
   it('shows a Prepare item in the View menu', async () => {

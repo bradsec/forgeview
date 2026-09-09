@@ -1,3 +1,4 @@
+import type { RepairStageId } from '../services/repairStages'
 import { create } from 'zustand'
 import type { QualityPreset, PerformanceOverrides } from '../utils/performancePresets'
 import type { ThemeMode } from '../themes'
@@ -129,6 +130,7 @@ interface ViewerState {
   helpOpen: boolean
   exportOpen: boolean
   setExportOpen: (open: boolean) => void
+  repairStageFocus: RepairStageId | 'seal' | null
   repairDialogOpen: boolean
   canUndoEdit: boolean
   undoLabels: string[]
@@ -169,6 +171,7 @@ interface ViewerState {
   setSplitPartVisible: (id: string, visible: boolean) => void
   exportTargetId: string | null
   setExportTargetId: (id: string | null) => void
+  setRepairStageFocus: (stage: RepairStageId | 'seal' | null) => void
   setRepairDialogOpen: (open: boolean) => void
   setCanUndoEdit: (canUndo: boolean) => void
   setUndoLabels: (labels: string[]) => void
@@ -260,6 +263,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   helpOpen: false,
   exportOpen: false,
   setExportOpen: (open) => set({ exportOpen: open }),
+  repairStageFocus: null,
   repairDialogOpen: false,
   canUndoEdit: false,
   undoLabels: [],
@@ -289,6 +293,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
     })),
   exportTargetId: null,
   setExportTargetId: (id) => set({ exportTargetId: id }),
+  setRepairStageFocus: (stage) => set({ repairStageFocus: stage }),
   setRepairDialogOpen: (open) => set({ repairDialogOpen: open }),
   setCanUndoEdit: (canUndo) => set({ canUndoEdit: canUndo }),
   setUndoLabels: (labels) => set({ undoLabels: labels }),

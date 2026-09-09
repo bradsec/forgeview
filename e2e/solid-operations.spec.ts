@@ -31,6 +31,7 @@ async function drop(page: Page, content: string, name: string) {
 }
 async function prepare(page: Page) {
   await page.getByRole('button', { name: 'Prepare', exact: true }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: 'Solid operations', exact: true, expanded: false }).filter({ visible: true }).click()
 }
 async function assertPolicy(page: Page) {
   expect(await page.evaluate(() => (window as unknown as { __cspViolations: string[] }).__cspViolations)).toEqual([])
@@ -90,9 +91,11 @@ test.describe('Solid operations with packaged CSP', () => {
   test('cuts a closed box, deletes one part, and undoes both edits', async ({ page }) => {
     await drop(page, Buffer.from(boxStl).toString('base64'), 'closed-box.stl')
     await prepare(page)
+    await page.getByRole('button', { name: 'Analysis', exact: true, expanded: false }).filter({ visible: true }).click()
     await page.getByRole('button', { name: 'Show clip plane', exact: true }).filter({ visible: true }).click()
     await page.getByLabel('Clip position').filter({ visible: true }).fill('0.5')
     await page.getByRole('button', { name: 'Cut at plane', exact: true }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Split', exact: true, expanded: false }).filter({ visible: true }).click()
     const parts = page.getByTestId('split-parts').filter({ visible: true })
     await expect(parts.getByRole('listitem')).toHaveCount(2)
     await parts.getByRole('button', { name: /^Delete / }).first().click()

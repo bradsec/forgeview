@@ -138,9 +138,9 @@ describe('DirectoryPanel', () => {
     render(<DirectoryPanel />)
 
     const separator = screen.getByRole('separator', { name: 'Resize Explorer' })
-    expect(separator.getAttribute('aria-valuenow')).toBe('224')
+    expect(separator.getAttribute('aria-valuenow')).toBe('240')
     fireEvent.keyDown(separator, { key: 'ArrowRight' })
-    expect(separator.getAttribute('aria-valuenow')).toBe('234')
+    expect(separator.getAttribute('aria-valuenow')).toBe('250')
   })
 
   it('removes active pointer resize listeners on unmount', () => {

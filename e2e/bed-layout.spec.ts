@@ -42,6 +42,7 @@ test.describe('Bed layout', () => {
 
     await dropStl(page, boxStl(30, 20, 25), 'box.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     await page.getByRole('button', { name: 'Arrange on plate' }).filter({ visible: true }).click()
 
@@ -61,6 +62,7 @@ test.describe('Bed layout', () => {
     // 300 mm wide exceeds the default 220 mm footprint on X.
     await dropStl(page, boxStl(300, 20, 300), 'big.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     await page.getByRole('button', { name: 'Arrange on plate' }).filter({ visible: true }).click()
 

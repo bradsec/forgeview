@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.9.0 - 2026-09-10
+
+- Modernize the inspector, shared typography, controls, and light/dark theme contrast.
+- Group Prepare tools under expandable headings while retaining their existing order.
+- Keep Repair actions visible on short screens, with keyboard focus handling,
+  contextual errors, elapsed time, and cancellation feedback.
+- Keep Export errors and progress within the dialog and lock options while exporting.
+- Distinguish folder scan failures from empty results and improve narrow-screen browsing.
+
 ## 1.8.1 - 2026-09-09
 
 - Keep final repair geometry checks in the worker so cancellation stays responsive.

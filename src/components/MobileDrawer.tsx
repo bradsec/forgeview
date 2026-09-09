@@ -36,9 +36,9 @@ export function MobileDrawer({ side, open, onClose, children }: MobileDrawerProp
     if (event.key !== 'Tab' || !panelRef.current) return
     const focusable = Array.from(
       panelRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
       )
-    )
+    ).filter((element) => !element.closest('[hidden], [inert]'))
     if (focusable.length === 0) {
       event.preventDefault()
       panelRef.current.focus()
@@ -77,7 +77,7 @@ export function MobileDrawer({ side, open, onClose, children }: MobileDrawerProp
         tabIndex={open ? -1 : undefined}
         onKeyDown={handleKeyDown}
         className={[
-          'fixed inset-y-0 z-40 w-[80vw] max-w-xs bg-[var(--bg-panel)] overflow-hidden transition-transform',
+          'mobile-drawer-panel fixed inset-y-0 z-40 w-full max-w-[400px] bg-[var(--bg-panel)] overflow-hidden transition-transform',
           side === 'left' ? 'left-0' : 'right-0',
           open ? 'translate-x-0' : offscreen,
         ].join(' ')}

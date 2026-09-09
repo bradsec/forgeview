@@ -34,7 +34,11 @@ test('renders the redesigned application shell within the viewport', async ({ pa
   expect(bodyBounds?.height).toBeLessThanOrEqual(viewport?.height ?? Infinity)
 
   const footer = page.getByRole('contentinfo')
-  if (isMobile) await expect(footer).toBeHidden()
+  if (isMobile) {
+    await expect(footer).toBeVisible()
+    await expect(footer.getByRole('status')).toContainText('Ready')
+    await expect(footer.getByRole('link')).toBeHidden()
+  }
   else {
     await expect(footer).toBeVisible()
     await expect(footer.getByRole('link', { name: 'github.com/bradsec/forgeview' })).toHaveAttribute('href', 'https://github.com/bradsec/forgeview')

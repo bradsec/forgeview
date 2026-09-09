@@ -70,6 +70,7 @@ test.describe('Auto-orient', () => {
     // the slab to a flat rest.
     await dropStl(page, tiltedBoxStl(24, 2, 16, 35), 'slab.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     const readout = page.getByTestId('dimensions-readout').filter({ visible: true })
     const rowValue = (label: string) =>
@@ -83,6 +84,7 @@ test.describe('Auto-orient', () => {
     const heightBefore = (await rowValue('Height').textContent())?.trim() ?? ''
     expect(heightBefore).toMatch(/\d/)
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     await page.getByRole('button', { name: 'Auto-orient' }).filter({ visible: true }).click()
 
@@ -99,6 +101,7 @@ test.describe('Auto-orient', () => {
 
     // Undo the single "Auto-orient" step restores the prior orientation.
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
     await undoHistory().getByRole('button', { name: /Auto-orient/i }).click()
     await page.getByRole('tab', { name: 'Details' }).filter({ visible: true }).click()
     await expect(rowValue('Height')).toHaveText(heightBefore)

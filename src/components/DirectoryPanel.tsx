@@ -1,3 +1,4 @@
+import '../styles/browsing.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import type { DirTreeEntry } from '../store/viewerStore'
@@ -6,7 +7,7 @@ import { basename } from '../utils/pathUtils'
 
 const MIN_WIDTH = 140
 const MAX_WIDTH = 500
-const DEFAULT_WIDTH = 224
+const DEFAULT_WIDTH = 240
 const PAGE_SIZE = 100
 
 function formatBytes(bytes: number): string {
@@ -152,7 +153,7 @@ function TreeNode({
                 const model = state.loadedModels.find((m) => m.path === entry.fullPath)
                 if (model) state.removeModel(model.id)
               }}
-              className="text-[var(--error)] hover:bg-[var(--bg-button)] text-sm font-bold shrink-0 leading-none ml-1 w-8 h-8 flex items-center justify-center rounded"
+              className="text-[var(--text-muted)] hover:bg-[var(--bg-button)] text-sm font-bold shrink-0 leading-none ml-1 w-8 h-8 flex items-center justify-center rounded"
               aria-label={`Remove ${entry.name}`}
               title="Remove from scene"
             >
@@ -263,8 +264,8 @@ export function DirectoryPanel({ mobile = false }: { mobile?: boolean } = {}) {
     <aside
       className={
         mobile
-          ? 'relative bg-[var(--bg-panel)] flex flex-col h-full w-full overflow-hidden'
-          : 'relative bg-[var(--bg-panel)] hidden md:flex flex-col shrink-0 overflow-hidden'
+          ? 'explorer-panel relative bg-[var(--bg-panel)] flex flex-col h-full w-full overflow-hidden'
+          : 'explorer-panel relative bg-[var(--bg-panel)] hidden md:flex flex-col shrink-0 overflow-hidden'
       }
       style={mobile ? undefined : { width }}
     >

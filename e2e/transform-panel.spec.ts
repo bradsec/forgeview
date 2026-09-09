@@ -59,6 +59,7 @@ test.describe('Transform panel', () => {
     // control); the sidebar's own Details/Prepare tab strip (role="tab")
     // is then used for every further switch.
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     // Baseline dimensions before any transform.
     await page.getByRole('tab', { name: 'Details' }).filter({ visible: true }).click()
@@ -66,6 +67,7 @@ test.describe('Transform panel', () => {
     await expect(rowValue('Height')).toHaveText('10 mm')
     await expect(rowValue('Depth')).toHaveText('5 mm')
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     // Move: no dimension readout can confirm displacement; the undo entry
     // proves moveModelBy ran and pushed an edit.
@@ -82,11 +84,13 @@ test.describe('Transform panel', () => {
     await expect(rowValue('Height')).toHaveText('5 mm')
     await expect(rowValue('Depth')).toHaveText('10 mm')
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
     await undoAndCheckGone('Rotate')
     await page.getByRole('tab', { name: 'Details' }).filter({ visible: true }).click()
     await expect(rowValue('Height')).toHaveText('10 mm')
     await expect(rowValue('Depth')).toHaveText('5 mm')
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     // Free scale Y x2 doubles the Height reading only (10 -> 20).
     await page.getByLabel('Scale (free) y').filter({ visible: true }).fill('2')
@@ -96,10 +100,12 @@ test.describe('Transform panel', () => {
     await expect(rowValue('Height')).toHaveText('20 mm')
     await expect(rowValue('Width')).toHaveText('20 mm') // unchanged, still 20
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
     await undoAndCheckGone('Scale')
     await page.getByRole('tab', { name: 'Details' }).filter({ visible: true }).click()
     await expect(rowValue('Height')).toHaveText('10 mm')
     await page.getByRole('tab', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Transform', exact: true, expanded: false }).filter({ visible: true }).click()
 
     // Mirror X: dimensions unchanged, undo entry is the signal.
     await page.getByRole('button', { name: 'Mirror X' }).filter({ visible: true }).click()

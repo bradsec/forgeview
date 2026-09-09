@@ -52,6 +52,7 @@ test.describe('Overhang heatmap', () => {
 
     await dropStl(page, rampPlateStl(), 'ramp.stl')
     await page.getByRole('button', { name: 'Prepare' }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: 'Analysis', exact: true, expanded: false }).filter({ visible: true }).click()
 
     const check = (id: string) => page.getByTestId(`check-${id}`).filter({ visible: true })
 

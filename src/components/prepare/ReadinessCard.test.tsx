@@ -22,7 +22,7 @@ describe('ReadinessCard', () => {
     render(<ReadinessCard checks={checks} onFix={onFix} />)
     const rows = screen.getByTestId('check-watertight')
     await userEvent.click(within(rows).getByRole('button', { name: 'Fix Watertight' }))
-    expect(onFix).toHaveBeenCalledWith('seal')
+    expect(onFix).toHaveBeenCalledWith('seal', 'watertight')
     expect(within(screen.getByTestId('check-thickness')).queryByRole('button', { name: 'Fix' })).toBeNull()
   })
 

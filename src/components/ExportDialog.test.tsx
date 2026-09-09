@@ -65,7 +65,8 @@ describe('ExportDialog', () => {
     expect(exportMeshes).not.toHaveBeenCalled()
     expect(saveExportedFile).not.toHaveBeenCalled()
     expect(useViewerStore.getState().exportOpen).toBe(true)
-    expect(useViewerStore.getState().error).toBe(expectedError)
+    expect(useViewerStore.getState().error).toBeNull()
+    if (expectedError) expect(screen.getByRole('alert').textContent).toContain(expectedError)
   })
 
   it('disables export while assembly models are loading', () => {
@@ -81,7 +82,7 @@ describe('ExportDialog', () => {
     const viewerRef = { current: { getScene: () => new THREE.Scene() } as Viewer3DHandle }
     render(<ExportDialog viewerRef={viewerRef} />)
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
-    await waitFor(() => expect(useViewerStore.getState().error).toBe('Unsupported deformation'))
+    expect((await screen.findByRole('alert')).textContent).toContain('Unsupported deformation')
   })
 
   it('passes the selected physical unit to 3MF export', async () => {
@@ -92,6 +93,29 @@ describe('ExportDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Export' }))
 
     await waitFor(() => expect(exportMeshes).toHaveBeenCalledWith([], '.3mf', { threeMFUnit: 'inch' }))
+    await waitFor(() => expect(useViewerStore.getState().exportOpen).toBe(false))
+  })
+
+  it('retains format and units after failure and locks every field while exporting', async () => {
+    let rejectExport!: (error: Error) => void
+    vi.mocked(exportMeshes).mockReturnValueOnce(new Promise((_, reject) => { rejectExport = reject }))
+    render(<ExportDialog viewerRef={{ current: { getScene: () => new THREE.Scene() } as Viewer3DHandle }} />)
+    await userEvent.click(screen.getByRole('radio', { name: '3MF' }))
+    await userEvent.selectOptions(screen.getByLabelText('3MF units'), 'inch')
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await waitFor(() => expect(exportMeshes).toHaveBeenCalledOnce())
+    expect((screen.getByLabelText('3MF units') as HTMLSelectElement).disabled).toBe(true)
+    expect(screen.getAllByRole('radio').every((radio) => (radio as HTMLInputElement).disabled)).toBe(true)
+    await userEvent.tab()
+    expect(document.activeElement).toBe(screen.getByRole('dialog'))
+    await act(async () => rejectExport(new Error('Disk full')))
+    expect((await screen.findByRole('alert')).textContent).toContain('Disk full')
+    expect((screen.getByLabelText('3MF units') as HTMLSelectElement).value).toBe('inch')
+    expect((screen.getByRole('radio', { name: '3MF' }) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByRole('button', { name: 'Export' }) as HTMLButtonElement).disabled).toBe(false)
+    screen.getByLabelText('3MF units').focus()
+    await userEvent.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }))
   })
 
   it('scopes export to a split part when exportTargetId is set', async () => {
@@ -109,6 +133,7 @@ describe('ExportDialog', () => {
     expect(screen.getByText(/widget — part 1/)).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: /^export$/i }))
     expect(getSplitPart).toHaveBeenCalledWith('p1')
+    await waitFor(() => expect(useViewerStore.getState().exportOpen).toBe(false))
   })
 
   it('clears exportTargetId on close', async () => {

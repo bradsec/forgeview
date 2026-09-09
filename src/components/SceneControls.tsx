@@ -82,8 +82,7 @@ export function SceneControls({ viewerRef }: SceneControlsProps) {
       </div>
       <nav
         aria-label="Camera navigation"
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 rounded p-1.5 shadow-[0_4px_18px_var(--shadow-color)]"
-        style={{ backgroundColor: 'color-mix(in srgb, var(--bg-panel) 88%, transparent)' }}
+        className="camera-controls absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 rounded p-1.5 shadow-[0_4px_18px_var(--shadow-color)]"
       >
         <label className="sr-only" htmlFor="standard-view">Standard view</label>
         <select

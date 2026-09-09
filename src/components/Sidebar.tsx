@@ -1,3 +1,4 @@
+import '../styles/prepare-panel.css'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useViewerStore } from '../store/viewerStore'
 import { ModelList } from './ModelList'
@@ -6,9 +7,9 @@ import { UnitPrompt } from './prepare/UnitPrompt'
 import { DimensionsReadout } from './prepare/DimensionsReadout'
 import type { Viewer3DHandle } from './Viewer3D'
 
-const MIN_WIDTH = 140
-const MAX_WIDTH = 500
-const DEFAULT_WIDTH = 256
+const MIN_WIDTH = 320
+const MAX_WIDTH = 440
+const DEFAULT_WIDTH = 352
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -35,6 +36,9 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
   const sidebarVisible = useViewerStore((s) => (mobile ? true : s.sidebarVisible))
   const rightPanelTab = useViewerStore((s) => s.rightPanelTab)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
+  const maxWidth = viewportWidth < 1280 ? MIN_WIDTH : MAX_WIDTH
+  const panelWidth = Math.min(width, maxWidth)
   const isDragging = useRef(false)
   const dragCleanupRef = useRef<(() => void) | null>(null)
 
@@ -44,12 +48,12 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
     e.preventDefault()
     isDragging.current = true
     const startX = e.clientX
-    const startWidth = width
+    const startWidth = panelWidth
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!isDragging.current) return
       // Dragging left edge: moving left increases width
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth - (ev.clientX - startX)))
+      const newWidth = Math.min(maxWidth, Math.max(MIN_WIDTH, startWidth - (ev.clientX - startX)))
       setWidth(newWidth)
     }
 
@@ -65,14 +69,13 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
     document.addEventListener('mouseup', onMouseUp)
     dragCleanupRef.current?.()
     dragCleanupRef.current = cleanup
-  }, [width])
+  }, [panelWidth, maxWidth])
 
   // Clamp width when window resizes so panel doesn't overflow
   useEffect(() => {
     if (mobile) return
     const onResize = () => {
-      const maxAllowed = Math.floor(window.innerWidth * 0.4)
-      setWidth((w) => Math.min(w, Math.max(MIN_WIDTH, maxAllowed)))
+      setViewportWidth(window.innerWidth)
     }
     window.addEventListener('resize', onResize)
     onResize()
@@ -106,10 +109,10 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
     <aside
       className={
         mobile
-          ? 'relative bg-[var(--bg-panel)] flex flex-col h-full w-full overflow-y-auto overflow-x-hidden'
-          : 'relative bg-[var(--bg-panel)] border-l border-[var(--border)] hidden md:flex flex-col shrink-0 overflow-y-auto overflow-x-hidden'
+          ? 'inspector relative bg-[var(--bg-panel)] flex flex-col h-full w-full overflow-hidden'
+          : 'inspector relative bg-[var(--bg-panel)] border-l border-[var(--border)] hidden md:flex flex-col shrink-0 overflow-hidden'
       }
-      style={mobile ? undefined : { width }}
+      style={mobile ? undefined : { width: panelWidth }}
     >
       {!mobile && (
         <div
@@ -117,7 +120,7 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
           onKeyDown={(event) => {
             if (event.key === 'ArrowLeft') {
               event.preventDefault()
-              setWidth((value) => Math.min(MAX_WIDTH, value + 10))
+              setWidth((value) => Math.min(maxWidth, value + 10))
             }
             if (event.key === 'ArrowRight') {
               event.preventDefault()
@@ -128,8 +131,8 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
           aria-label="Resize Details"
           aria-orientation="vertical"
           aria-valuemin={MIN_WIDTH}
-          aria-valuemax={MAX_WIDTH}
-          aria-valuenow={width}
+          aria-valuemax={maxWidth}
+          aria-valuenow={panelWidth}
           tabIndex={0}
           className="absolute top-0 -left-1 w-3 h-full cursor-col-resize z-10 group"
         >
@@ -137,7 +140,7 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
         </div>
       )}
 
-      <div className="flex items-center border-b border-[var(--border)] px-2 pt-2">
+      <div className="inspector-tabs flex items-center border-b border-[var(--border)] px-2">
         <div
           role="tablist"
           aria-label="Right panel"
@@ -180,12 +183,12 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
           id={`${uid}-tabpanel-details`}
           aria-labelledby={`${uid}-tab-details`}
           tabIndex={0}
-          className="flex flex-col flex-1 min-h-0"
+          className="flex flex-col flex-1 min-h-0 overflow-y-auto"
         >
           {/* Scene Models section */}
           <div className="flex flex-col">
             <div className="px-4 pt-4 pb-2">
-              <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-[var(--text-label)]">
                 Scene Models
               </h2>
             </div>
@@ -195,8 +198,8 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
           {/* Separator between scene models and file info */}
           <div className="border-t border-[var(--border)]" />
 
-          <div className="p-4 flex flex-col flex-1 overflow-y-auto">
-            <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">File Info</h2>
+          <div className="p-4 flex flex-col">
+            <h2 className="text-sm font-semibold text-[var(--text-label)]">File Info</h2>
 
             {isLoading && (
               <p className="text-sm text-[var(--text-label)] mt-3">Loading...</p>
@@ -214,8 +217,8 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
               <dl className="mt-3 flex flex-col gap-3">
                 {/* Name */}
                 <div>
-                  <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Name</dt>
-                  <dd className="text-sm text-[var(--text-primary)] truncate" title={fileName}>
+                  <dt className="text-xs text-[var(--text-muted)] mb-0.5">Name</dt>
+                  <dd className="text-sm text-[var(--text-primary)] break-words" title={fileName}>
                     {fileName}
                   </dd>
                 </div>
@@ -223,7 +226,7 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
                 {/* Format */}
                 {fileExtension && (
                   <div>
-                    <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Format</dt>
+                    <dt className="text-xs text-[var(--text-muted)] mb-0.5">Format</dt>
                     <dd>
                       <span className="inline-block px-2 py-0.5 bg-[var(--bg-button)] text-[var(--text-primary)] text-xs rounded font-mono">
                         {fileExtension.toUpperCase().replace('.', '')}
@@ -235,14 +238,14 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
                 {/* Size */}
                 {fileSize !== null && (
                   <div>
-                    <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Size</dt>
+                    <dt className="text-xs text-[var(--text-muted)] mb-0.5">Size</dt>
                     <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">{formatBytes(fileSize)}</dd>
                   </div>
                 )}
 
                 {/* Triangle count */}
                 <div>
-                  <dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Triangles</dt>
+                  <dt className="text-xs text-[var(--text-muted)] mb-0.5">Triangles</dt>
                   <dd className="text-sm text-[var(--text-primary)] font-mono tabular-nums">
                     {triangleCount !== null ? triangleCount.toLocaleString() : 'N/A'}
                   </dd>
@@ -251,12 +254,12 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
             )}
             {geometryDetails && (
               <>
-                <h2 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide mt-6">Geometry</h2>
+                <h2 className="text-sm font-semibold text-[var(--text-label)] mt-6">Geometry</h2>
                 <dl className="mt-3 grid grid-cols-2 gap-3">
-                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Vertices</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.vertices.toLocaleString()}</dd></div>
-                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Meshes</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.meshes.toLocaleString()}</dd></div>
-                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Boundary edges</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.boundaryEdges.toLocaleString()}</dd></div>
-                  <div><dt className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Non-manifold</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.nonManifoldEdges.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)]">Vertices</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.vertices.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)]">Meshes</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.meshes.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)]">Boundary edges</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.boundaryEdges.toLocaleString()}</dd></div>
+                  <div><dt className="text-xs text-[var(--text-muted)]">Non-manifold</dt><dd className="text-sm font-mono tabular-nums">{geometryDetails.nonManifoldEdges.toLocaleString()}</dd></div>
                 </dl>
               </>
             )}
@@ -270,7 +273,7 @@ export function Sidebar({ mobile = false, onUndoEdit, viewerRef }: {
           id={`${uid}-tabpanel-prepare`}
           aria-labelledby={`${uid}-tab-prepare`}
           tabIndex={0}
-          className="p-4 flex-1 overflow-y-auto"
+          className="inspector-prepare flex-1 min-h-0 overflow-y-auto"
         >
           <PreparePanel onUndoEdit={onUndoEdit} viewerRef={viewerRef} />
         </div>
