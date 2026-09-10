@@ -9,6 +9,17 @@
 .prepare-tool-body { padding-top: 12px; }
 .prepare-tool-body > :is(div, section) > h3:first-child { display: none; }
 .prepare-tool-body[hidden] { display: none; }
+.prepare-form-sections { display: grid; gap: 24px; margin-top: 12px; }
+.prepare-form-group { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.prepare-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 13px; line-height: 18px; color: var(--text-muted); }
+.prepare-field :is(input, select) { width: 100%; min-width: 0; color: var(--text-primary); }
+.scale-target-fields { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 12px; align-items: end; }
+.scale-volume-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px; align-items: end; }
+.prepare-transform-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.prepare-transform-form > .prepare-form-group:not(:first-child) { margin-top: 12px; }
+.transform-axis-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px; align-items: end; }
+.transform-axis-fields > span { align-self: end; padding-bottom: 9px; }
+.prepare-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .prepare-panel .uppercase { text-transform: none; letter-spacing: normal; }
 .prepare-panel .text-xs { font-size: 13px; line-height: 18px; }
 .prepare-panel button, .prepare-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .prepare-panel select { min-height: 36px; }
@@ -19,4 +30,4 @@
 .readiness-status { justify-content: flex-end; align-self: start; }
 .readiness-card .text-xs { font-size: 13px; line-height: 18px; }
 .readiness-card ul { gap: 0; }
-@media (pointer: coarse) { .prepare-panel button, .prepare-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .prepare-panel select { min-height: 44px; } }
+@media (pointer: coarse) { .scale-volume-fields > button { min-width: 44px; } .prepare-panel button, .prepare-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .prepare-panel select { min-height: 44px; } }

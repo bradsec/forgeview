@@ -117,20 +117,21 @@ export function TransformSection({
     setValues: (v: AxisStrings) => void,
     unitLabel: string,
   ) => (
-    <div className="flex flex-col gap-1">
+    <div className="prepare-form-group">
       <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">{label}</span>
-      <div className="flex gap-2">
+      <div className="transform-axis-fields">
         {AXES.map((axis) => (
-          <input
-            key={axis}
-            aria-label={`${label} ${axis}`}
-            inputMode="decimal"
-            placeholder={axis}
-            value={values[axis]}
-            disabled={locked}
-            onChange={(e) => setValues({ ...values, [axis]: e.target.value })}
-            className="w-16 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
-          />
+          <label key={axis} className="prepare-field">
+            <span>{axis.toUpperCase()}</span>
+            <input
+              aria-label={`${label} ${axis}`}
+              inputMode="decimal"
+              value={values[axis]}
+              disabled={locked}
+              onChange={(e) => setValues({ ...values, [axis]: e.target.value })}
+              className="w-16 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
+            />
+          </label>
         ))}
         <span className="self-center text-xs text-[var(--text-muted)]">{unitLabel}</span>
       </div>
@@ -151,7 +152,7 @@ export function TransformSection({
               : 'Open a model to transform.'}
         </p>
       )}
-      <div className="mt-3 flex flex-col gap-3">
+      <div className="prepare-transform-form">
         {axisInputs('Move', move, setMove, unit)}
         <button
           type="button"
@@ -185,9 +186,9 @@ export function TransformSection({
           Apply scale
         </button>
 
-        <div className="flex flex-col gap-1">
+        <div className="prepare-form-group">
           <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Mirror</span>
-          <div className="flex gap-2">
+          <div className="prepare-actions">
             {AXES.map((axis) => (
               <button
                 key={axis}
@@ -202,7 +203,7 @@ export function TransformSection({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="prepare-actions">
           <button
             type="button"
             disabled={locked}

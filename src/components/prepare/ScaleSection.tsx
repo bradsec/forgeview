@@ -78,31 +78,36 @@ export function ScaleSection({
               : 'Open a model to scale.'}
         </p>
       )}
-      <div className="mt-3 flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
+      <div className="prepare-form-sections">
+        <div className="prepare-form-group">
           <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">Scale to target</span>
-          <div className="flex gap-2">
-            <select
-              aria-label="Target axis"
-              value={axis}
-              disabled={locked}
-              onChange={(e) => setAxis(e.target.value as Axis)}
-              className="bg-[var(--bg-button)] rounded px-2 py-1 text-sm"
-            >
-              <option value="width">Width</option>
-              <option value="height">Height</option>
-              <option value="depth">Depth</option>
-              <option value="longest">Longest edge</option>
-            </select>
-            <input
-              aria-label={`Target length (${unit})`}
-              inputMode="decimal"
-              value={target}
-              disabled={locked}
-              onChange={(e) => setTarget(e.target.value)}
-              className="w-24 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
-            />
-            <span className="self-center text-xs text-[var(--text-muted)]">{unit}</span>
+          <div className="scale-target-fields">
+            <label className="prepare-field">
+              <span>Target axis</span>
+              <select
+                aria-label="Target axis"
+                value={axis}
+                disabled={locked}
+                onChange={(e) => setAxis(e.target.value as Axis)}
+                className="bg-[var(--bg-button)] rounded px-2 py-1 text-sm"
+              >
+                <option value="width">Width</option>
+                <option value="height">Height</option>
+                <option value="depth">Depth</option>
+                <option value="longest">Longest edge</option>
+              </select>
+            </label>
+            <label className="prepare-field">
+              <span>Target length ({unit})</span>
+              <input
+                aria-label={`Target length (${unit})`}
+                inputMode="decimal"
+                value={target}
+                disabled={locked}
+                onChange={(e) => setTarget(e.target.value)}
+                className="w-24 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
+              />
+            </label>
           </div>
           {!locked && target !== '' && !targetOk && (
             <p className="text-xs text-[var(--error)]">Enter a length that scales within range.</p>
@@ -117,21 +122,23 @@ export function ScaleSection({
           </button>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="prepare-form-group">
           <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
             Scale to build volume (mm)
           </span>
-          <div className="flex gap-2 items-center">
+          <div className="scale-volume-fields">
             {(['x', 'y', 'z'] as const).map((k) => (
-              <input
-                key={k}
-                aria-label={`Build volume ${k}`}
-                inputMode="decimal"
-                value={volStr[k]}
-                disabled={locked}
-                onChange={(e) => setVol(k, e.target.value)}
-                className="w-16 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
-              />
+              <label key={k} className="prepare-field">
+                <span>{k.toUpperCase()}</span>
+                <input
+                  aria-label={`Build volume ${k}`}
+                  inputMode="decimal"
+                  value={volStr[k]}
+                  disabled={locked}
+                  onChange={(e) => setVol(k, e.target.value)}
+                  className="w-16 bg-[var(--bg-button)] rounded px-2 py-1 text-sm font-mono"
+                />
+              </label>
             ))}
             <button
               type="button"
@@ -150,7 +157,7 @@ export function ScaleSection({
             aria-pressed={showBuildVolume}
             onClick={() => useViewerStore.getState().setShowBuildVolume(!showBuildVolume)}
             className={
-              'mt-1 px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
+              'px-3 py-1.5 rounded text-sm self-start disabled:opacity-50 ' +
               (showBuildVolume ? 'bg-[var(--accent-button)] text-white' : 'bg-[var(--bg-button)]')
             }
           >

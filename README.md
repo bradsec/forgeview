@@ -10,8 +10,10 @@ STL (ASCII and binary), 3MF, OBJ, GLTF, GLB, PLY, DAE.
 ## Features
 
 The interface uses copper accents, readable light and dark themes, and a wider
-resizable inspector. Prepare keeps checks and Repair visible, with the remaining
-tools under expandable section headings in their existing order.
+resizable inspector. Scale and Transform use labeled axis fields, spaced action
+rows, and input grids that fit narrow panels. Prepare keeps checks and Repair
+visible, with the remaining tools under expandable section headings in their
+existing order.
 
 - Native file open dialog and drag-and-drop loading (drops work any time, including over an open model)
 - Paged directory explorer and preview grid with multi-model "add to scene" assembly view

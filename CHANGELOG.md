@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.9.2 - 2026-09-10
+
+- Separate Scale settings and actions with consistent spacing and aligned inputs.
+- Add persistent target and X/Y/Z labels to Scale and Transform fields.
+- Wrap Transform actions and fit input grids within narrow inspector panels.
+
 ## 1.9.1 - 2026-09-10
 
 - Replace the small-mesh decimator with a scalable WebAssembly simplifier and
