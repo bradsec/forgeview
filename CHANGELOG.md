@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.9.5 - 2026-11-08
+
+- Update three.js and its type definitions to r187.
+
 ## 1.9.4 - 2026-11-08
 
 - Update React 19.3, Tauri 2.12 and plugins, manifold-3d, meshoptimizer,
