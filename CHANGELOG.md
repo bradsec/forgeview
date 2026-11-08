@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.9.4 - 2026-11-08
+
+- Update React 19.3, Tauri 2.12 and plugins, manifold-3d, meshoptimizer,
+  three-mesh-bvh, zustand, Vite 8.3, Vitest 4.1.12 and other tooling.
+- Resolve dependency audit advisories; one low esbuild advisory via Vite remains.
+
 ## 1.9.3 - 2026-11-08
 
 - Show sampling spacing in mm for uniform voxel remesh and Hollow, and warn
