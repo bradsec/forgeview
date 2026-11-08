@@ -80,6 +80,14 @@ describe('PreparePanel', () => {
     expect(screen.getByRole('heading', { name: 'Scale' })).toBeTruthy()
   })
 
+  it('passes assigned model bounds to the remesh control', async () => {
+    useViewerStore.setState({ geometryDetails: { ...details, width: 80, height: 40, depth: 20, modelUnitInMm: 10 } })
+    render(<PreparePanel viewerRef={{ current: null }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Decimate / remesh' }))
+    await userEvent.selectOptions(screen.getByLabelText('Operation'), 'remesh')
+    expect(within(screen.getByRole('button', { name: 'Decimate / remesh' }).closest('section')!).getByText(/Sampling spacing: 25 mm/)).toBeTruthy()
+  })
+
   it('renders the Transform section', () => {
     useViewerStore.setState({
       geometryDetails: {

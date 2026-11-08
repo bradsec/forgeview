@@ -3,6 +3,7 @@ import { decimateGeometry } from './decimate'
 import { remeshInputError } from './remeshLimits'
 import { MeshBVH } from 'three-mesh-bvh'
 import { analyzeGeometry } from './meshHealth'
+import { sampleSpacing } from './sampleSpacing'
 
 export type RemeshOptions =
   | { operation: 'decimate'; targetTriangles: number }
@@ -53,7 +54,7 @@ function voxelRemesh(source: THREE.BufferGeometry, resolution: number): THREE.Bu
   source.computeBoundingBox()
   const box = source.boundingBox!
   const size = box.getSize(new THREE.Vector3())
-  const step = Math.max(size.x, size.y, size.z) / resolution
+  const step = sampleSpacing([size.x, size.y, size.z], resolution)
   if (!(step > 0)) throw new Error('Mesh has no volume')
   const dims = [size.x, size.y, size.z].map((v) => Math.max(1, Math.ceil(v / step)))
   const [nx, ny, nz] = dims

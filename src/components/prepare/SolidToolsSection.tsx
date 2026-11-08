@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useViewerStore } from '../../store/viewerStore'
 import type { Viewer3DHandle } from '../Viewer3D'
 import type { BooleanOperation } from '../../services/booleanMesh'
+import { sampleSpacing } from '../../services/sampleSpacing'
 
 export function SolidToolsSection({ viewerRef }: { viewerRef: React.RefObject<Viewer3DHandle | null> }) {
   const details = useViewerStore(s => s.geometryDetails)
@@ -24,6 +25,9 @@ export function SolidToolsSection({ viewerRef }: { viewerRef: React.RefObject<Vi
   const disabled = busy || !details || pending > 0 || parts.length > 0
   const validHollow = Number.isFinite(thickness) && thickness > 0 && Number.isFinite(radius) && radius >= 0 &&
     Number.isInteger(resolution) && resolution >= 16 && resolution <= 64 && offset.every(Number.isFinite)
+  const spacing = details?.modelUnitInMm && Number.isFinite(details.modelUnitInMm) && details.modelUnitInMm > 0 &&
+    [details.width, details.height, details.depth].every(Number.isFinite) && Number.isInteger(resolution) && resolution >= 16 && resolution <= 64
+    ? sampleSpacing([details.width, details.height, details.depth], resolution) * details.modelUnitInMm : null
   const run = async (label: string, action: (viewer: Viewer3DHandle, signal: AbortSignal) => Promise<void>) => {
     if (!viewerRef.current || busy) return
     const active = new AbortController()
@@ -68,6 +72,8 @@ export function SolidToolsSection({ viewerRef }: { viewerRef: React.RefObject<Vi
       <p className="mt-1 text-[var(--text-muted)]">One mesh. Inner surface is approximate; walls must be at least one grid cell thick. The optional straight drain passes through the model on the chosen axis.</p>
       <label className="mt-2 block">Wall thickness (mm)<input className={input} type="number" min={0.01} step={0.1} value={thickness} onChange={e => setThickness(Number(e.target.value))} /></label>
       <label className="mt-2 block">Hollow resolution<input className={input} type="number" min={16} max={64} value={resolution} onChange={e => setResolution(Number(e.target.value))} /></label>
+      {spacing != null && spacing > 0 && <p className="mt-1 text-[var(--text-muted)]">Sampling spacing: {spacing.toLocaleString(undefined, { maximumSignificantDigits: 4 })} mm. Details smaller than one cell may disappear.</p>}
+      {spacing != null && spacing > 0 && Number.isFinite(thickness) && thickness < spacing && <p role="alert" className="mt-1">Wall thickness is below the sampling spacing. Increase resolution or wall thickness.</p>}
       <label className="mt-2 block">Drain radius (mm)<input className={input} type="number" min={0} step={0.1} value={radius} onChange={e => setRadius(Number(e.target.value))} /></label>
       <p className="mt-1 text-[var(--text-muted)]">Radius 0 leaves the cavity sealed.</p>
       {radius > 0 && <>

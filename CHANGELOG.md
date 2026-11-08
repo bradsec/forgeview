@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.9.3 - 2026-11-08
+
+- Show sampling spacing in mm for uniform voxel remesh and Hollow, and warn
+  when Hollow wall thickness is below one sampling cell.
+
 ## 1.9.2 - 2026-09-10
 
 - Separate Scale settings and actions with consistent spacing and aligned inputs.

@@ -132,8 +132,12 @@ both inputs unchanged.
 
 Hollow requires one closed mesh. Set wall thickness in mm and resolution
 (16 to 64 samples along the longest dimension). The inner surface is sampled;
-wall thickness must be at least one grid cell. An optional cylindrical drain
-passes through the model on a scene axis at a center entered in scene mm.
+wall thickness must be at least one grid cell.
+The Prepare panel shows sampling spacing in mm when model bounds and assigned
+units are known. Details smaller than one cell may disappear. It warns when
+wall thickness is below that spacing; the figure does not guarantee wall thickness.
+An optional cylindrical drain passes through the model on a scene axis at a
+center entered in scene mm.
 Radius 0 leaves a sealed cavity. Drains that miss the cavity are rejected.
 
 Solid operations require static, untextured meshes with one material. Repair
@@ -142,7 +146,8 @@ edge-collapse decimation and uniform voxel remesh accept up to 5,000,000 input
 triangles. Decimation targets an approximate count, subject to topology constraints;
 uniform voxel remesh requires a closed manifold surface and a grid resolution
 from 8 to 64. Run Repair first if the surface is open. Voxel output is stepped
-and subcell details can vanish.
+and subcell details can vanish. The Prepare panel shows spacing in mm when
+model bounds and assigned units are known.
 Neither mode guarantees topology preservation. Inspect results before export.
 All operations are undoable. Cancellation and failures preserve input geometry.
 Inspection overlays refresh after edits.

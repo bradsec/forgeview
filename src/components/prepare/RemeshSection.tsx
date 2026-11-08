@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { MAX_REMESH_TRIANGLES, remeshInputError } from '../../services/remeshLimits'
 import type { RemeshOptions } from '../../services/remesh'
+import { sampleSpacing } from '../../services/sampleSpacing'
 
 export interface RemeshSectionProps {
   triangleCount?: number | null
+  dimensions?: readonly [number, number, number]
+  modelUnitInMm?: number | null
   onRemesh?: (options: RemeshOptions, signal?: AbortSignal) => Promise<{ beforeTriangles: number; afterTriangles: number }>
 }
 
-export function RemeshSection({ onRemesh, triangleCount }: RemeshSectionProps) {
+export function RemeshSection({ onRemesh, triangleCount, dimensions, modelUnitInMm }: RemeshSectionProps) {
   const [operation, setOperation] = useState<'decimate' | 'remesh'>('decimate')
   const [target, setTarget] = useState(1000)
   const [resolution, setResolution] = useState(32)
@@ -34,6 +37,8 @@ export function RemeshSection({ onRemesh, triangleCount }: RemeshSectionProps) {
     }
   }
   const valid = operation === 'decimate' ? Number.isInteger(effectiveTarget) && effectiveTarget >= 4 : Number.isInteger(resolution) && resolution >= 8 && resolution <= 64
+  const spacing = dimensions && modelUnitInMm && Number.isFinite(modelUnitInMm) && modelUnitInMm > 0 && dimensions.every(Number.isFinite) && Number.isInteger(resolution) && resolution >= 8 && resolution <= 64
+    ? sampleSpacing(dimensions, resolution) * modelUnitInMm : null
   return <div>
     <h3 className="text-sm font-semibold text-[var(--text-label)] uppercase tracking-wide">Decimate / remesh</h3>
     <label className="mt-2 block text-xs">Operation
@@ -50,6 +55,7 @@ export function RemeshSection({ onRemesh, triangleCount }: RemeshSectionProps) {
       <label className="mt-2 block text-xs">Grid resolution
         <input className="ml-2 w-20 bg-[var(--bg-button)] rounded p-1" type="number" min={8} max={64} step={1} value={resolution} disabled={busy} onChange={(event) => setResolution(Number(event.target.value))} />
       </label>
+      {spacing != null && spacing > 0 && <p className="mt-2 text-xs">Sampling spacing: {spacing.toLocaleString(undefined, { maximumSignificantDigits: 4 })} mm.</p>}
       <p className="mt-2 text-xs text-[var(--text-muted)]">Rebuilds a closed surface on a uniform voxel grid. Produces stepped surfaces; details smaller than one cell may disappear.</p>
     </>}
     {triangleCount != null && <p className="mt-2 text-xs">Current mesh: {triangleCount.toLocaleString()} triangles. Supports up to {MAX_REMESH_TRIANGLES.toLocaleString()}.</p>}

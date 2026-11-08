@@ -5,6 +5,7 @@ import type { ManifoldToplevel } from 'manifold-3d'
 import { executeManifold, soupToSolid } from './manifoldEngine'
 import { meshToSoup, weldSoup } from './manifoldBridge'
 import type { PlaneCutResult, HollowOptions } from './manifoldTypes'
+import { sampleSpacing } from './sampleSpacing'
 
 let wasm: ManifoldToplevel
 let box: Float32Array
@@ -42,6 +43,10 @@ describe('real manifold WASM', () => {
     expect(() => weldSoup(new Float32Array(8))).toThrow('complete triangles')
   })
   const settings: HollowOptions = { wallThickness: 2, resolution: 24, drainRadius: 0, drainAxis: 'z', drainOffset: [0, 0, 0] }
+  it('rejects a wall below the displayed sampling spacing', () => {
+    const spacing = sampleSpacing([10, 10, 10], settings.resolution)
+    expect(() => executeManifold(wasm, { operation: 'hollow', positions: box, options: { ...settings, wallThickness: spacing - 0.01 } })).toThrow('below the sampling spacing')
+  })
   it('hollows to a closed shell and drains through its cavity', () => {
     const shell = executeManifold(wasm, { operation: 'hollow', positions: box, options: settings }) as Float32Array
     expect(volume(shell)).toBeGreaterThan(780)

@@ -3,6 +3,7 @@ import { MeshBVH } from 'three-mesh-bvh'
 import type { Manifold, ManifoldToplevel } from 'manifold-3d'
 import type { HollowOptions } from './manifoldTypes'
 import { meshToSoup } from './manifoldBridge'
+import { sampleSpacing } from './sampleSpacing'
 
 /** Sample a signed distance field, then remove the inward offset solid. */
 export function hollowSolid(wasm: ManifoldToplevel, outer: Manifold, options: HollowOptions): Manifold {
@@ -13,7 +14,7 @@ export function hollowSolid(wasm: ManifoldToplevel, outer: Manifold, options: Ho
   const bounds = outer.boundingBox()
   const extent = bounds.max.map((value, axis) => value - bounds.min[axis])
   const longest = Math.max(...extent)
-  const spacing = longest / resolution
+  const spacing = sampleSpacing(extent, resolution)
   if (wallThickness < spacing) throw new Error('Wall thickness is below the sampling spacing. Increase resolution or wall thickness.')
   const mesh = outer.getMesh()
   const geometry = new BufferGeometry()
